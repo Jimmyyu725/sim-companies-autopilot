@@ -37,6 +37,9 @@ const {
   validBuildingRows,
   validTickerRows,
 } = require(path.join(AUTOPILOT, 'state-feed-validation.js'));
+const {
+  synchronizeOwnerProspectorConstruction,
+} = require(path.join(AUTOPILOT, 'owner-directive.js'));
 
 const MISSION_KINDS = Object.freeze([1, 2, 13, 66, 118, 119]);
 const PRICE_FALLBACK_MAX_AGE_SECONDS = 10 * 60;
@@ -318,6 +321,11 @@ const PRINTED_RATE_FRESH_SECONDS = 6 * 3600;
   const temporaryStateFile = `${stateFile}.${process.pid}.tmp`;
   fs.writeFileSync(temporaryStateFile, `${JSON.stringify(state, null, 1)}\n`);
   fs.renameSync(temporaryStateFile, stateFile);
+  synchronizeOwnerProspectorConstruction(
+    path.join(AUTOPILOT, 'OWNER-DIRECTIVE.json'),
+    state,
+    Date.parse(capturedAt),
+  );
   console.log(JSON.stringify({ ok: true, money: state.money, level: state.level, buildings: blds.length }));
   cdp.close(); process.exit(0);   // open ws keeps node alive -> timeout kills us -> false FAILED
 })().catch(e => { console.error(JSON.stringify({ ok: false, err: e.message })); try { cdp.close(); } catch (x) {} process.exit(1); });

@@ -1048,6 +1048,7 @@ if (economicCommunicationRequired) {
     }
   } else if (action === 'rebuild') {
     const beforeBuildings = await captureBuildings(B(p.buildingId));
+    const buildingsCapturedAt = new Date().toISOString();
     if (!beforeBuildings) refuse('could not capture authoritative buildings before rebuild');
     const beforeMatches = beforeBuildings.filter(building => Number(building?.id) === Number(p.buildingId));
     if (beforeMatches.length !== 1) refuse('exact rebuild target is missing or duplicated');
@@ -1065,6 +1066,13 @@ if (economicCommunicationRequired) {
         path.join(AUTOPILOT, 'OWNER-DIRECTIVE.json'),
         p.buildingId,
         ownerProgressObservation,
+        Date.now(),
+        {
+          source: 'authoritative-buildings-capture',
+          capturedAt: buildingsCapturedAt,
+          buildings: beforeBuildings,
+          idleEvidence: idle.evidence,
+        },
       );
       if (!ownerAttempt.ok) refuse(ownerAttempt.reason, {
         ownerDirectiveEvidence: ownerAttempt.ownerDirectiveEvidence || null,

@@ -48,6 +48,9 @@ test('confirmed rebuild refreshes authenticated Prospector evidence before claim
   assert(oneUseClaim > freshEvidence);
   assert(pageAction > oneUseClaim);
   assert.match(source, /api\(\$\{JSON\.stringify\(PROSPECTOR_OVERVIEW_PATH\)\}\)/);
+  assert.match(branch, /source:\s*'authoritative-buildings-capture'/);
+  assert.match(branch, /buildings:\s*beforeBuildings/);
+  assert.match(branch, /idleEvidence:\s*idle\.evidence/);
 });
 
 test('both brain engines prioritize the exact owner Prospector rebuild over another bridge', () => {

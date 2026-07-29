@@ -1,5 +1,9 @@
 'use strict';
 
+const {
+  findOwnerProspectorRecoveryCandidate,
+} = require('./owner-directive.js');
+
 const MUTATING_ACTIONS = new Set([
   'collect',
   'produce',
@@ -383,6 +387,12 @@ function isOwnerAuthorizedProspectorRebuild(state, params = {}, directive, now =
   const buildingSource = state?.sources?.buildings;
   const buildingSourceAtMs = Date.parse(buildingSource?.asOf);
   const buildingId = Number(params?.buildingId);
+  const recoveryCandidate = findOwnerProspectorRecoveryCandidate(
+    state,
+    directive,
+    now,
+  );
+  if (Number(recoveryCandidate?.buildingId) === buildingId) return true;
   const experiment = directive?.prospectorExperiment;
   const baseline = experiment?.baselineProgress;
   const latest = experiment?.lastProgressEvidence;

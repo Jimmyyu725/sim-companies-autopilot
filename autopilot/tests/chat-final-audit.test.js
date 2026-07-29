@@ -39,13 +39,21 @@ test('release boundary defaults to shadow and rejects every confirmed chat mutat
   }
 });
 
-test('legacy public posting and direct contracts remain blocked in every runtime mode', () => {
+test('legacy send paths stay blocked while guarded full-mode posting and acceptance are exposed', () => {
   for (const mode of ['off', 'read-only', 'shadow', 'safe-reply', 'full']) {
-    for (const action of ['chat_post', 'contract_send', 'contract_accept']) {
+    for (const action of ['chat_post', 'contract_send']) {
       const result = authorizeChatAction(action, { confirm: true }, mode);
       assert.equal(result.ok, false, `${mode}:${action}`);
     }
   }
+  for (const mode of ['off', 'read-only', 'shadow', 'safe-reply']) {
+    assert.equal(authorizeChatAction('contract_accept', { confirm: true }, mode).ok, false,
+      `${mode}:contract_accept`);
+    assert.equal(authorizeChatAction('chat_room_post', { confirm: true }, mode).ok, false,
+      `${mode}:chat_room_post`);
+  }
+  assert.equal(authorizeChatAction('contract_accept', { confirm: true }, 'full').ok, true);
+  assert.equal(authorizeChatAction('chat_room_post', { confirm: true }, 'full').ok, true);
 });
 
 test('next wake accepts only the shared strict alarm representation', () => {

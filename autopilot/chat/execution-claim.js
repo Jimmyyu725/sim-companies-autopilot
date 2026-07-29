@@ -6,6 +6,7 @@ const CLAIMED_CHAT_ACTIONS = new Set([
   'chat_private_send',
   'chat_room_reply',
   'chat_room_post',
+  'contract_accept',
 ]);
 const TOKEN_PATTERN = /^[a-f0-9]{64}$/u;
 

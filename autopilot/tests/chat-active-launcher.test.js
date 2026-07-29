@@ -112,7 +112,7 @@ test('active act runner allowlists actions and injects claim token only for conf
   assert.equal(calls.length, 3);
 });
 
-test('launcher exposes proactive room posts only as exact previews, even in full mode', async () => {
+test('launcher exposes proactive room posts as previews and claimed sends in full mode', async () => {
   const calls = [];
   const runner = makeActActionRunner({
     execFileSync: (_file, args, options) => {
@@ -131,13 +131,15 @@ test('launcher exposes proactive room posts only as exact previews, even in full
     attemptId: 'proactive-preview-test-0001',
   };
   await runner('chat_room_post', { ...params, confirm: false }, { timeoutMs: 1000 });
-  await assert.rejects(() => runner(
+  await runner(
     'chat_room_post',
     { ...params, confirm: true },
     { timeoutMs: 1000, executionClaimToken: 'd'.repeat(64) },
-  ), /not exposed/u);
-  assert.equal(calls.length, 1);
+  );
+  assert.equal(calls.length, 2);
   assert.equal(calls[0].options.env.SIM_CHAT_EXECUTION_CLAIM_TOKEN, undefined);
+  assert.equal(calls[1].options.env.SIM_CHAT_EXECUTION_CLAIM_TOKEN, 'd'.repeat(64));
+  assert.equal(JSON.parse(calls[1].args[2]).confirm, true);
 });
 
 test('discovery creates canonical bounded room and private read requests', async () => {

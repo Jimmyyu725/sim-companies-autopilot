@@ -16,12 +16,26 @@ const {
 const {
   authorizeChatAction,
 } = require('../chat/runtime-mode.js');
+const {
+  executionBindingHash,
+} = require('../chat/execution-claim.js');
 
 const manage = Object.freeze({
   targetCompany: 'Pavanium Inc Corp',
   targetCompanyId: 7812345,
   contactAction: 'pin',
   attemptId: 'contact-pin-001',
+  confirm: false,
+});
+const contractAccept = Object.freeze({
+  contractId: '9001',
+  termsHash: 'a'.repeat(64),
+  evidenceFingerprint: 'b'.repeat(64),
+  previewId: 'c'.repeat(64),
+  economicPreviewId: 'd'.repeat(64),
+  attemptId: 'contract-accept-test-0001',
+  preview: Object.freeze({ schemaVersion: 2 }),
+  authorization: Object.freeze({ schemaVersion: 1 }),
   confirm: false,
 });
 
@@ -47,7 +61,7 @@ test('central contact, message, subscription, and contract actions have strict s
   assert.equal(validateActionParams('chat_contract_list', { limit: 50 }).ok, true);
   assert.equal(validateActionParams('chat_contract_preview', {
     contractId: '9001',
-    ownCompany: 'BeanBrew',
+    ownCompanyId: '5714348',
     terms: {
       counterpartyCompanyId: '7812345',
       ourSide: 'buy',
@@ -59,20 +73,15 @@ test('central contact, message, subscription, and contract actions have strict s
     termsHash: 'a'.repeat(64),
     confirm: false,
   }).ok, true);
+  assert.equal(validateActionParams('contract_accept', contractAccept).ok, true);
   assert.equal(validateActionParams('contract_accept', {
-    contractId: '9001',
-    termsHash: 'a'.repeat(64),
-    evidenceFingerprint: 'b'.repeat(64),
-    previewId: 'c'.repeat(64),
-    confirm: false,
-  }).ok, true);
-  assert.equal(validateActionParams('contract_accept', {
+    ...contractAccept,
     contractId: 'guessed-row',
-    termsHash: 'a'.repeat(64),
-    evidenceFingerprint: 'b'.repeat(64),
-    previewId: 'c'.repeat(64),
-    confirm: false,
   }).ok, false);
+  assert.match(executionBindingHash('contract_accept', {
+    ...contractAccept,
+    confirm: true,
+  }), /^[0-9a-f]{64}$/u);
 });
 
 test('new mutation confirmations remain disabled by the default shadow mode', () => {
@@ -188,7 +197,7 @@ test('act centrally dispatches every completed UI helper and removes the legacy 
   assert.doesNotMatch(acceptBranch, /\/api\//u);
 });
 
-test('shadow confirmations and contract acceptance refuse before browser access', () => {
+test('shadow confirmations and unclaimed contract acceptance refuse before browser access', () => {
   const act = path.join(__dirname, '..', 'act.js');
   const run = (action, params, environment = {}) => {
     const child = spawnSync(process.execPath, [act, action, JSON.stringify(params)], {
@@ -208,15 +217,13 @@ test('shadow confirmations and contract acceptance refuse before browser access'
   assert.match(shadow.reason, /disabled in chat mode shadow/u);
 
   const acceptance = run('contract_accept', {
-    contractId: '9001',
-    termsHash: 'a'.repeat(64),
-    evidenceFingerprint: 'b'.repeat(64),
-    previewId: 'c'.repeat(64),
-    confirm: false,
+    ...contractAccept,
+    confirm: true,
   }, { SIM_CHAT_MODE: 'full' });
   assert.equal(acceptance.ok, false);
   assert.equal(acceptance.doNotClick, true);
   assert.equal(acceptance.clickCount, 0);
   assert.equal(acceptance.mutationAuthorized, false);
-  assert.equal(acceptance.contractIdStatus, 'CALLER_SUPPLIED_NOT_RENDERED_UI_VERIFIED');
+  assert.equal(acceptance.doNotRetry, true);
+  assert.match(acceptance.reason, /worker execution claim/u);
 });

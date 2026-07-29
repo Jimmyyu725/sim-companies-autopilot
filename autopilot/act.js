@@ -392,12 +392,16 @@ function consumeWorkerExecutionClaim() {
   } catch (_) {
     refuse('worker execution claim is missing, invalid, or unreadable; no chat click is authorized', {
       doNotRetry: true,
+      doNotClick: true,
+      clickCount: 0,
       mutationAuthorized: false,
     });
   }
   if (consumed?.ok !== true || consumed.durable !== true || consumed.state !== 'CONFIRMING') {
     refuse('worker execution claim was not atomically consumed; no chat click is authorized', {
       doNotRetry: true,
+      doNotClick: true,
+      clickCount: 0,
       mutationAuthorized: false,
     });
   }

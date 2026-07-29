@@ -34,7 +34,7 @@ test('chat rollout wrapper reads only the named key from an owner-private regula
 });
 
 test('chat rollout wrapper bounds execution and rotates private logs', () => {
-  assert.match(source, /OUTER_TIMEOUT_SECONDS=100/u);
+  assert.match(source, /OUTER_TIMEOUT_SECONDS=270/u);
   assert.match(source, /--kill-after="\$\{KILL_GRACE_SECONDS\}s"/u);
   assert.match(source, /LOG_LIMIT_BYTES=5242880/u);
   assert.match(source, /LOG_ARCHIVE_COUNT=5/u);

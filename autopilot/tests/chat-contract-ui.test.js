@@ -239,7 +239,7 @@ test('accept outcome requires one click plus one exact disappearance and acknowl
   assert.equal(violation.status, 'protocol-violation');
 });
 
-test('contract UI fragments compile and contain no direct API or React-internal path', () => {
+test('contract UI fragments compile, avoid direct APIs, and constrain React identity to exact rows', () => {
   for (const filename of actionFiles) {
     const source = fs.readFileSync(path.join(actionsDir, filename), 'utf8');
     assert.doesNotThrow(() => new Function(
@@ -249,21 +249,27 @@ test('contract UI fragments compile and contain no direct API or React-internal 
     assert.doesNotMatch(source,
       /fetch\s*\(|XMLHttpRequest|\/api\/|\bapi\s*\(|\.post\s*\(|\.patch\s*\(|\.delete\s*\(/u,
       filename);
-    assert.doesNotMatch(source, /__react(?:Fiber|Props|EventHandlers|InternalInstance)/u, filename);
+    assert.match(source, /__reactFiber\$/u, filename);
+    assert.match(source, /VERIFIED_REACT_RENDER_BINDING/u, filename);
+    assert.match(source, /aria-label/u, filename);
+    assert.doesNotMatch(source, /__react(?:Props|EventHandlers|InternalInstance)/u, filename);
   }
 });
 
-test('list and preview are zero-click, and accept has no mutation click path', () => {
-  for (const filename of actionFiles) {
+test('list and preview are zero-click, while accept uses the bounded verified UI path', () => {
+  for (const filename of ['chat-contract-list.js', 'chat-contract-preview.js']) {
     const source = fs.readFileSync(path.join(actionsDir, filename), 'utf8');
     assert.equal((source.match(/\.click\s*\(/gu) || []).length, 0, filename);
   }
   const accept = fs.readFileSync(path.join(actionsDir, 'chat-contract-accept.js'), 'utf8');
-  assert.match(accept, /maxClicks !== 1/u);
+  assert.equal((accept.match(/\.click\s*\(/gu) || []).length, 2);
+  assert.match(accept, /\[1, 2\]\.includes\(authorization\.maxClicks\)/u);
+  assert.match(accept, /expectedClicks = binding\.needsConfirmation \? 2 : 1/u);
   assert.match(accept, /retryAfterAmbiguous !== false/u);
   assert.match(accept, /evidenceFingerprint/u);
   assert.match(accept, /termsHash/u);
-  assert.match(accept, /DISABLED_UNTIL_EXACT_CONTRACT_ID_IS_RENDERED_AND_LIVE_PROBED/u);
+  assert.match(accept, /exactRowAbsent/u);
+  assert.match(accept, /doNotRetry: true/u);
 });
 
 test('existing warehouse sender remains the only contract-send path', () => {

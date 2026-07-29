@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 const {
+  COVERAGE_SCENARIOS,
   DEFAULT_SUITE_SCENARIOS,
   applyScenario,
 } = require('../lib/scenarios.js');
@@ -15,7 +16,11 @@ const {
 const { createSnapshot, sha256 } = require('../lib/snapshot.js');
 const { buildSuiteComparison } = require('../lib/suite-artifacts.js');
 const { ShadowToolRuntime } = require('../lib/tool-runtime.js');
-const { parseArguments } = require('../suite.js');
+const {
+  coverageMatrix,
+  parseArguments: parseCoverageArguments,
+} = require('../coverage.js');
+const { parseArguments: parseSuiteArguments } = require('../suite.js');
 
 const SIM_DIR = path.resolve(__dirname, '..', '..', '..');
 
@@ -276,19 +281,292 @@ test('suite aggregation independently sums scores, tokens, time, and exact cost'
 });
 
 test('suite CLI defaults to all five scenarios at High effort', () => {
-  const options = parseArguments([]);
+  const options = parseSuiteArguments([]);
   assert.deepEqual(options.scenarios, DEFAULT_SUITE_SCENARIOS);
   assert.equal(options.effort, 'high');
   assert.equal(options.maxRounds, 30);
   assert.equal(options.maxTokens, 32768);
 });
 
+test('coverage CLI defaults to ten families, three variants, and thirty High-effort wakes', () => {
+  const options = parseCoverageArguments([]);
+  const matrix = coverageMatrix(options);
+  assert.equal(options.runs, 30);
+  assert.equal(options.concurrency, 3);
+  assert.equal(options.effort, 'high');
+  assert.equal(matrix.length, 30);
+  assert.deepEqual(
+    matrix.filter(row => row.scenarioKey === 'chat-contract-risk').map(row => row.variant),
+    [1, 2, 3],
+  );
+});
+
+test('coverage matrix exposes ten scenario families with three controlled variants', () => {
+  const base = baseSnapshot();
+  const before = sha256(JSON.stringify(base));
+  const rows = [];
+  for (let variant = 1; variant <= 3; variant += 1) {
+    for (const scenario of COVERAGE_SCENARIOS) {
+      rows.push(applyScenario(base, scenario, { coverage: true, variant }));
+    }
+  }
+  assert.equal(rows.length, 30);
+  assert.equal(new Set(rows.map(row => row.scenario.id)).size, 30);
+  assert.ok(rows.every(row => row.baseSnapshotSha256 === before));
+  assert.equal(sha256(JSON.stringify(base)), before);
+  assert.deepEqual(
+    [...new Set(rows.map(row => row.scenario.coverageScenarioKey))],
+    COVERAGE_SCENARIOS,
+  );
+});
+
+test('collectible recovery collects exactly once and restarts the same Power plant', async () => {
+  const snapshot = applyScenario(baseSnapshot(), 'collectible-recovery', {
+    coverage: true,
+    variant: 2,
+  });
+  const runtime = new ShadowToolRuntime(snapshot);
+  const fixture = snapshot.fixtures.collect;
+  const before = runtime.stockItem(fixture.outputKind).availableAmount;
+  const collected = await runtime.execute('collect', {});
+  assert.equal(collected.ok, true);
+  assert.equal(collected.executed, false);
+  assert.equal(
+    runtime.stockItem(fixture.outputKind).availableAmount,
+    before + fixture.quantity,
+  );
+  await runtime.execute('refresh_state', {});
+  const operation = snapshot.fixtures.operations[0];
+  const produced = await runtime.execute('produce', {
+    buildingId: operation.buildingId,
+    name: operation.name,
+    qty: operation.ratePerHour * 12,
+    targetHours: 12,
+    finishBefore: null,
+  });
+  assert.equal(produced.ok, true);
+  assert.equal(produced.verified, true);
+  const duplicate = await runtime.execute('collect', {});
+  assert.equal(duplicate.ok, false);
+  assert.equal(duplicate.guard, true);
+});
+
+test('input shortage path buys within the hard cap before Coffee production', async () => {
+  const snapshot = applyScenario(baseSnapshot(), 'input-shortage', {
+    coverage: true,
+    variant: 1,
+  });
+  const runtime = new ShadowToolRuntime(snapshot);
+  const fixture = snapshot.fixtures.buy;
+  const purchase = await runtime.execute('buy', {
+    kind: fixture.kind,
+    maxSpend: fixture.maximumSpend,
+    ask: fixture.unitPrice,
+  });
+  assert.equal(purchase.ok, true);
+  assert.ok(purchase.quantity >= fixture.minimumQty);
+  assert.equal(runtime.stockItem(118).availableAmount, purchase.quantity);
+  await runtime.execute('refresh_state', {});
+  const operation = snapshot.fixtures.operations[0];
+  const produced = await runtime.execute('produce', {
+    buildingId: operation.buildingId,
+    name: operation.name,
+    qty: purchase.quantity / operation.inputPerOutput,
+    targetHours: 24,
+    finishBefore: null,
+  });
+  assert.equal(produced.ok, true);
+  assert.equal(runtime.stockItem(118).availableAmount, 0);
+});
+
+test('upgrade scenario requires exact preview and approving council before confirmation', async () => {
+  const snapshot = applyScenario(baseSnapshot(), 'mill-upgrade', {
+    coverage: true,
+    variant: 1,
+  });
+  const runtime = new ShadowToolRuntime(snapshot);
+  const fixture = snapshot.fixtures.structural.find(item => item.action === 'upgrade');
+  const args = {
+    buildingId: fixture.buildingId,
+    maxCost: fixture.cost,
+    minCashAfter: 5000,
+  };
+  const beforeCash = runtime.currentState.money;
+  const preview = await runtime.execute('upgrade', { ...args, confirm: false });
+  assert.equal(preview.ok, true);
+  assert.equal(preview.effectiveCost, fixture.cost);
+  const beforeCouncil = await runtime.execute('upgrade', { ...args, confirm: true });
+  assert.equal(beforeCouncil.ok, false);
+  const council = await runtime.execute('council', {
+    proposal: 'Upgrade the measured bottleneck Mill from L2 to L3.',
+    context: 'Exact cost, downtime, cash floor, and bottleneck evidence are frozen.',
+    buildingId: fixture.buildingId,
+    marketKinds: [118, 119],
+  });
+  assert.equal(council.decision, 'approve');
+  const confirmed = await runtime.execute('upgrade', { ...args, confirm: true });
+  assert.equal(confirmed.ok, true);
+  assert.equal(runtime.currentState.money, beforeCash - fixture.cost);
+});
+
+test('debt-constrained upgrade scenario rejects financing and permits useful bridge work', async () => {
+  const snapshot = applyScenario(baseSnapshot(), 'mill-upgrade', {
+    coverage: true,
+    variant: 2,
+  });
+  const runtime = new ShadowToolRuntime(snapshot);
+  const upgrade = snapshot.fixtures.structural.find(item => item.action === 'upgrade');
+  const bonds = snapshot.fixtures.structural.find(item => item.action === 'bonds');
+  await runtime.execute('upgrade', {
+    buildingId: upgrade.buildingId,
+    maxCost: upgrade.cost,
+    minCashAfter: 5000,
+    confirm: false,
+  });
+  await runtime.execute('bonds', {
+    amount: bonds.amount,
+    interest: bonds.interest,
+    confirm: false,
+  });
+  const council = await runtime.execute('council', {
+    proposal: 'Fund the Mill upgrade with another bond offer.',
+    context: 'Debt coverage remains unknown.',
+    buildingId: upgrade.buildingId,
+    marketKinds: [118, 119],
+  });
+  assert.equal(council.decision, 'reject');
+  const blocked = await runtime.execute('bonds', {
+    amount: bonds.amount,
+    interest: bonds.interest,
+    confirm: true,
+  });
+  assert.equal(blocked.ok, false);
+  const operation = snapshot.fixtures.operations[0];
+  const bridge = await runtime.execute('produce', {
+    buildingId: operation.buildingId,
+    name: operation.name,
+    qty: operation.maxQty,
+    targetHours: 2,
+    finishBefore: null,
+  });
+  assert.equal(bridge.ok, true);
+});
+
+test('slot expansion builds only with verified evidence and approving council', async () => {
+  const approvedSnapshot = applyScenario(baseSnapshot(), 'slot-expansion', {
+    coverage: true,
+    variant: 1,
+  });
+  const runtime = new ShadowToolRuntime(approvedSnapshot);
+  const fixture = approvedSnapshot.fixtures.structural[0];
+  const args = {
+    building: fixture.building,
+    maxCost: fixture.cost,
+    minCashAfter: 50000,
+  };
+  const evidence = await runtime.execute('auction_info', { kind: 110, limit: null });
+  assert.equal(evidence.status, 'verified');
+  await runtime.execute('build', { ...args, confirm: false });
+  const council = await runtime.execute('council', {
+    proposal: 'Build one Construction factory as a bounded Tools pilot.',
+    context: 'Verified margin, demand, capex, payback, and exit evidence.',
+    buildingId: null,
+    marketKinds: [110],
+  });
+  assert.equal(council.decision, 'approve');
+  const confirmed = await runtime.execute('build', { ...args, confirm: true });
+  assert.equal(confirmed.ok, true);
+  assert.equal(runtime.currentState.freeSlots, 0);
+
+  const uncertainSnapshot = applyScenario(baseSnapshot(), 'slot-expansion', {
+    coverage: true,
+    variant: 2,
+  });
+  const uncertainRuntime = new ShadowToolRuntime(uncertainSnapshot);
+  const uncertainEvidence = await uncertainRuntime.execute('auction_info', {
+    kind: 110,
+    limit: null,
+  });
+  assert.equal(uncertainEvidence.status, 'UNKNOWN');
+});
+
+test('chat and contract scenario allows source-bound previews but no real mutation', async () => {
+  const snapshot = applyScenario(baseSnapshot(), 'chat-contract-risk', {
+    coverage: true,
+    variant: 3,
+  });
+  const runtime = new ShadowToolRuntime(snapshot);
+  const room = await runtime.execute('chat_room_read', { room: 'Sales' });
+  assert.equal(room.ok, true);
+  const source = room.messages[0];
+  const preview = await runtime.execute('chat_room_reply', {
+    room: 'Sales',
+    company: source.company,
+    bodyContains: source.text,
+    conversationHref: null,
+    sourceCompanyId: source.companyId,
+    sourceMessageId: source.messageId,
+    sourceCreatedAt: source.createdAt,
+    parts: [{
+      type: 'text',
+      value: 'DM exact quantity, quality, and target price.',
+      kind: null,
+      name: null,
+    }],
+    reason: 'reply',
+    attemptId: 'shadow-chat-preview-3',
+    confirm: false,
+  });
+  assert.equal(preview.ok, true);
+  assert.equal(preview.sendAuthorized, false);
+  const blockedSend = await runtime.execute('chat_room_reply', {
+    ...preview.params,
+    confirm: true,
+  });
+  assert.equal(blockedSend.ok, false);
+  const list = await runtime.execute('chat_contract_list', { limit: 20 });
+  const contract = list.contracts[0];
+  const contractPreview = await runtime.execute('chat_contract_preview', {
+    contractId: contract.contractId,
+    ownCompanyId: contract.ownCompanyId,
+    terms: contract.terms,
+    termsHash: contract.termsHash,
+    confirm: false,
+  });
+  assert.equal(contractPreview.ok, true);
+  assert.equal(contractPreview.acceptanceAuthorized, false);
+  assert.equal(runtime.actions.filter(action => action.preview === false).length, 0);
+});
+
+test('negative exchange economics are inspectable but never fixture-authorized to sell', async () => {
+  const snapshot = applyScenario(baseSnapshot(), 'utility-surplus', {
+    coverage: true,
+    variant: 3,
+  });
+  const runtime = new ShadowToolRuntime(snapshot);
+  const inspection = await runtime.execute('inspect_exchange_sale', { kind: 1, qty: null });
+  assert.equal(inspection.ok, true);
+  assert.ok(inspection.uiQuote.profit < 0);
+  assert.equal(inspection.exactAction, null);
+  const blocked = await runtime.execute('exchange_sell', {
+    name: inspection.uiQuote.name,
+    qty: inspection.uiQuote.qty,
+    price: inspection.uiQuote.price,
+    confirm: true,
+  });
+  assert.equal(blocked.ok, false);
+  assert.equal(blocked.guard, true);
+});
+
 test('suite sources contain no browser, executor, or child-process imports', () => {
   const files = [
     path.join(__dirname, '..', 'build-suite-report.js'),
+    path.join(__dirname, '..', 'coverage.js'),
     path.join(__dirname, '..', 'rescore-suite.js'),
     path.join(__dirname, '..', 'suite.js'),
+    path.join(__dirname, '..', 'validate-coverage.js'),
     path.join(__dirname, '..', 'validate-suite.js'),
+    path.join(__dirname, '..', 'lib', 'coverage-artifacts.js'),
     path.join(__dirname, '..', 'lib', 'scenarios.js'),
     path.join(__dirname, '..', 'lib', 'suite-artifacts.js'),
     path.join(__dirname, '..', 'lib', 'tool-runtime.js'),

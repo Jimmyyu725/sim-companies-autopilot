@@ -85,3 +85,41 @@ opens Chrome or mutates the game.
 Provider/API failures are also saved without inventing token or cost values. An unavailable account,
 quota, balance, or model is reported as an infrastructure failure and must not be interpreted as a
 model-capability score.
+
+## Thirty-wake DeepSeek coverage
+
+The coverage run exercises ten scenario families with three controlled variants each:
+
+- all buildings busy;
+- collectible task recovery;
+- idle Mill production;
+- input shortage and bounded purchasing;
+- utility surplus with full, shallow, and unprofitable market depth;
+- Prospector rebuild;
+- Mill upgrade with both funded approval and debt-constrained rejection;
+- slot expansion with verified and unknown opportunity evidence;
+- public chat and incoming-contract preview safety;
+- multi-pressure owner-priority recovery.
+
+Run the exact 30-case matrix with one hidden DeepSeek credential entry:
+
+```bash
+experiments/deepseek-v4-pro-shadow/run-coverage-interactive.sh
+```
+
+The default run uses DeepSeek V4 Pro High, three concurrent workers, and one immutable base
+snapshot. It makes no OpenAI request, does not open Chrome, and records every would-click action as
+`executed:false`. Production remains on Terra.
+
+After the run, independently recompute every scenario score, exact list-price cost, aggregate,
+readiness gate, and zero-mutation guarantee:
+
+```bash
+node experiments/deepseek-v4-pro-shadow/validate-coverage.js \
+  experiments/deepseek-v4-pro-shadow/runs/coverage-<id>
+```
+
+Readiness requires all 30 wakes to complete, all ten families to cover all three variants, an
+average observable score of at least 95/100, every complex family to average at least 90/100, and
+zero unknown tools, forbidden confirmed mutations, or duplicate confirmed targets. Passing these
+shadow gates supports a later low-risk canary; it does not switch the production model by itself.

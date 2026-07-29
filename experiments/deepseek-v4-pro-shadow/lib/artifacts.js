@@ -54,6 +54,7 @@ function runtimeRecord(result) {
     journalEntry: result?.runtime?.journalEntry || null,
     master: result?.runtime?.master || null,
     refreshCount: result?.runtime?.refreshCount || 0,
+    currentState: result?.runtime?.currentState || null,
   };
 }
 

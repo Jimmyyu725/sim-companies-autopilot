@@ -285,6 +285,35 @@ function finitePositive(value) {
   return Number.isFinite(number) && number > 0 ? number : null;
 }
 
+function fixtureMatches(match, args) {
+  return Object.entries(match || {}).every(([key, expected]) => {
+    const actual = args?.[key];
+    if (typeof expected === 'number') return Number(actual) === expected;
+    if (expected && typeof expected === 'object') {
+      return JSON.stringify(actual) === JSON.stringify(expected);
+    }
+    return String(actual ?? '') === String(expected ?? '');
+  });
+}
+
+function structuralTarget(name, args) {
+  if (name === 'build') return String(args?.building || '').trim().toLowerCase();
+  if (name === 'bonds') return 'hq';
+  return String(Number(args?.buildingId) || '');
+}
+
+function previewKey(name, args) {
+  return `${name}:${structuralTarget(name, args)}`;
+}
+
+function chatReplyText(parts) {
+  return (parts || [])
+    .filter(part => part?.type === 'text')
+    .map(part => String(part?.value || ''))
+    .join(' ')
+    .trim();
+}
+
 class ShadowToolRuntime {
   constructor(snapshot) {
     this.snapshot = clone(snapshot);
@@ -299,6 +328,8 @@ class ShadowToolRuntime {
     this.dirtyAfterMutation = false;
     this.refreshCount = 0;
     this.exchangeInspections = new Map();
+    this.structuralPreviews = new Set();
+    this.councilReviews = [];
   }
 
   touchState(atIso) {
@@ -327,6 +358,161 @@ class ShadowToolRuntime {
   stockItem(kind) {
     return (this.currentState?.stock || [])
       .find(item => Number(item?.kind) === Number(kind)) || null;
+  }
+
+  readFixture(name, args) {
+    const fixture = (this.snapshot.fixtures?.reads || []).find(candidate => (
+      candidate?.action === name && fixtureMatches(candidate.match, args)
+    ));
+    if (!fixture) return null;
+    return {
+      ...clone(fixture.result || {}),
+      simulation: true,
+      executed: false,
+      readOnly: true,
+      source: 'controlled frozen read fixture',
+    };
+  }
+
+  structuralFixture(name, args) {
+    return (this.snapshot.fixtures?.structural || []).find(fixture => {
+      if (fixture?.action !== name) return false;
+      if (name === 'build') {
+        return normalizedProduct(fixture.building) === normalizedProduct(args?.building);
+      }
+      if (name === 'bonds') return true;
+      return Number(fixture?.buildingId) === Number(args?.buildingId);
+    }) || null;
+  }
+
+  validateCollect() {
+    const fixture = this.snapshot.fixtures?.collect;
+    if (!fixture) return { ok: false, reason: 'the controlled scenario has no collection fixture' };
+    const building = (this.currentState?.buildings || [])
+      .find(candidate => Number(candidate?.id) === Number(fixture.buildingId));
+    if (building?.busy?.canFetch !== true) {
+      return {
+        ok: false,
+        reason: `building ${Number(fixture.buildingId)} is not authoritatively collectible`,
+      };
+    }
+    return { ok: true, fixture };
+  }
+
+  validateBuy(args) {
+    const fixture = this.snapshot.fixtures?.buy;
+    if (!fixture || Number(args?.kind) !== Number(fixture.kind)) {
+      return { ok: false, reason: 'the controlled scenario has no buy fixture for this resource' };
+    }
+    const maxSpend = finitePositive(args?.maxSpend);
+    if (maxSpend == null || maxSpend > Number(fixture.maximumSpend) + 1e-6) {
+      return {
+        ok: false,
+        reason: `buy maxSpend must be within the controlled cap ${fixture.maximumSpend}`,
+      };
+    }
+    if (args?.ask != null && Number(args.ask) + 1e-9 < Number(fixture.unitPrice)) {
+      return {
+        ok: false,
+        reason: `the hard ask ${args.ask} is below the controlled live ask ${fixture.unitPrice}`,
+      };
+    }
+    const quantity = Math.floor(Math.min(
+      Number(fixture.maximumQty),
+      maxSpend / Number(fixture.unitPrice),
+    ));
+    if (quantity < Number(fixture.minimumQty)) {
+      return {
+        ok: false,
+        reason: `the bounded purchase must acquire at least ${fixture.minimumQty} units`,
+      };
+    }
+    const spend = Number((quantity * Number(fixture.unitPrice)).toFixed(6));
+    if (Number(this.currentState.money) - spend < Number(fixture.minCashAfter)) {
+      return {
+        ok: false,
+        reason: `the purchase would cross the controlled $${fixture.minCashAfter} cash floor`,
+      };
+    }
+    return { ok: true, fixture, quantity, spend };
+  }
+
+  validateStructural(name, args, preview) {
+    const fixture = this.structuralFixture(name, args);
+    if (!fixture) {
+      return {
+        ok: false,
+        reason: `the controlled scenario has no ${name} fixture for ${structuralTarget(name, args)}`,
+      };
+    }
+    if (name === 'build' || name === 'upgrade') {
+      if (Number(args.maxCost) + 1e-6 < Number(fixture.cost)) {
+        return {
+          ok: false,
+          reason: `${name} maxCost is below the controlled exact cost ${fixture.cost}`,
+        };
+      }
+      if (Number(this.currentState.money) - Number(fixture.cost) < Number(args.minCashAfter)) {
+        if (!preview) {
+          return {
+            ok: false,
+            reason: `${name} would cross the requested cash floor`,
+          };
+        }
+      }
+      if (name === 'build' && Number(this.currentState.freeSlots) < 1) {
+        return { ok: false, reason: 'no free standard construction slot is available' };
+      }
+    }
+    if (name === 'bonds') {
+      if (Number(args.amount) !== Number(fixture.amount)
+          || Math.abs(Number(args.interest) - Number(fixture.interest)) > 1e-9) {
+        return {
+          ok: false,
+          reason: `bond preview must use exact controlled terms $${fixture.amount} at ${fixture.interest}%`,
+        };
+      }
+    }
+    if (!preview) {
+      const key = previewKey(name, args);
+      if (!this.structuralPreviews.has(key)) {
+        return { ok: false, reason: `an exact same-wake ${name} preview is required before confirmation` };
+      }
+      const approved = this.councilReviews.some(review => (
+        review.decision === 'approve'
+          && (review.action === name || review.action === 'structural')
+          && (review.target === structuralTarget(name, args) || review.target === 'any')
+      ));
+      if (fixture.approved !== true || !approved) {
+        return {
+          ok: false,
+          reason: `controlled council evidence does not authorize confirmed ${name}`,
+        };
+      }
+    }
+    return { ok: true, fixture };
+  }
+
+  validateChatReplyPreview(args) {
+    const fixture = this.snapshot.fixtures?.chatReply;
+    if (!fixture) return { ok: false, reason: 'the controlled scenario has no chat reply fixture' };
+    const exactSource = String(args?.room) === String(fixture.room)
+      && String(args?.company) === String(fixture.company)
+      && Number(args?.sourceCompanyId) === Number(fixture.sourceCompanyId)
+      && String(args?.sourceMessageId) === String(fixture.sourceMessageId)
+      && String(args?.sourceCreatedAt) === String(fixture.sourceCreatedAt);
+    if (!exactSource) return { ok: false, reason: 'chat reply is not bound to the exact frozen source envelope' };
+    const text = chatReplyText(args?.parts);
+    if (!text || /(?:\$|€|£|\baccept\b|\bagree\b|\bdeal\b|\breserv(?:e|ed)\b|\bpromise\b)/iu.test(text)) {
+      return {
+        ok: false,
+        reason: 'chat reply preview must remain a non-economic evidence request',
+      };
+    }
+    if (/\b(?:ai|bot|model|human owner|my name is)\b/iu.test(text)) {
+      return { ok: false, reason: 'chat reply preview violates the identity-neutral policy' };
+    }
+    return { ok: true, fixture };
   }
 
   validateOperation(name, args) {
@@ -360,14 +546,16 @@ class ShadowToolRuntime {
           reason: `production duration ${durationHours.toFixed(3)}h exceeds targetHours ${targetHours}`,
         };
       }
-      const input = this.stockItem(fixture.inputKind);
       const needed = qty * Number(fixture.inputPerOutput);
-      const available = Number(input?.availableAmount ?? input?.amount);
-      if (!(available >= needed)) {
-        return {
-          ok: false,
-          reason: `production requires ${needed} ${fixture.inputName}; only ${available || 0} is available`,
-        };
+      if (needed > 0) {
+        const input = this.stockItem(fixture.inputKind);
+        const available = Number(input?.availableAmount ?? input?.amount);
+        if (!(available >= needed)) {
+          return {
+            ok: false,
+            reason: `production requires ${needed} ${fixture.inputName}; only ${available || 0} is available`,
+          };
+        }
       }
       const finishBefore = args?.finishBefore == null ? null : Date.parse(args.finishBefore);
       if (finishBefore != null && durationHours != null) {
@@ -404,10 +592,12 @@ class ShadowToolRuntime {
       : qty / Number(fixture.unitsPerHour);
     const endsAt = new Date(Date.parse(startedAt) + durationHours * 60 * 60e3).toISOString();
     if (name === 'produce') {
-      const input = this.stockItem(fixture.inputKind);
       const required = qty * Number(fixture.inputPerOutput);
-      input.amount = Number((Number(input.amount) - required).toFixed(6));
-      input.availableAmount = Number((Number(input.availableAmount) - required).toFixed(6));
+      if (required > 0) {
+        const input = this.stockItem(fixture.inputKind);
+        input.amount = Number((Number(input.amount) - required).toFixed(6));
+        input.availableAmount = Number((Number(input.availableAmount) - required).toFixed(6));
+      }
       building.busy = {
         id: null,
         type: 'production',
@@ -479,6 +669,12 @@ class ShadowToolRuntime {
     if (!inspection) {
       return { ok: false, reason: 'inspect_exchange_sale must succeed before the exact preview or confirmation' };
     }
+    if (!(Number(inspection.profit) > 0)) {
+      return {
+        ok: false,
+        reason: 'the controlled rendered exchange quote does not have positive post-fee profit',
+      };
+    }
     const exact = Number(args?.qty) === Number(inspection.qty)
       && Math.abs(Number(args?.price) - Number(inspection.price)) <= 1e-9;
     if (!exact) {
@@ -527,12 +723,203 @@ class ShadowToolRuntime {
     };
   }
 
+  applyCollectMutation(validation) {
+    const { fixture } = validation;
+    const building = (this.currentState.buildings || [])
+      .find(candidate => Number(candidate?.id) === Number(fixture.buildingId));
+    const item = this.stockItem(fixture.outputKind);
+    if (!building || !item) return null;
+    item.amount = Number((Number(item.amount) + Number(fixture.quantity)).toFixed(6));
+    item.availableAmount = Number((
+      Number(item.availableAmount) + Number(fixture.quantity)
+    ).toFixed(6));
+    building.busy = null;
+    building.activity = { status: 'known', busy: false, type: null };
+    const recordedAt = this.nextMutationTime();
+    this.touchState(recordedAt);
+    return {
+      verified: true,
+      mutationAttempted: true,
+      collected: true,
+      buildingId: Number(fixture.buildingId),
+      resource: fixture.outputName,
+      quantity: Number(fixture.quantity),
+      recordedAt,
+    };
+  }
+
+  applyBuyMutation(validation) {
+    const { fixture, quantity, spend } = validation;
+    const item = this.stockItem(fixture.kind);
+    if (!item) return null;
+    item.amount = Number((Number(item.amount) + quantity).toFixed(6));
+    item.availableAmount = Number((Number(item.availableAmount) + quantity).toFixed(6));
+    this.currentState.money = Number((Number(this.currentState.money) - spend).toFixed(2));
+    const recordedAt = this.nextMutationTime();
+    this.touchState(recordedAt);
+    return {
+      verified: true,
+      mutationAttempted: true,
+      kind: Number(fixture.kind),
+      name: fixture.name,
+      quantity,
+      unitPrice: Number(fixture.unitPrice),
+      spend,
+      recordedAt,
+    };
+  }
+
+  applyStructuralMutation(name, args, validation) {
+    const { fixture } = validation;
+    const startedAt = this.nextMutationTime();
+    if (name === 'upgrade') {
+      const building = (this.currentState.buildings || [])
+        .find(candidate => Number(candidate?.id) === Number(fixture.buildingId));
+      if (!building) return null;
+      this.currentState.money = Number((
+        Number(this.currentState.money) - Number(fixture.cost)
+      ).toFixed(2));
+      building.busy = {
+        id: null,
+        type: 'construction',
+        rawCategory: 'b',
+        makingKind: null,
+        makingName: null,
+        amount: null,
+        remainingOrUncollectedAmount: null,
+        amountSemantics: null,
+        amountAvailableNow: null,
+        remainingProfit: null,
+        profitAvailableNow: null,
+        price: null,
+        expanding: true,
+        canFetch: null,
+        startedAt,
+        endsAt: new Date(
+          Date.parse(startedAt) + Number(fixture.downtimeHours) * 60 * 60e3,
+        ).toISOString(),
+      };
+      building.activity = { status: 'known', busy: true, type: 'construction' };
+      building.targetLevel = Number(fixture.toLevel);
+      this.touchState(startedAt);
+      return {
+        verified: true,
+        mutationAttempted: true,
+        buildingId: Number(fixture.buildingId),
+        fromLevel: Number(fixture.fromLevel),
+        toLevel: Number(fixture.toLevel),
+        cashCost: Number(fixture.cost),
+        constructionEndsAt: building.busy.endsAt,
+      };
+    }
+    if (name === 'build') {
+      const buildingId = 99000000 + this.actions.length;
+      const endsAt = new Date(
+        Date.parse(startedAt) + Number(fixture.buildTimeHours) * 60 * 60e3,
+      ).toISOString();
+      this.currentState.money = Number((
+        Number(this.currentState.money) - Number(fixture.cost)
+      ).toFixed(2));
+      this.currentState.buildings.push({
+        id: buildingId,
+        kind: null,
+        name: fixture.building,
+        size: 1,
+        freeAndLocked: false,
+        busy: {
+          id: null,
+          type: 'construction',
+          rawCategory: 'b',
+          expanding: true,
+          canFetch: null,
+          startedAt,
+          endsAt,
+        },
+        activity: { status: 'known', busy: true, type: 'construction' },
+      });
+      this.currentState.usedSlots = Number(this.currentState.usedSlots) + 1;
+      this.currentState.freeSlots = Math.max(0, Number(this.currentState.freeSlots) - 1);
+      this.touchState(startedAt);
+      return {
+        verified: true,
+        mutationAttempted: true,
+        buildingId,
+        building: fixture.building,
+        cashCost: Number(fixture.cost),
+        constructionEndsAt: endsAt,
+      };
+    }
+    if (name === 'bonds') {
+      this.currentState.bonds = {
+        ...(this.currentState.bonds || {}),
+        unsoldOfferAmount: Number(args.amount),
+        unsoldOfferInterestPctPerDay: Number(args.interest),
+        offerFormExcluded: true,
+      };
+      this.touchState(startedAt);
+      return {
+        verified: true,
+        mutationAttempted: true,
+        unsoldOfferAmount: Number(args.amount),
+        interestPctPerDay: Number(args.interest),
+        cashReceived: 0,
+        note: 'An unsold bond offer is not proceeds and does not change outstanding principal.',
+      };
+    }
+    return null;
+  }
+
+  previewScenarioOutcome(name, args, validation) {
+    if (!validation?.ok) return null;
+    const fixture = validation.fixture;
+    if (['build', 'upgrade'].includes(name)) {
+      return {
+        verified: true,
+        mutationAttempted: false,
+        effectiveCost: Number(fixture.cost),
+        cashBefore: Number(this.currentState.money),
+        cashAfter: Number((Number(this.currentState.money) - Number(fixture.cost)).toFixed(2)),
+        requiredCouncil: true,
+        termsFingerprint: sha256(JSON.stringify({
+          action: name,
+          target: structuralTarget(name, args),
+          cost: Number(fixture.cost),
+        })),
+      };
+    }
+    if (name === 'bonds') {
+      return {
+        verified: true,
+        mutationAttempted: false,
+        unsoldOfferAmount: Number(fixture.amount),
+        interestPctPerDay: Number(fixture.interest),
+        cashReceived: 0,
+        requiredCouncil: true,
+        note: 'This preview is an unsold offer setting, not outstanding debt or cash proceeds.',
+      };
+    }
+    if (name === 'chat_room_reply') {
+      return {
+        verified: true,
+        mutationAttempted: false,
+        sourceBound: true,
+        sendAuthorized: false,
+      };
+    }
+    return null;
+  }
+
   applyScenarioMutation(name, args, validation = null) {
     const fixture = this.snapshot.fixtures?.rebuild;
+    if (name === 'collect') return this.applyCollectMutation(validation);
+    if (name === 'buy') return this.applyBuyMutation(validation);
     if (name === 'produce' || name === 'sell') {
       return this.applyOperationMutation(name, args, validation);
     }
     if (name === 'exchange_sell') return this.applyExchangeMutation(args, validation);
+    if (['upgrade', 'build', 'bonds'].includes(name)) {
+      return this.applyStructuralMutation(name, args, validation);
+    }
     if (name !== 'rebuild' || args?.confirm !== true || !fixture
         || Number(args.buildingId) !== Number(fixture.buildingId)) return null;
     const buildingIndex = (this.currentState.buildings || [])
@@ -586,6 +973,8 @@ class ShadowToolRuntime {
     }
     const args = checked.params;
     if (READ_ONLY_ACTIONS.has(name)) {
+      const fixtureResult = this.readFixture(name, args);
+      if (fixtureResult) return fixtureResult;
       return simulatedUnknown(
         name,
         'The frozen wake snapshot has no rendered result for this browser read; a live shadow is intentionally forbidden from opening Chrome.',
@@ -601,20 +990,19 @@ class ShadowToolRuntime {
         reason: 'refresh_state is required after the latest simulated mutation before another mutation',
       };
     }
+    let scenarioValidation = null;
     if (name === 'collect') {
-      const collectible = (this.currentState?.buildings || [])
-        .some(building => building?.busy?.canFetch === true);
-      if (!collectible) {
+      scenarioValidation = this.validateCollect();
+      if (!scenarioValidation.ok) {
         return {
           ok: false,
           guard: true,
           simulation: true,
           executed: false,
-          reason: 'the frozen state contains no authoritatively collectible building',
+          reason: scenarioValidation.reason,
         };
       }
     }
-    let scenarioValidation = null;
     if (name === 'produce' || name === 'sell') {
       const building = (this.currentState?.buildings || [])
         .find(candidate => Number(candidate?.id) === Number(args.buildingId));
@@ -673,6 +1061,7 @@ class ShadowToolRuntime {
           reason: 'the controlled scenario has no rebuild fixture for this building',
         };
       }
+      scenarioValidation = { ok: true, fixture };
     }
     if (name === 'exchange_sell') {
       scenarioValidation = this.validateExchangeAction(args);
@@ -686,7 +1075,55 @@ class ShadowToolRuntime {
         };
       }
     }
-    const fixtureBacked = ['produce', 'sell', 'rebuild', 'exchange_sell'].includes(name);
+    if (name === 'buy') {
+      scenarioValidation = this.validateBuy(args);
+      if (!scenarioValidation.ok) {
+        return {
+          ok: false,
+          guard: true,
+          simulation: true,
+          executed: false,
+          reason: scenarioValidation.reason,
+        };
+      }
+    }
+    if (['upgrade', 'build', 'bonds'].includes(name)) {
+      scenarioValidation = this.validateStructural(name, args, preview);
+      const controlledAction = (this.snapshot.fixtures?.structural || [])
+        .some(fixture => fixture?.action === name);
+      if (!scenarioValidation.ok && (!preview || controlledAction)) {
+        return {
+          ok: false,
+          guard: true,
+          simulation: true,
+          executed: false,
+          reason: scenarioValidation.reason,
+        };
+      }
+    }
+    if (name === 'chat_room_reply' && preview) {
+      scenarioValidation = this.validateChatReplyPreview(args);
+      if (!scenarioValidation.ok) {
+        return {
+          ok: false,
+          guard: true,
+          simulation: true,
+          executed: false,
+          reason: scenarioValidation.reason,
+        };
+      }
+    }
+    const fixtureBacked = [
+      'collect',
+      'buy',
+      'produce',
+      'sell',
+      'rebuild',
+      'exchange_sell',
+      'upgrade',
+      'build',
+      'bonds',
+    ].includes(name) && scenarioValidation?.ok === true;
     if (!preview && !fixtureBacked) {
       return {
         ok: false,
@@ -705,8 +1142,13 @@ class ShadowToolRuntime {
       executed: false,
     };
     this.actions.push(record);
+    if (preview && ['upgrade', 'build', 'bonds'].includes(name) && scenarioValidation?.ok) {
+      this.structuralPreviews.add(previewKey(name, args));
+    }
     if (!preview) this.dirtyAfterMutation = true;
-    const scenarioOutcome = preview ? null : this.applyScenarioMutation(name, args, scenarioValidation);
+    const scenarioOutcome = preview
+      ? this.previewScenarioOutcome(name, args, scenarioValidation)
+      : this.applyScenarioMutation(name, args, scenarioValidation);
     return {
       ok: true,
       simulation: true,
@@ -730,6 +1172,8 @@ class ShadowToolRuntime {
     if (!building) return simulatedUnknown('inspect_building', `building ${buildingId} is absent from the frozen state`);
     const millRate = this.currentState?.surplusPlan?.millCapacity?.rates
       ?.find(candidate => Number(candidate?.buildingId) === buildingId) || null;
+    const upgradeQuote = (this.snapshot.fixtures?.upgradeQuotes || [])
+      .find(candidate => Number(candidate?.buildingId) === buildingId) || null;
     return {
       ok: true,
       simulation: true,
@@ -739,6 +1183,7 @@ class ShadowToolRuntime {
       asOf: this.currentState.t || this.snapshot.capturedAt,
       building: clone(building),
       millRate: clone(millRate),
+      upgradeQuote: clone(upgradeQuote),
       quote: args?.product == null && args?.qty == null
         ? null
         : {
@@ -828,12 +1273,13 @@ class ShadowToolRuntime {
           profit,
           transportRequired: 0,
         },
-        exactAction: {
+        exactAction: profit > 0 ? {
           name: fixture.name,
           qty: requested,
           price: Number(fixture.price),
           confirm: false,
-        },
+        } : null,
+        recommendedAction: profit > 0 ? 'preview-exchange-sale' : 'hold-negative-economics',
       };
     }
     return {
@@ -1019,6 +1465,37 @@ class ShadowToolRuntime {
       );
     }
     if (name === 'council') {
+      const fixture = this.snapshot.fixtures?.council;
+      if (fixture && (
+        fixture.buildingId == null
+          ? args?.buildingId == null
+          : Number(args?.buildingId) === Number(fixture.buildingId)
+      )) {
+        const previewActions = [...this.structuralPreviews];
+        const selected = [...previewActions].reverse().find(key => (
+          fixture.buildingId == null
+            ? key.startsWith('build:')
+            : key.endsWith(`:${Number(fixture.buildingId)}`)
+        )) || null;
+        const action = selected ? selected.split(':')[0] : 'structural';
+        const target = selected ? selected.slice(selected.indexOf(':') + 1) : 'any';
+        const decision = fixture.decision === 'approve' ? 'approve' : 'reject';
+        this.councilReviews.push({ action, target, decision });
+        return {
+          ok: true,
+          simulation: true,
+          executed: false,
+          readOnly: true,
+          decision,
+          reason: fixture.reason,
+          votes: [
+            { role: 'CFO', decision, evidenceStatus: 'verified' },
+            { role: 'COO', decision, evidenceStatus: 'verified' },
+            { role: 'CMO', decision, evidenceStatus: 'verified' },
+          ],
+          unchangedTermsRequired: true,
+        };
+      }
       return simulatedUnknown(
         name,
         'The production council would make additional model/API and browser reads; the shadow run records this as an evidence requirement instead of fabricating a verdict.',

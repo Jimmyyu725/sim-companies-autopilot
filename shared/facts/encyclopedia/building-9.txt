@@ -1,0 +1,140 @@
+# https://www.simcompanies.com/encyclopedia/0/building/9/
+
+BUILDINGS
+FOOD
+Slaughterhouse
+Mill
+Ranch
+Grocery store
+Food processing plant
+Beverage factory
+Bakery
+Catering
+Restaurant
+CONSTRUCTION
+Hardware store
+Farm
+Concrete plant
+Quarry
+Construction factory
+General contractor
+FASHION
+Ranch
+Fashion store
+Fashion factory
+ENERGY
+Power plant
+Oil rig
+Refinery
+Beverage factory
+Gas station
+ELECTRONICS
+Electronics store
+Electronics factory
+Aerospace electronics
+AUTOMOTIVE
+Electronics factory
+Car factory
+Car dealership
+Propulsion factory
+AEROSPACE
+Propulsion factory
+Aerospace factory
+Aerospace electronics
+Vertical integration facility
+Hangar
+Sales offices
+RESOURCES
+Water reservoir
+Refinery
+Quarry
+Shipping depot
+Mine
+Factory
+RESEARCH
+Breeding laboratory
+Chemistry laboratory
+Fashion & Design
+Physics laboratory
+Plant research center
+Kitchen
+Software R&D
+Automotive R&D
+Launch pad
+OTHER
+Forest nursery
+Bank
+Academy
+PARKS & RECREATION
+Temple
+Park
+Lake
+SEASONAL
+Halloween market
+Xmas market
+Spring market
+Beach market
+Vertical integration facility
+Worker wages: $759/hour
+
+
+SUB-ORBITAL ROCKET
+
+BFR
+Construction and upgrades require:
+The monetary costs are an approximation of the value of needed resources.
+Approximate cost
+Level 1	~ $124,912
+132x1,815x
+528x33x
+Upgrade to lvl 2	~ $124,912
+132x1,815x
+528x33x
+Upgrade to lvl 3	~ $249,823
+264x3,630x
+1,056x66x
+Upgrade to lvl 4	~ $374,735
+396x5,445x
+1,584x99x
+Upgrade to lvl 5	~ $499,646
+528x7,260x
+2,112x132x
+Upgrade to lvl 6	~ $624,558
+660x9,075x
+2,640x165x
+(and so on..)
+Reference value
+Level 1	$113,850
+Level 2	$227,700
+Level 3	$341,550
+Level 4	$455,400
+Level 5	$569,250
+Level 6	$683,100
+Level 7	$796,950
+Level 8	$910,800
+Level 9	$1,024,650
+Level 10	$1,138,500
+(and so on..)
+Construction time
+Level 1	3:00h
+Upgrade to lvl 2	3:00h
+Upgrade to lvl 3	6:00h
+Upgrade to lvl 4	9:00h
+Upgrade to lvl 5	12:00h
+Upgrade to lvl 6	15:00h
+Upgrade to lvl 7	18:00h
+Upgrade to lvl 8	21:00h
+Upgrade to lvl 9	24:00h
+Upgrade to lvl 10	27:00h
+(and so on..)
+Industrial robots
+Level 1	40x Q0
+Level 2	80x Q0
+Level 3	120x Q0
+Level 4	160x Q1
+Level 5	200x Q1
+Level 6	240x Q1
+Level 7	280x Q1
+Level 8	320x Q2
+Level 9	360x Q2
+(and so on..)

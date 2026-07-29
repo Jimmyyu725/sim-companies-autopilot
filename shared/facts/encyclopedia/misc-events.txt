@@ -1,0 +1,68 @@
+# https://www.simcompanies.com/encyclopedia/0/events/
+
+0
+3x for 20:53:33
+The Great SimCity Space Race
+$9,229
+5
+Lv. 4 (2%)
+Invest into infrastructure
+ Build new farm
+MISCELLANEOUS
+RANKING
+LEVELS
+RATINGS
+EVENTS
+SEASONS
+CERTIFICATES
+COLLECTIBLES
+COLLECTORS
+SUPPORTERS
+EVENTS
+The production of some resources is affected by market events.
+Resource	Modifier	Until	Since
+
+Meat balls
+	+24% 	19d	07/19/26
+
+Planks
+	-26% 	19d	07/19/26
+
+Monitors
+	-30% 	19d	07/19/26
+
+Coffee beans
+	+21% 	12d	07/12/26
+
+Eggs
+	+23% 	12d	07/12/26
+
+Salad
+	-28% 	12d	07/12/26
+
+Plant research
+	-30% 	5d	07/05/26
+
+Coffee powder
+	-23% 	5d	07/05/26
+
+Car body
+	+20% 	5d	07/05/26
+
+Cows
+	+20% 	07/19/26	06/28/26
+
+Electric motor
+	-16% 	07/19/26	06/28/26
+
+Recipes
+	-30% 	07/19/26	06/28/26
+
+Materials research
+	-21% 	07/12/26	06/21/26
+
+Automotive research
+	-22% 	07/12/26	06/21/26
+
+Aerospace research
+	+24% 	07/12/26	06/21/26

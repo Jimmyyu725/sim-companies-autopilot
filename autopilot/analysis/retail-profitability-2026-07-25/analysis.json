@@ -1,0 +1,110 @@
+{
+  "state_as_of_utc": "2026-07-26T03:24:34.782Z",
+  "current_weather_multiplier": 1.0825628732220696,
+  "grocery_level": 2,
+  "grocery_wage_per_hour": 276.0,
+  "decision": "Coffee Powder is the best currently verified self-produced retail product.",
+  "confidence": "Share with caveats",
+  "winner": {
+    "source": "diary-2026-07-25-195818.md",
+    "product": "Coffee Powder",
+    "quantity": 405,
+    "profit_per_unit": 10.91,
+    "profit_per_hour": 1639,
+    "weather_multiplier": 1.562845839874621,
+    "duration": "2h, 42m",
+    "normalized_profit_per_hour": 949.3,
+    "current_weather_profit_per_hour": 1050.5,
+    "rank": 1
+  },
+  "measured_comparison": [
+    {
+      "source": "diary-2026-07-25-195818.md",
+      "product": "Coffee Powder",
+      "quantity": 405,
+      "profit_per_unit": 10.91,
+      "profit_per_hour": 1639,
+      "weather_multiplier": 1.562845839874621,
+      "duration": "2h, 42m",
+      "normalized_profit_per_hour": 949.3,
+      "current_weather_profit_per_hour": 1050.5,
+      "rank": 1
+    },
+    {
+      "source": "diary-2026-07-25-041817.md",
+      "product": "Steak",
+      "quantity": 155,
+      "profit_per_unit": 12.88,
+      "profit_per_hour": 659,
+      "weather_multiplier": 1.641013735523849,
+      "duration": "3h, 2m",
+      "normalized_profit_per_hour": 293.8,
+      "current_weather_profit_per_hour": 340.8,
+      "rank": 2
+    },
+    {
+      "source": "diary-2026-07-25-084217.md",
+      "product": "Grapes",
+      "quantity": 1488,
+      "profit_per_unit": 2.18,
+      "profit_per_hour": 289,
+      "weather_multiplier": 1.529987510719423,
+      "duration": "11h, 13m",
+      "normalized_profit_per_hour": 93.3,
+      "current_weather_profit_per_hour": 123.8,
+      "rank": 3
+    }
+  ],
+  "self_produced_retail_coverage": [
+    {
+      "kind": 3,
+      "product": "Apples",
+      "base_retail_units_per_hour": 110,
+      "average_retail_price": 5.32,
+      "saturation": 1.49,
+      "live_quote_covered": false,
+      "current_weather_profit_per_hour": null
+    },
+    {
+      "kind": 4,
+      "product": "Oranges",
+      "base_retail_units_per_hour": 90,
+      "average_retail_price": 6.12,
+      "saturation": 1.48,
+      "live_quote_covered": false,
+      "current_weather_profit_per_hour": null
+    },
+    {
+      "kind": 5,
+      "product": "Grapes",
+      "base_retail_units_per_hour": 80,
+      "average_retail_price": 7.2,
+      "saturation": 1.47,
+      "live_quote_covered": true,
+      "current_weather_profit_per_hour": 123.8
+    },
+    {
+      "kind": 119,
+      "product": "Coffee Powder",
+      "base_retail_units_per_hour": 100,
+      "average_retail_price": 46.38,
+      "saturation": 1.26,
+      "live_quote_covered": true,
+      "current_weather_profit_per_hour": 1050.5
+    }
+  ],
+  "observation_count": 18,
+  "quality_checks": {
+    "latest_state_has_active_coffee_retail": true,
+    "coffee_is_best_tested_self_produced": true,
+    "coffee_observation_quantity": 405,
+    "current_self_produced_quote_coverage": 2,
+    "current_self_produced_candidate_count": 4,
+    "missing_current_quotes": [
+      "Apples",
+      "Oranges"
+    ]
+  },
+  "method": "The game UI's printed profit per hour controls. Observations are normalized for weather by adding back fixed Grocery wages, scaling the gross hourly contribution, and deducting the same wages again.",
+  "caveat": "Apples and Oranges lack a fresh post-acceleration live quote. Their current retail markets are more saturated than Coffee Powder, but an exact all-four ranking needs two read-only UI probes when the Grocery becomes idle."
+}

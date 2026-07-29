@@ -1,0 +1,45 @@
+# https://www.simcompanies.com/encyclopedia/0/levels/
+
+0
+3x for 20:53:54
+The Great SimCity Space Race
+$9,229
+5
+Lv. 4 (2%)
+Invest into infrastructure
+ Build new farm
+MISCELLANEOUS
+RANKING
+LEVELS
+RATINGS
+EVENTS
+SEASONS
+CERTIFICATES
+COLLECTIBLES
+COLLECTORS
+SUPPORTERS
+COMPANY LEVEL
+Levels
+		
+Maximum buildings
+	
+Order time limit
+	
+Specialization
+	
+0	Contractor	4 + 4	20min-5h	-	
+5	Family business	5 + 4	24h	+1%	 Contracts
+ Seasonal
+10	Sole trader	6 + 4	24h	+1%	 Bonds
+ Research
+15	Sole trader	8 + 4	48h	+1%	 Executives
+20	Limited company	10 + 4	48h	+1%	 Government orders
+ Building auctions
+25	Limited company	12 + 4	48h	+1%	 Buy orders
+30	Limited company	14 + 4	48h	+1%	
+35	Corporation	14 + 4	48h	+1%	
+40	Corporation	14 + 4	48h	+1%	
+45	Corporation	14 + 4	48h	+1%	
+50	Multinational corporation	14 + 4	48h	+1%	
+55	Multinational corporation	14 + 4	48h	+1%	
+60	IPO	14 + 4	48h	+1%

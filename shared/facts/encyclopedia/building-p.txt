@@ -1,0 +1,127 @@
+# https://www.simcompanies.com/encyclopedia/0/building/p/
+
+BUILDINGS
+FOOD
+Slaughterhouse
+Mill
+Ranch
+Grocery store
+Food processing plant
+Beverage factory
+Bakery
+Catering
+Restaurant
+CONSTRUCTION
+Hardware store
+Farm
+Concrete plant
+Quarry
+Construction factory
+General contractor
+FASHION
+Ranch
+Fashion store
+Fashion factory
+ENERGY
+Power plant
+Oil rig
+Refinery
+Beverage factory
+Gas station
+ELECTRONICS
+Electronics store
+Electronics factory
+Aerospace electronics
+AUTOMOTIVE
+Electronics factory
+Car factory
+Car dealership
+Propulsion factory
+AEROSPACE
+Propulsion factory
+Aerospace factory
+Aerospace electronics
+Vertical integration facility
+Hangar
+Sales offices
+RESOURCES
+Water reservoir
+Refinery
+Quarry
+Shipping depot
+Mine
+Factory
+RESEARCH
+Breeding laboratory
+Chemistry laboratory
+Fashion & Design
+Physics laboratory
+Plant research center
+Kitchen
+Software R&D
+Automotive R&D
+Launch pad
+OTHER
+Forest nursery
+Bank
+Academy
+PARKS & RECREATION
+Temple
+Park
+Lake
+SEASONAL
+Halloween market
+Xmas market
+Spring market
+Beach market
+Plant research center
+Worker wages: $449/hour
+
+
+PLANT RESEARCH
+Construction and upgrades require:
+The monetary costs are an approximation of the value of needed resources.
+Approximate cost
+Level 1	~ $113,556
+120x1,650x
+480x30x
+Upgrade to lvl 2	~ $113,556
+120x1,650x
+480x30x
+Upgrade to lvl 3	~ $227,112
+240x3,300x
+960x60x
+Upgrade to lvl 4	~ $340,668
+360x4,950x
+1,440x90x
+Upgrade to lvl 5	~ $454,224
+480x6,600x
+1,920x120x
+Upgrade to lvl 6	~ $567,780
+600x8,250x
+2,400x150x
+(and so on..)
+Reference value
+Level 1	$103,500
+Level 2	$207,000
+Level 3	$310,500
+Level 4	$414,000
+Level 5	$517,500
+Level 6	$621,000
+Level 7	$724,500
+Level 8	$828,000
+Level 9	$931,500
+Level 10	$1,035,000
+(and so on..)
+Construction time
+Level 1	5:00h
+Upgrade to lvl 2	5:00h
+Upgrade to lvl 3	10:00h
+Upgrade to lvl 4	15:00h
+Upgrade to lvl 5	20:00h
+Upgrade to lvl 6	25:00h
+Upgrade to lvl 7	30:00h
+Upgrade to lvl 8	35:00h
+Upgrade to lvl 9	40:00h
+Upgrade to lvl 10	45:00h
+(and so on..)

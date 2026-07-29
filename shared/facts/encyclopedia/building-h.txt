@@ -1,0 +1,131 @@
+# https://www.simcompanies.com/encyclopedia/0/building/h/
+
+BUILDINGS
+FOOD
+Slaughterhouse
+Mill
+Ranch
+Grocery store
+Food processing plant
+Beverage factory
+Bakery
+Catering
+Restaurant
+CONSTRUCTION
+Hardware store
+Farm
+Concrete plant
+Quarry
+Construction factory
+General contractor
+FASHION
+Ranch
+Fashion store
+Fashion factory
+ENERGY
+Power plant
+Oil rig
+Refinery
+Beverage factory
+Gas station
+ELECTRONICS
+Electronics store
+Electronics factory
+Aerospace electronics
+AUTOMOTIVE
+Electronics factory
+Car factory
+Car dealership
+Propulsion factory
+AEROSPACE
+Propulsion factory
+Aerospace factory
+Aerospace electronics
+Vertical integration facility
+Hangar
+Sales offices
+RESOURCES
+Water reservoir
+Refinery
+Quarry
+Shipping depot
+Mine
+Factory
+RESEARCH
+Breeding laboratory
+Chemistry laboratory
+Fashion & Design
+Physics laboratory
+Plant research center
+Kitchen
+Software R&D
+Automotive R&D
+Launch pad
+OTHER
+Forest nursery
+Bank
+Academy
+PARKS & RECREATION
+Temple
+Park
+Lake
+SEASONAL
+Halloween market
+Xmas market
+Spring market
+Beach market
+Physics laboratory
+Worker wages: $587/hour
+
+
+ENERGY RESEARCH
+
+MINING RESEARCH
+
+ELECTRONICS RESEARCH
+Construction and upgrades require:
+The monetary costs are an approximation of the value of needed resources.
+Approximate cost
+Level 1	~ $181,690
+192x2,640x
+768x48x
+Upgrade to lvl 2	~ $181,690
+192x2,640x
+768x48x
+Upgrade to lvl 3	~ $363,379
+384x5,280x
+1,536x96x
+Upgrade to lvl 4	~ $545,069
+576x7,920x
+2,304x144x
+Upgrade to lvl 5	~ $726,758
+768x10,560x
+3,072x192x
+Upgrade to lvl 6	~ $908,448
+960x13,200x
+3,840x240x
+(and so on..)
+Reference value
+Level 1	$165,600
+Level 2	$331,200
+Level 3	$496,800
+Level 4	$662,400
+Level 5	$828,000
+Level 6	$993,600
+Level 7	$1,159,200
+Level 8	$1,324,800
+Level 9	$1,490,400
+Level 10	$1,656,000
+(and so on..)
+Construction time
+Level 1	7:00h
+Upgrade to lvl 2	7:00h
+Upgrade to lvl 3	14:00h
+Upgrade to lvl 4	21:00h
+Upgrade to lvl 5	28:00h
+Upgrade to lvl 6	35:00h
+Upgrade to lvl 7	42:00h
+Upgrade to lvl 8	49:00h
+Upgrade to lvl 9	56:00h
+Upgrade to lvl 10	63:00h
+(and so on..)

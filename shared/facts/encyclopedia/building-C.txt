@@ -1,0 +1,153 @@
+
+0
+3x for 18:42:31
+The Great SimCity Space Race
+$17,385
+10
+Lv. 5 (13%)
+BUILDINGS
+FOOD
+Slaughterhouse
+Mill
+Ranch
+Grocery store
+Food processing plant
+Beverage factory
+Bakery
+Catering
+Restaurant
+CONSTRUCTION
+Hardware store
+Farm
+Concrete plant
+Quarry
+Construction factory
+General contractor
+FASHION
+Ranch
+Fashion store
+Fashion factory
+ENERGY
+Power plant
+Oil rig
+Refinery
+Beverage factory
+Gas station
+ELECTRONICS
+Electronics store
+Electronics factory
+Aerospace electronics
+AUTOMOTIVE
+Electronics factory
+Car factory
+Car dealership
+Propulsion factory
+AEROSPACE
+Propulsion factory
+Aerospace factory
+Aerospace electronics
+Vertical integration facility
+Hangar
+Sales offices
+RESOURCES
+Water reservoir
+Refinery
+Quarry
+Shipping depot
+Mine
+Factory
+RESEARCH
+Breeding laboratory
+Chemistry laboratory
+Fashion & Design
+Physics laboratory
+Plant research center
+Kitchen
+Software R&D
+Automotive R&D
+Launch pad
+OTHER
+Forest nursery
+Bank
+Academy
+PARKS & RECREATION
+Temple
+Park
+Lake
+SEASONAL
+Halloween market
+Xmas market
+Spring market
+Beach market
+
+SMART PHONES
+Demand: high
+
+TABLETS
+Demand: high
+
+LAPTOPS
+Demand: high
+
+MONITORS
+Demand: high
+
+TELEVISIONS
+Demand: high
+
+QUADCOPTER
+Demand: high
+Electronics store
+Worker wages: $173/hour
+
+Construction and upgrades require:
+The monetary costs are an approximation of the value of needed resources.
+Approximate cost
+Level 1	~ $19,060
+20x275x
+80x5x
+Upgrade to lvl 2	~ $19,060
+20x275x
+80x5x
+Upgrade to lvl 3	~ $38,121
+40x550x
+160x10x
+Upgrade to lvl 4	~ $57,181
+60x825x
+240x15x
+Upgrade to lvl 5	~ $76,241
+80x1,100x
+320x20x
+Upgrade to lvl 6	~ $95,301
+100x1,375x
+400x25x
+(and so on..)
+Reference value
+Level 1	$17,250
+Level 2	$34,500
+Level 3	$51,750
+Level 4	$69,000
+Level 5	$86,250
+Level 6	$103,500
+Level 7	$120,750
+Level 8	$138,000
+Level 9	$155,250
+Level 10	$172,500
+(and so on..)
+Construction time
+Level 1	1:00h
+Upgrade to lvl 2	1:00h
+Upgrade to lvl 3	2:00h
+Upgrade to lvl 4	3:00h
+Upgrade to lvl 5	4:00h
+Upgrade to lvl 6	5:00h
+Upgrade to lvl 7	6:00h
+Upgrade to lvl 8	7:00h
+Upgrade to lvl 9	8:00h
+Upgrade to lvl 10	9:00h
+(and so on..)
+Map
+Warehouse
+Search
+Chat
+Exchange

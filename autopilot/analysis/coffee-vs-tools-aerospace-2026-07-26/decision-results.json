@@ -1,0 +1,463 @@
+{
+  "generatedAtUtc": "2026-07-27T00:45:46.295Z",
+  "sourceStateAsOfUtc": "2026-07-27T00:44:18.323Z",
+  "sourceMarketAsOfUtc": "2026-07-27T00:12:16.813Z",
+  "confidence": "Share with caveats",
+  "company": {
+    "cash": 31000,
+    "debtPrincipal": 110000,
+    "dailyInterest": 550,
+    "slotCapacity": 10,
+    "usedSlots": 7,
+    "freeSlots": 3,
+    "cashFloor": 5000,
+    "observedMaximumNewBondOffer": 165000,
+    "optimisticDeployableFunds": 191000,
+    "bondOfferPersistenceVerified": false
+  },
+  "currentCoffee": {
+    "sustainablePowderPerHourAfterCurrentConstruction": 97.8733,
+    "constrainedRetail": {
+      "price": 43.47,
+      "unitsPerHour": 97.8733,
+      "profitPerHour": 1778.45
+    },
+    "sustainablePowderPerHourWithOneNewFarm": 130.4977,
+    "oneNewFarmConstrainedRetail": {
+      "price": 40.11,
+      "unitsPerHour": 130.4775,
+      "profitPerHour": 2030.93
+    },
+    "approximateNewFarmCost": 7558,
+    "latestMillUpgradeQuote": 62240,
+    "threeMillUpgradeProgramCost": 186720
+  },
+  "tools": {
+    "fullyFedLayout": {
+      "kind": 110,
+      "product": "Tools",
+      "storeLevel": 1,
+      "production": [
+        {
+          "letter": "x",
+          "building": "Construction factory",
+          "fractionalLevel": 1.6079,
+          "integerLevel": 2,
+          "capexFromScratch": 158642
+        },
+        {
+          "letter": "L",
+          "building": "Electronics factory",
+          "fractionalLevel": 2.3134,
+          "integerLevel": 3,
+          "capexFromScratch": 362764
+        },
+        {
+          "letter": "Y",
+          "building": "Factory",
+          "fractionalLevel": 1.6567,
+          "integerLevel": 2,
+          "capexFromScratch": 105806
+        },
+        {
+          "letter": "E",
+          "building": "Power plant",
+          "fractionalLevel": 1.8405,
+          "integerLevel": 2,
+          "capexFromScratch": 113364
+        },
+        {
+          "letter": "Q",
+          "building": "Quarry",
+          "fractionalLevel": 0.1742,
+          "integerLevel": 1,
+          "capexFromScratch": 26452
+        },
+        {
+          "letter": "M",
+          "building": "Mine",
+          "fractionalLevel": 1.8588,
+          "integerLevel": 2,
+          "capexFromScratch": 52904
+        },
+        {
+          "letter": "W",
+          "building": "Water reservoir",
+          "fractionalLevel": 0.141,
+          "integerLevel": 1,
+          "capexFromScratch": 22673
+        },
+        {
+          "letter": "P",
+          "building": "Farm",
+          "fractionalLevel": 0.1282,
+          "integerLevel": 1,
+          "capexFromScratch": 7558
+        }
+      ],
+      "store": {
+        "letter": "d",
+        "building": "Hardware store",
+        "fractionalLevel": 1,
+        "integerLevel": 1,
+        "capexFromScratch": 15248
+      },
+      "slots": 9,
+      "productionIntegerLevels": 14,
+      "totalCapexFromScratch": 865411,
+      "fullyFedModeledProfitPerHour": 2058.2147888615627
+    },
+    "levelOneLayout": {
+      "kind": 110,
+      "product": "Tools",
+      "storeLevel": 1,
+      "production": [
+        {
+          "letter": "x",
+          "building": "Construction factory",
+          "fractionalLevel": 1.6079,
+          "integerLevel": 1,
+          "capexFromScratch": 79321
+        },
+        {
+          "letter": "L",
+          "building": "Electronics factory",
+          "fractionalLevel": 2.3134,
+          "integerLevel": 1,
+          "capexFromScratch": 90691
+        },
+        {
+          "letter": "Y",
+          "building": "Factory",
+          "fractionalLevel": 1.6567,
+          "integerLevel": 1,
+          "capexFromScratch": 52903
+        },
+        {
+          "letter": "E",
+          "building": "Power plant",
+          "fractionalLevel": 1.8405,
+          "integerLevel": 1,
+          "capexFromScratch": 56682
+        },
+        {
+          "letter": "Q",
+          "building": "Quarry",
+          "fractionalLevel": 0.1742,
+          "integerLevel": 1,
+          "capexFromScratch": 26452
+        },
+        {
+          "letter": "M",
+          "building": "Mine",
+          "fractionalLevel": 1.8588,
+          "integerLevel": 1,
+          "capexFromScratch": 26452
+        },
+        {
+          "letter": "W",
+          "building": "Water reservoir",
+          "fractionalLevel": 0.141,
+          "integerLevel": 1,
+          "capexFromScratch": 22673
+        },
+        {
+          "letter": "P",
+          "building": "Farm",
+          "fractionalLevel": 0.1282,
+          "integerLevel": 1,
+          "capexFromScratch": 7558
+        }
+      ],
+      "store": {
+        "letter": "d",
+        "building": "Hardware store",
+        "fractionalLevel": 1,
+        "integerLevel": 1,
+        "capexFromScratch": 15248
+      },
+      "slots": 9,
+      "productionIntegerLevels": 8,
+      "totalCapexFromScratch": 377980,
+      "fullyFedModeledProfitPerHour": 2058.2147888615627
+    },
+    "levelOneCapacityPerHour": 15.9957,
+    "levelOneEconomics": {
+      "price": 202.8,
+      "unitsPerHour": 15.9957,
+      "profitPerHour": 1335.24
+    },
+    "grossIncrementalCapex": 778498,
+    "threeMillMaterialSalvage": 181308
+  },
+  "satellite": {
+    "fullyFedLayout": {
+      "kind": 99,
+      "product": "Satellite",
+      "storeLevel": 1,
+      "production": [
+        {
+          "letter": "8",
+          "building": "Aerospace electronics",
+          "fractionalLevel": 8.3496,
+          "integerLevel": 9,
+          "capexFromScratch": 5742141
+        },
+        {
+          "letter": "L",
+          "building": "Electronics factory",
+          "fractionalLevel": 16.451,
+          "integerLevel": 17,
+          "capexFromScratch": 12424667
+        },
+        {
+          "letter": "Y",
+          "building": "Factory",
+          "fractionalLevel": 2.7766,
+          "integerLevel": 3,
+          "capexFromScratch": 211612
+        },
+        {
+          "letter": "E",
+          "building": "Power plant",
+          "fractionalLevel": 11.8832,
+          "integerLevel": 12,
+          "capexFromScratch": 3797694
+        },
+        {
+          "letter": "Q",
+          "building": "Quarry",
+          "fractionalLevel": 0.3749,
+          "integerLevel": 1,
+          "capexFromScratch": 26452
+        },
+        {
+          "letter": "M",
+          "building": "Mine",
+          "fractionalLevel": 8.298,
+          "integerLevel": 9,
+          "capexFromScratch": 978724
+        },
+        {
+          "letter": "W",
+          "building": "Water reservoir",
+          "fractionalLevel": 0.5159,
+          "integerLevel": 1,
+          "capexFromScratch": 22673
+        },
+        {
+          "letter": "D",
+          "building": "Propulsion factory",
+          "fractionalLevel": 1.459,
+          "integerLevel": 2,
+          "capexFromScratch": 226948
+        }
+      ],
+      "store": {
+        "letter": "B",
+        "building": "Sales offices",
+        "fractionalLevel": 1,
+        "integerLevel": 1,
+        "capexFromScratch": 68596
+      },
+      "slots": 9,
+      "productionIntegerLevels": 54,
+      "totalCapexFromScratch": 23499507,
+      "fullyFedModeledProfitPerHour": 18628.598395597048
+    },
+    "levelOneLayout": {
+      "kind": 99,
+      "product": "Satellite",
+      "storeLevel": 1,
+      "production": [
+        {
+          "letter": "8",
+          "building": "Aerospace electronics",
+          "fractionalLevel": 8.3496,
+          "integerLevel": 1,
+          "capexFromScratch": 155193
+        },
+        {
+          "letter": "L",
+          "building": "Electronics factory",
+          "fractionalLevel": 16.451,
+          "integerLevel": 1,
+          "capexFromScratch": 90691
+        },
+        {
+          "letter": "Y",
+          "building": "Factory",
+          "fractionalLevel": 2.7766,
+          "integerLevel": 1,
+          "capexFromScratch": 52903
+        },
+        {
+          "letter": "E",
+          "building": "Power plant",
+          "fractionalLevel": 11.8832,
+          "integerLevel": 1,
+          "capexFromScratch": 56682
+        },
+        {
+          "letter": "Q",
+          "building": "Quarry",
+          "fractionalLevel": 0.3749,
+          "integerLevel": 1,
+          "capexFromScratch": 26452
+        },
+        {
+          "letter": "M",
+          "building": "Mine",
+          "fractionalLevel": 8.298,
+          "integerLevel": 1,
+          "capexFromScratch": 26452
+        },
+        {
+          "letter": "W",
+          "building": "Water reservoir",
+          "fractionalLevel": 0.5159,
+          "integerLevel": 1,
+          "capexFromScratch": 22673
+        },
+        {
+          "letter": "D",
+          "building": "Propulsion factory",
+          "fractionalLevel": 1.459,
+          "integerLevel": 1,
+          "capexFromScratch": 113474
+        }
+      ],
+      "store": {
+        "letter": "B",
+        "building": "Sales offices",
+        "fractionalLevel": 1,
+        "integerLevel": 1,
+        "capexFromScratch": 68596
+      },
+      "slots": 9,
+      "productionIntegerLevels": 8,
+      "totalCapexFromScratch": 613116,
+      "fullyFedModeledProfitPerHour": 18628.598395597048
+    },
+    "levelOneCapacityPerHour": 0.045666,
+    "levelOneHoursPerUnit": 21.9,
+    "levelOneEconomics": {
+      "price": 80829.65,
+      "unitsPerHour": 0.0457,
+      "profitPerHour": 1642.01
+    },
+    "grossIncrementalCapex": 23420152,
+    "allCoffeeSpecificMaterialSalvage": 234412
+  },
+  "options": [
+    {
+      "key": "coffee_continue",
+      "option": "Continue the post-construction Coffee chain",
+      "slotsRequired": 7,
+      "capitalNeed": 0,
+      "capitalBasis": "Uses the current buildings after the third Mill finishes its current L1→L2 construction.",
+      "optimisticFundingGap": -191000,
+      "modeledProfitPerHour": 1778.45,
+      "outputPerHour": 97.8733,
+      "evidenceLevel": "Live chain plus corrected current-market model",
+      "decision": "KEEP"
+    },
+    {
+      "key": "coffee_add_farm",
+      "option": "Continue Coffee and add one L1 Farm",
+      "slotsRequired": 8,
+      "capitalNeed": 7558,
+      "capitalBasis": "Current measured approximate L1 Farm construction cost; obtain a live quote before building.",
+      "optimisticFundingGap": -183442,
+      "modeledProfitPerHour": 2030.93,
+      "outputPerHour": 130.4775,
+      "evidenceLevel": "Existing live Coffee chain plus formula scenario; new administration overhead is not re-quoted",
+      "decision": "BEST NEXT QUOTE"
+    },
+    {
+      "key": "tools_level_one",
+      "option": "Minimum L1 Tools chain while retaining Grocery",
+      "slotsRequired": 10,
+      "capitalNeed": 109759,
+      "capitalBasis": "Best-case material offset from scrapping all three Mills; salvage is not cash.",
+      "optimisticFundingGap": -81241,
+      "modeledProfitPerHour": 1335.24,
+      "outputPerHour": 15.9957,
+      "evidenceLevel": "Formula only; no live Tools building or retail order",
+      "decision": "REJECT AS PIVOT"
+    },
+    {
+      "key": "tools_fully_fed",
+      "option": "Fully feed one L1 Hardware store with Tools",
+      "slotsRequired": 9,
+      "capitalNeed": 597190,
+      "capitalBasis": "Retains Grocery and reuses Power, Water, and Farm; material salvage is optimistic.",
+      "optimisticFundingGap": 406190,
+      "modeledProfitPerHour": 2058.21,
+      "outputPerHour": 37.005,
+      "evidenceLevel": "Formula only; excludes transition downtime and new interest",
+      "decision": "FUTURE CANDIDATE"
+    },
+    {
+      "key": "satellite_level_one",
+      "option": "Minimum all-L1 Satellite chain",
+      "slotsRequired": 9,
+      "capitalNeed": 299349,
+      "capitalBasis": "Most pivot-friendly case: tears down every Coffee-specific building and treats all salvage as purchase offset.",
+      "optimisticFundingGap": 108349,
+      "modeledProfitPerHour": 1642.01,
+      "outputPerHour": 0.0457,
+      "evidenceLevel": "High-uncertainty formula only; output is one Satellite about every 21.9 hours",
+      "decision": "REJECT"
+    },
+    {
+      "key": "satellite_fully_fed",
+      "option": "Fully feed one L1 Sales Office with Satellite",
+      "slotsRequired": 9,
+      "capitalNeed": 23185740,
+      "capitalBasis": "Requires 54 upstream production levels; levels above L6 use the observed linear cost curve, not live quotes.",
+      "optimisticFundingGap": 22994740,
+      "modeledProfitPerHour": 18628.6,
+      "outputPerHour": 0.7513,
+      "evidenceLevel": "Screening model only; not financeable or live-tested",
+      "decision": "REJECT"
+    }
+  ],
+  "structurallyInfeasibleAerospace": [
+    {
+      "kind": 94,
+      "product": "BFR",
+      "minimumSlots": 16
+    },
+    {
+      "kind": 95,
+      "product": "Jumbo Jet",
+      "minimumSlots": 16
+    },
+    {
+      "kind": 91,
+      "product": "Sub-Orbital Rocket",
+      "minimumSlots": 13
+    },
+    {
+      "kind": 96,
+      "product": "Luxury Jet",
+      "minimumSlots": 16
+    },
+    {
+      "kind": 97,
+      "product": "Single Engine Plane",
+      "minimumSlots": 16
+    }
+  ],
+  "assumptions": {
+    "quality": 0,
+    "averageSalary": 345,
+    "administrationOverhead": 1.0705882352941176,
+    "weatherSellingSpeedMultiplier": 0.8506218149304952,
+    "productionAndSalesModifiersAsOfMarketSnapshot": true,
+    "scrapOffsetAssumesAllReturnedMaterialsAvoidEquivalentPurchases": true,
+    "observedBondHeadroomIsAnOptimisticCeilingNotVerifiedCash": true,
+    "capexAboveLevelSixUsesObservedLinearUpgradeCurve": true
+  }
+}

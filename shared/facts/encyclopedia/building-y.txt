@@ -1,0 +1,146 @@
+
+0
+3x for 18:42:04
+The Great SimCity Space Race
+$17,385
+10
+Lv. 5 (13%)
+BUILDINGS
+FOOD
+Slaughterhouse
+Mill
+Ranch
+Grocery store
+Food processing plant
+Beverage factory
+Bakery
+Catering
+Restaurant
+CONSTRUCTION
+Hardware store
+Farm
+Concrete plant
+Quarry
+Construction factory
+General contractor
+FASHION
+Ranch
+Fashion store
+Fashion factory
+ENERGY
+Power plant
+Oil rig
+Refinery
+Beverage factory
+Gas station
+ELECTRONICS
+Electronics store
+Electronics factory
+Aerospace electronics
+AUTOMOTIVE
+Electronics factory
+Car factory
+Car dealership
+Propulsion factory
+AEROSPACE
+Propulsion factory
+Aerospace factory
+Aerospace electronics
+Vertical integration facility
+Hangar
+Sales offices
+RESOURCES
+Water reservoir
+Refinery
+Quarry
+Shipping depot
+Mine
+Factory
+RESEARCH
+Breeding laboratory
+Chemistry laboratory
+Fashion & Design
+Physics laboratory
+Plant research center
+Kitchen
+Software R&D
+Automotive R&D
+Launch pad
+OTHER
+Forest nursery
+Bank
+Academy
+PARKS & RECREATION
+Temple
+Park
+Lake
+SEASONAL
+Halloween market
+Xmas market
+Spring market
+Beach market
+Academy
+
+
+The academy contributes to the effectiveness of executives' training. It also contributes to starting skill of your in-house candidates. The more levels, the higher the contribution.
+(The specific impact is not documented)
+Furthermore, every 5 levels of the academy unlock an extra boardroom slot.
+Level 5: COO APPRENTICE slot - locked
+50% of the Management skill contributes to the team impact
+Level 10: CFO APPRENTICE slot - locked
+50% of the Accounting skill contributes to the team impact
+Level 15: CMO APPRENTICE slot - locked
+50% of the Communication skill contributes to the team impact
+Level 20: CTO APPRENTICE slot - locked
+50% of the Science skill contributes to the team impact
+Construction and upgrades require:
+The monetary costs are an approximation of the value of needed resources.
+Approximate cost
+Level 1	~ $72,407
+76x1,045x
+304x19x
+Upgrade to lvl 2	~ $72,407
+76x1,045x
+304x19x
+Upgrade to lvl 3	~ $144,814
+152x2,090x
+608x38x
+Upgrade to lvl 4	~ $217,221
+228x3,135x
+912x57x
+Upgrade to lvl 5	~ $289,628
+304x4,180x
+1,216x76x
+Upgrade to lvl 6	~ $362,036
+380x5,225x
+1,520x95x
+(and so on..)
+Reference value
+Level 1	$65,550
+Level 2	$131,100
+Level 3	$196,650
+Level 4	$262,200
+Level 5	$327,750
+Level 6	$393,300
+Level 7	$458,850
+Level 8	$524,400
+Level 9	$589,950
+Level 10	$655,500
+(and so on..)
+Construction time
+Level 1	8:00h
+Upgrade to lvl 2	8:00h
+Upgrade to lvl 3	16:00h
+Upgrade to lvl 4	24:00h
+Upgrade to lvl 5	32:00h
+Upgrade to lvl 6	40:00h
+Upgrade to lvl 7	48:00h
+Upgrade to lvl 8	56:00h
+Upgrade to lvl 9	64:00h
+Upgrade to lvl 10	72:00h
+(and so on..)
+Map
+Warehouse
+Search
+Chat
+Exchange

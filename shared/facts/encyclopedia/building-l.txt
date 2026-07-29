@@ -1,0 +1,131 @@
+# https://www.simcompanies.com/encyclopedia/0/building/l/
+
+BUILDINGS
+FOOD
+Slaughterhouse
+Mill
+Ranch
+Grocery store
+Food processing plant
+Beverage factory
+Bakery
+Catering
+Restaurant
+CONSTRUCTION
+Hardware store
+Farm
+Concrete plant
+Quarry
+Construction factory
+General contractor
+FASHION
+Ranch
+Fashion store
+Fashion factory
+ENERGY
+Power plant
+Oil rig
+Refinery
+Beverage factory
+Gas station
+ELECTRONICS
+Electronics store
+Electronics factory
+Aerospace electronics
+AUTOMOTIVE
+Electronics factory
+Car factory
+Car dealership
+Propulsion factory
+AEROSPACE
+Propulsion factory
+Aerospace factory
+Aerospace electronics
+Vertical integration facility
+Hangar
+Sales offices
+RESOURCES
+Water reservoir
+Refinery
+Quarry
+Shipping depot
+Mine
+Factory
+RESEARCH
+Breeding laboratory
+Chemistry laboratory
+Fashion & Design
+Physics laboratory
+Plant research center
+Kitchen
+Software R&D
+Automotive R&D
+Launch pad
+OTHER
+Forest nursery
+Bank
+Academy
+PARKS & RECREATION
+Temple
+Park
+Lake
+SEASONAL
+Halloween market
+Xmas market
+Spring market
+Beach market
+Launch pad
+Maximum building level: 10
+Worker wages: $518/hour
+Rockets have to be launched to produce research.
+
+Rocket launch statistics in Magnates
+
+
+AEROSPACE RESEARCH
+Construction and upgrades require:
+The monetary costs are an approximation of the value of needed resources.
+Approximate cost
+Level 1	~ $136,267
+144x1,980x
+576x36x
+Upgrade to lvl 2	~ $136,267
+144x1,980x
+576x36x
+Upgrade to lvl 3	~ $272,534
+288x3,960x
+1,152x72x
+Upgrade to lvl 4	~ $408,802
+432x5,940x
+1,728x108x
+Upgrade to lvl 5	~ $545,069
+576x7,920x
+2,304x144x
+Upgrade to lvl 6	~ $681,336
+720x9,900x
+2,880x180x
+(and so on..)
+Reference value
+Level 1	$124,200
+Level 2	$248,400
+Level 3	$372,600
+Level 4	$496,800
+Level 5	$621,000
+Level 6	$745,200
+Level 7	$869,400
+Level 8	$993,600
+Level 9	$1,117,800
+Level 10	$1,242,000
+(and so on..)
+Construction time
+Level 1	9:00h
+Upgrade to lvl 2	9:00h
+Upgrade to lvl 3	18:00h
+Upgrade to lvl 4	27:00h
+Upgrade to lvl 5	36:00h
+Upgrade to lvl 6	45:00h
+Upgrade to lvl 7	54:00h
+Upgrade to lvl 8	63:00h
+Upgrade to lvl 9	72:00h
+Upgrade to lvl 10	81:00h
+(and so on..)

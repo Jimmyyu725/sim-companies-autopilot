@@ -1,0 +1,124 @@
+
+0
+3x for 18:41:42
+The Great SimCity Space Race
+$17,385
+10
+Lv. 5 (13%)
+BUILDINGS
+FOOD
+Slaughterhouse
+Mill
+Ranch
+Grocery store
+Food processing plant
+Beverage factory
+Bakery
+Catering
+Restaurant
+CONSTRUCTION
+Hardware store
+Farm
+Concrete plant
+Quarry
+Construction factory
+General contractor
+FASHION
+Ranch
+Fashion store
+Fashion factory
+ENERGY
+Power plant
+Oil rig
+Refinery
+Beverage factory
+Gas station
+ELECTRONICS
+Electronics store
+Electronics factory
+Aerospace electronics
+AUTOMOTIVE
+Electronics factory
+Car factory
+Car dealership
+Propulsion factory
+AEROSPACE
+Propulsion factory
+Aerospace factory
+Aerospace electronics
+Vertical integration facility
+Hangar
+Sales offices
+RESOURCES
+Water reservoir
+Refinery
+Quarry
+Shipping depot
+Mine
+Factory
+RESEARCH
+Breeding laboratory
+Chemistry laboratory
+Fashion & Design
+Physics laboratory
+Plant research center
+Kitchen
+Software R&D
+Automotive R&D
+Launch pad
+OTHER
+Forest nursery
+Bank
+Academy
+PARKS & RECREATION
+Temple
+Park
+Lake
+SEASONAL
+Halloween market
+Xmas market
+Spring market
+Beach market
+Lake
+The building does not contribute to administration overhead.
+
+
+Upkeep costs:
+1st recreational building: 15 /week
+2nd recreational building: 25 /week
+3rd recreational building: 40 /week
+You can only have one Lake at a time
+XP / Week	+20,160
+
+
+	Bonus
+Level 1	+1%
+Level 2	+2%
+Level 3	+3%
+to both production
+and sales speed
+Construction and upgrades require:
+The monetary costs are an approximation of the value of needed resources.
+Approximate cost
+Level 1	~ $152,326
+160x2,200x
+640x40x
+Upgrade to lvl 2	~ $152,326
+160x2,200x
+640x40x
+Upgrade to lvl 3	~ $304,652
+320x4,400x
+1,280x80x
+Reference value
+Level 1	$138,000
+Level 2	$276,000
+Level 3	$414,000
+Construction time
+Level 1	12:00h
+Upgrade to lvl 2	12:00h
+Upgrade to lvl 3	24:00h
+Map
+Warehouse
+Search
+Chat
+Exchange

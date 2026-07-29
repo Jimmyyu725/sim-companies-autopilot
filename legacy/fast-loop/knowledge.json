@@ -1,0 +1,387 @@
+{
+  "updated": "2026-07-25T00:32:30.693Z",
+  "updatedLocal": "2026-07-24 19:32:30 CDT",
+  "observations": 1199,
+  "retailAverages": {
+    "3": {
+      "avgPrice": 5.355,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "4": {
+      "avgPrice": 6.18,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "5": {
+      "avgPrice": 7.246,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "7": {
+      "avgPrice": 57.854,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "8": {
+      "avgPrice": 16.74,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "9": {
+      "avgPrice": 2.226,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "11": {
+      "avgPrice": 50.899,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "12": {
+      "avgPrice": 50.567,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "24": {
+      "avgPrice": 876.421,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "25": {
+      "avgPrice": 1339.983,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "26": {
+      "avgPrice": 1653.086,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "27": {
+      "avgPrice": 835.565,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "28": {
+      "avgPrice": 1250.063,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "53": {
+      "avgPrice": 4033.014,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "54": {
+      "avgPrice": 8397.55,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "55": {
+      "avgPrice": 2823.157,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "56": {
+      "avgPrice": 6019.166,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "57": {
+      "avgPrice": 6640.67,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "60": {
+      "avgPrice": 29.603,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "61": {
+      "avgPrice": 53.078,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "62": {
+      "avgPrice": 39.685,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "63": {
+      "avgPrice": 60.967,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "64": {
+      "avgPrice": 84.201,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "65": {
+      "avgPrice": 33.908,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "67": {
+      "avgPrice": 13.4,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "70": {
+      "avgPrice": 1089.101,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "71": {
+      "avgPrice": 2109.685,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "98": {
+      "avgPrice": 1345.495,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "102": {
+      "avgPrice": 7.692,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "103": {
+      "avgPrice": 13.923,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "108": {
+      "avgPrice": 13.931,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "109": {
+      "avgPrice": 128.99,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "110": {
+      "avgPrice": 215.655,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "119": {
+      "avgPrice": 46.038,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "120": {
+      "avgPrice": 6.54,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "122": {
+      "avgPrice": 151.678,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "123": {
+      "avgPrice": 355.401,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "124": {
+      "avgPrice": 63.379,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "125": {
+      "avgPrice": 49.649,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "126": {
+      "avgPrice": 91.429,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "127": {
+      "avgPrice": 545.653,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "140": {
+      "avgPrice": 304.78,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "144": {
+      "avgPrice": 22.63,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "146": {
+      "avgPrice": 19.352,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "147": {
+      "avgPrice": 54.415,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "148": {
+      "avgPrice": 67.477,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "149": {
+      "avgPrice": 900,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "150": {
+      "avgPrice": 1824823.929,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "151": {
+      "avgPrice": 266.702,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "152": {
+      "avgPrice": 224.395,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "153": {
+      "avgPrice": 112.193,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "154": {
+      "avgPrice": 114.81,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    },
+    "155": {
+      "avgPrice": 156.945,
+      "at": "2026-07-25T00:32:30.663Z",
+      "ageMin": 0,
+      "status": "fresh"
+    }
+  },
+  "sellRates": {
+    "3": {
+      "sellRate": 524.17,
+      "samples": 8,
+      "lastPrice": 5.05,
+      "at": "2026-07-22T16:20:57.656Z",
+      "ageMin": 3372,
+      "status": "reference"
+    },
+    "4": {
+      "sellRate": 345.46,
+      "samples": 3,
+      "lastPrice": 5.81,
+      "at": "2026-07-22T20:44:57.472Z",
+      "ageMin": 3108,
+      "status": "reference"
+    },
+    "5": {
+      "sellRate": 136.56,
+      "samples": 6,
+      "lastPrice": 6.49,
+      "at": "2026-07-24T15:45:12.843Z",
+      "ageMin": 527,
+      "status": "reference"
+    },
+    "7": {
+      "sellRate": 50.5,
+      "samples": 3,
+      "lastPrice": 51.71,
+      "at": "2026-07-24T21:21:25.967Z",
+      "ageMin": 191,
+      "status": "fresh"
+    },
+    "119": {
+      "sellRate": 133.18,
+      "samples": 7,
+      "lastPrice": 41.41,
+      "at": "2026-07-24T20:15:35.350Z",
+      "ageMin": 257,
+      "status": "fresh"
+    }
+  },
+  "xp": {
+    "model": "unclear",
+    "xpPerUnit": 0.0006,
+    "unitsR2": -0.427,
+    "xpPerDollar": 0.000414,
+    "cashR2": -0.417,
+    "points": 329
+  },
+  "accelRegime": {
+    "multiplier": 1,
+    "until": "2026-07-22T20:42:00.656792+00:00",
+    "active": false,
+    "at": "2026-07-25T00:32:30.663Z"
+  },
+  "freshnessPolicyMin": {
+    "retailAverage": 60,
+    "sellRate": 360,
+    "xp": 1440
+  },
+  "regimeChanged": true
+}

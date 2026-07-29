@@ -1,0 +1,536 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "Coffee as a Long-Run Core Product",
+    "description": "An evidence-backed strategy assessment for apple.co Corp's full self-produced coffee chain.",
+    "generatedAt": "2026-07-25T16:19:11Z",
+    "cards": [
+      {
+        "id": "exchange_margin",
+        "description": "Estimated contribution after the 4% exchange fee, outbound transport, and measured finished-product unit cost.",
+        "dataset": "summary",
+        "sourceId": "summary_sql",
+        "metrics": [
+          {
+            "label": "Exchange contribution per powder",
+            "field": "exchange_margin",
+            "format": "currency"
+          }
+        ]
+      },
+      {
+        "id": "retail_profit",
+        "description": "Median weather-normalized hourly profit from low-price, fast Coffee Powder retail observations.",
+        "dataset": "summary",
+        "sourceId": "summary_sql",
+        "metrics": [
+          {
+            "label": "Base retail profit per hour",
+            "field": "retail_profit_per_hour",
+            "format": "currency"
+          }
+        ]
+      },
+      {
+        "id": "production_capacity",
+        "description": "Normalized output from two L1 Mills compared with observed profitable Grocery absorption.",
+        "dataset": "summary",
+        "sourceId": "summary_sql",
+        "metrics": [
+          {
+            "label": "Normalized powder production per hour",
+            "field": "normalized_production",
+            "format": "number"
+          },
+          {
+            "label": "Retail absorption target",
+            "field": "retail_absorption",
+            "format": "number"
+          }
+        ]
+      },
+      {
+        "id": "mill_upgrade",
+        "description": "Simple payback for the first L1-to-L2 Mill upgrade using the historical live quote and current exchange contribution.",
+        "dataset": "summary",
+        "sourceId": "summary_sql",
+        "metrics": [
+          {
+            "label": "First Mill upgrade payback",
+            "field": "mill_upgrade_payback_hours",
+            "format": "number",
+            "unit": "hours"
+          },
+          {
+            "label": "Full-debt interest per hour",
+            "field": "mill_upgrade_interest_per_hour",
+            "format": "currency"
+          }
+        ]
+      }
+    ],
+    "charts": [
+      {
+        "id": "retail_profit_chart",
+        "title": "Observed retail profit by product",
+        "subtitle": "Coffee Powder uses the median of seven fast-price observations; alternatives use their available recent observations.",
+        "type": "bar",
+        "dataset": "retail_comparison",
+        "sourceId": "retail_sql",
+        "valueFormat": "currency",
+        "encodings": {
+          "x": {
+            "field": "product",
+            "type": "nominal",
+            "label": "Product"
+          },
+          "y": {
+            "field": "observed_profit_per_hour",
+            "type": "quantitative",
+            "label": "Observed profit per hour",
+            "format": "currency"
+          },
+          "tooltip": [
+            {
+              "field": "observation_count",
+              "type": "quantitative",
+              "label": "Observations",
+              "format": "number"
+            }
+          ]
+        },
+        "yAxisTitle": "Profit per hour",
+        "layout": "full"
+      },
+      {
+        "id": "price_chart",
+        "title": "Coffee Powder exchange price",
+        "subtitle": "Hourly averages from July 24, 2026 at 19:00 UTC through July 25, 2026 at 16:00 UTC.",
+        "type": "line",
+        "dataset": "price_hourly",
+        "sourceId": "price_sql",
+        "valueFormat": "currency",
+        "encodings": {
+          "x": {
+            "field": "hour_utc",
+            "type": "temporal",
+            "label": "Hour, UTC"
+          },
+          "y": {
+            "field": "exchange_price",
+            "type": "quantitative",
+            "label": "Exchange price",
+            "format": "currency"
+          }
+        },
+        "yAxisTitle": "Price per unit",
+        "layout": "full"
+      },
+      {
+        "id": "capacity_chart",
+        "title": "Normalized coffee-chain capacity",
+        "subtitle": "Powder-equivalent units per hour; temporary production modifiers and retail weather are normalized.",
+        "type": "bar",
+        "dataset": "capacity_scenarios",
+        "sourceId": "capacity_sql",
+        "valueFormat": "number",
+        "encodings": {
+          "x": {
+            "field": "scenario",
+            "type": "nominal",
+            "label": "Scenario"
+          },
+          "y": {
+            "field": "powder_per_hour",
+            "type": "quantitative",
+            "label": "Powder-equivalent units per hour",
+            "format": "number"
+          },
+          "tooltip": [
+            {
+              "field": "basis",
+              "type": "nominal",
+              "label": "Basis"
+            }
+          ]
+        },
+        "xAxisTitle": "Powder-equivalent units per hour",
+        "layout": "full"
+      }
+    ],
+    "tables": [
+      {
+        "id": "retail_comparison_table",
+        "title": "Retail observation detail",
+        "subtitle": "Observed hourly profit from the current operating history; Coffee Powder is based on repeated fast-price tests.",
+        "dataset": "retail_comparison",
+        "sourceId": "retail_sql",
+        "defaultSort": {
+          "field": "observed_profit_per_hour",
+          "direction": "desc"
+        },
+        "columns": [
+          {
+            "field": "product",
+            "label": "Product",
+            "type": "text"
+          },
+          {
+            "field": "observed_profit_per_hour",
+            "label": "Observed profit per hour",
+            "format": "currency"
+          },
+          {
+            "field": "observation_count",
+            "label": "Observations",
+            "format": "number"
+          },
+          {
+            "field": "basis",
+            "label": "Basis",
+            "type": "text"
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "coffee_analysis",
+        "label": "Coffee long-run analysis",
+        "path": "autopilot/analysis/coffee-long-term-2026-07-25/coffee-long-term-analysis.ipynb"
+      },
+      {
+        "id": "summary_sql",
+        "label": "Coffee strategy summary query",
+        "path": "autopilot/analysis/coffee-long-term-2026-07-25/coffee-analysis.sqlite"
+      },
+      {
+        "id": "retail_sql",
+        "label": "Retail comparison query",
+        "path": "autopilot/analysis/coffee-long-term-2026-07-25/coffee-analysis.sqlite"
+      },
+      {
+        "id": "price_sql",
+        "label": "Coffee Powder price query",
+        "path": "autopilot/analysis/coffee-long-term-2026-07-25/coffee-analysis.sqlite"
+      },
+      {
+        "id": "capacity_sql",
+        "label": "Coffee-chain capacity query",
+        "path": "autopilot/analysis/coffee-long-term-2026-07-25/coffee-analysis.sqlite"
+      }
+    ],
+    "blocks": [
+      {
+        "id": "title",
+        "type": "markdown",
+        "body": "# Coffee as a Long-Run Core Product"
+      },
+      {
+        "id": "executive_summary",
+        "type": "markdown",
+        "sourceId": "summary_sql",
+        "body": "## Executive Summary\n\n- **Keep coffee as the core long-run product.** Measured finished-product cost is about **$27.47**, while the recent exchange price averaged **$40.61**; estimated exchange contribution is **$11.13 per unit** after fee and transport.\n- **The current business is supply-constrained, not demand-constrained.** Two normalized L1 Mills produce about **46.86 powder/hour**, versus about **97.52/hour** of observed profitable base Grocery absorption.\n- **Upgrade capacity in stages, not without limit.** The first L2 Mill has an estimated simple payback of about **117 hours**. After both Mills reach L2, the Farm's shared Seeds/Beans lane becomes the next likely bottleneck.\n- **Confidence is directional, not permanent.** The live price window is only about 21 hours, and Power plant output has not yet been measured."
+      },
+      {
+        "id": "definitions",
+        "type": "markdown",
+        "body": "## What “long-run” means here\n\nThe decision standard is sustainable profit and end-to-end capacity after normalizing temporary production modifiers and volatile retail weather. Retail absorption means Coffee Powder units the Grocery can sell profitably per hour at the observed profit-maximizing low-price regime. Production capacity is the minimum throughput across Power, Water, the Farm's shared Seeds/Beans lane, and Mills."
+      },
+      {
+        "id": "headline_metrics",
+        "type": "metric-strip",
+        "cardIds": [
+          "exchange_margin",
+          "retail_profit",
+          "production_capacity",
+          "mill_upgrade"
+        ]
+      },
+      {
+        "id": "economics_finding",
+        "type": "markdown",
+        "sourceId": "summary_sql",
+        "body": "## Coffee has a durable operating-margin advantage\n\nAt the fast retail price regime, Coffee Powder produced a median **$1,617/hour** in the observed high-weather windows and about **$1,051/hour** after weather normalization. This was materially above the available Steak and Grapes observations. The exchange also provides a credible overflow channel: its estimated one-hour Coffee Powder volume was about **3.3k units**, far above this company's near-term production."
+      },
+      {
+        "id": "retail_profit_visual",
+        "type": "chart",
+        "chartId": "retail_profit_chart",
+        "layout": "full"
+      },
+      {
+        "id": "retail_profit_detail",
+        "type": "table",
+        "tableId": "retail_comparison_table",
+        "layout": "full"
+      },
+      {
+        "id": "price_finding",
+        "type": "markdown",
+        "sourceId": "price_sql",
+        "body": "## The exchange price is stable enough to support overflow sales\n\nAcross **736 observations** from July 24–25, Coffee Powder averaged **$40.61** with a **2.5% coefficient of variation**; the 10th-to-90th percentile range was **$39.00–$41.75**. That is a useful short-run stability signal, although it is not yet a multi-week proof."
+      },
+      {
+        "id": "price_visual",
+        "type": "chart",
+        "chartId": "price_chart",
+        "layout": "full"
+      },
+      {
+        "id": "capacity_finding",
+        "type": "markdown",
+        "sourceId": "capacity_sql",
+        "body": "## Capacity should expand until it reaches the retail lane\n\nThe normalized Grocery target is about **97.52 powder/hour**. Two normalized L1 Mills provide **46.86/hour**; one L2 plus one L1 provides **70.29/hour**; two L2 Mills provide **93.71/hour**. The current L3 Farm's normalized shared Seeds/Beans capacity is about **86.27 powder-equivalent/hour**, so the likely sequence is Mill L2 → second Mill L2 → Farm capacity review/upgrade. Beyond that point, fresh data should decide whether another Mill level is justified."
+      },
+      {
+        "id": "capacity_visual",
+        "type": "chart",
+        "chartId": "capacity_chart",
+        "layout": "full"
+      },
+      {
+        "id": "recommendation",
+        "type": "markdown",
+        "sourceId": "coffee_analysis",
+        "body": "## Recommended next steps\n\n1. Keep Coffee Powder as the default retail product and use the exchange for overflow when its live net margin remains positive.\n2. At each idle production-building window, compare normalized end-to-end capacity with profitable Grocery absorption before restarting production.\n3. Upgrade one binding stage at a time. Use bonds for a measured funding shortfall after the strategic upgrade decision; cash availability must not veto a profitable long-run capacity gap.\n4. Stop automatic expansion when normalized production meets profitable retail absorption. Reopen the decision only after a material change in price, demand, modifiers, building levels, or retail capacity."
+      },
+      {
+        "id": "further_questions",
+        "type": "markdown",
+        "body": "## Further questions\n\n- What is the Power plant's measured live production rate and unit cost after construction completes?\n- What are the fresh UI quotes for the first Mill and Farm upgrades?\n- Does Coffee Powder maintain its margin and exchange depth over a seven-day window rather than a 21-hour window?"
+      },
+      {
+        "id": "caveats",
+        "type": "markdown",
+        "body": "## Caveats and assumptions\n\nThe price sample covers less than one day. Retail comparisons have unequal sample counts: seven fast-price Coffee Powder observations, two Steak observations, and one Grapes observation. The analysis removes the current -23% Powder and +21% Beans modifiers for capacity planning and divides retail throughput by recorded weather where available. The estimated first Mill payback uses a historical $30,560 quote; execution still requires a fresh dry quote. The rotating one-hour exchange-volume estimate is supporting evidence, not guaranteed demand."
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-07-25T16:19:11Z",
+    "status": "ready",
+    "datasets": {
+      "summary": [
+        {
+          "exchange_margin": 11.13,
+          "retail_profit_per_hour": 1051,
+          "fast_retail_profit_per_hour": 1617,
+          "normalized_production": 46.86,
+          "retail_absorption": 97.52,
+          "mill_upgrade_payback_hours": 117,
+          "mill_upgrade_interest_per_hour": 6.37,
+          "volume_1h_estimate": 3255.89
+        }
+      ],
+      "retail_comparison": [
+        {
+          "product": "Coffee Powder",
+          "observed_profit_per_hour": 1617,
+          "observation_count": 7,
+          "basis": "Median fast-price observations"
+        },
+        {
+          "product": "Steak",
+          "observed_profit_per_hour": 612,
+          "observation_count": 2,
+          "basis": "Available recent observations"
+        },
+        {
+          "product": "Grapes",
+          "observed_profit_per_hour": 289,
+          "observation_count": 1,
+          "basis": "Available recent observation"
+        }
+      ],
+      "price_hourly": [
+        {
+          "hour_utc": "2026-07-24T19:00:00Z",
+          "exchange_price": 39.938
+        },
+        {
+          "hour_utc": "2026-07-24T20:00:00Z",
+          "exchange_price": 40.627
+        },
+        {
+          "hour_utc": "2026-07-24T21:00:00Z",
+          "exchange_price": 39.679
+        },
+        {
+          "hour_utc": "2026-07-24T22:00:00Z",
+          "exchange_price": 40.853
+        },
+        {
+          "hour_utc": "2026-07-24T23:00:00Z",
+          "exchange_price": 41.292
+        },
+        {
+          "hour_utc": "2026-07-25T00:00:00Z",
+          "exchange_price": 40.521
+        },
+        {
+          "hour_utc": "2026-07-25T01:00:00Z",
+          "exchange_price": 41.5
+        },
+        {
+          "hour_utc": "2026-07-25T02:00:00Z",
+          "exchange_price": 41.617
+        },
+        {
+          "hour_utc": "2026-07-25T03:00:00Z",
+          "exchange_price": 41.625
+        },
+        {
+          "hour_utc": "2026-07-25T04:00:00Z",
+          "exchange_price": 39.525
+        },
+        {
+          "hour_utc": "2026-07-25T05:00:00Z",
+          "exchange_price": 41.133
+        },
+        {
+          "hour_utc": "2026-07-25T06:00:00Z",
+          "exchange_price": 41.9
+        },
+        {
+          "hour_utc": "2026-07-25T07:00:00Z",
+          "exchange_price": 41.3
+        },
+        {
+          "hour_utc": "2026-07-25T08:00:00Z",
+          "exchange_price": 40.492
+        },
+        {
+          "hour_utc": "2026-07-25T09:00:00Z",
+          "exchange_price": 39.508
+        },
+        {
+          "hour_utc": "2026-07-25T10:00:00Z",
+          "exchange_price": 40
+        },
+        {
+          "hour_utc": "2026-07-25T11:00:00Z",
+          "exchange_price": 41.192
+        },
+        {
+          "hour_utc": "2026-07-25T12:00:00Z",
+          "exchange_price": 40.283
+        },
+        {
+          "hour_utc": "2026-07-25T13:00:00Z",
+          "exchange_price": 39.696
+        },
+        {
+          "hour_utc": "2026-07-25T14:00:00Z",
+          "exchange_price": 40.333
+        },
+        {
+          "hour_utc": "2026-07-25T15:00:00Z",
+          "exchange_price": 40.675
+        },
+        {
+          "hour_utc": "2026-07-25T16:00:00Z",
+          "exchange_price": 39.525
+        }
+      ],
+      "capacity_scenarios": [
+        {
+          "scenario": "Current two L1 Mills (-23% modifier)",
+          "powder_per_hour": 36.08,
+          "basis": "Measured current production"
+        },
+        {
+          "scenario": "Two L1 Mills (modifier normalized)",
+          "powder_per_hour": 46.86,
+          "basis": "Long-run Mill capacity"
+        },
+        {
+          "scenario": "One L2 + one L1 Mill",
+          "powder_per_hour": 70.29,
+          "basis": "Mill capacity"
+        },
+        {
+          "scenario": "Current L3 Farm shared lane",
+          "powder_per_hour": 86.27,
+          "basis": "Normalized Seeds + Beans capacity"
+        },
+        {
+          "scenario": "Two L2 Mills",
+          "powder_per_hour": 93.71,
+          "basis": "Mill capacity"
+        },
+        {
+          "scenario": "Grocery profitable base absorption",
+          "powder_per_hour": 97.52,
+          "basis": "Weather-normalized observed retail"
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "coffee_analysis",
+      "label": "Coffee long-run analysis",
+      "path": "autopilot/analysis/coffee-long-term-2026-07-25/coffee-long-term-analysis.ipynb"
+    },
+    {
+      "id": "summary_sql",
+      "label": "Coffee strategy summary query",
+      "path": "autopilot/analysis/coffee-long-term-2026-07-25/coffee-analysis.sqlite",
+      "query": {
+        "engine": "sqlite",
+        "sql": "SELECT exchange_margin, retail_profit_per_hour, fast_retail_profit_per_hour, normalized_production, retail_absorption, mill_upgrade_payback_hours, mill_upgrade_interest_per_hour, volume_1h_estimate FROM summary",
+        "description": "Loads the reviewed headline economics and capacity metrics.",
+        "executed_at": "2026-07-25T16:19:11Z",
+        "tables_used": [
+          "summary"
+        ]
+      }
+    },
+    {
+      "id": "retail_sql",
+      "label": "Retail comparison query",
+      "path": "autopilot/analysis/coffee-long-term-2026-07-25/coffee-analysis.sqlite",
+      "query": {
+        "engine": "sqlite",
+        "sql": "SELECT product, observed_profit_per_hour, observation_count, basis FROM retail_comparison ORDER BY observed_profit_per_hour DESC",
+        "description": "Loads reviewed retail profit observations by product.",
+        "executed_at": "2026-07-25T16:19:11Z",
+        "tables_used": [
+          "retail_comparison"
+        ]
+      }
+    },
+    {
+      "id": "price_sql",
+      "label": "Coffee Powder price query",
+      "path": "autopilot/analysis/coffee-long-term-2026-07-25/coffee-analysis.sqlite",
+      "query": {
+        "engine": "sqlite",
+        "sql": "SELECT hour_utc, exchange_price FROM price_hourly ORDER BY hour_utc",
+        "description": "Loads hourly Coffee Powder exchange prices for the reviewed window.",
+        "executed_at": "2026-07-25T16:19:11Z",
+        "tables_used": [
+          "price_hourly"
+        ]
+      }
+    },
+    {
+      "id": "capacity_sql",
+      "label": "Coffee-chain capacity query",
+      "path": "autopilot/analysis/coffee-long-term-2026-07-25/coffee-analysis.sqlite",
+      "query": {
+        "engine": "sqlite",
+        "sql": "SELECT scenario, powder_per_hour, basis FROM capacity_scenarios ORDER BY powder_per_hour",
+        "description": "Loads normalized end-to-end coffee capacity scenarios.",
+        "executed_at": "2026-07-25T16:19:11Z",
+        "tables_used": [
+          "capacity_scenarios"
+        ]
+      }
+    }
+  ]
+}

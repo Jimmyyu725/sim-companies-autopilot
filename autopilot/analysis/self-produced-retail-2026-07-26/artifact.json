@@ -1,0 +1,540 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "Fully Self-Produced Retail",
+    "description": "Profitability across permanent retail buildings after every input is self-produced.",
+    "generatedAt": "2026-07-26T06:20:47+00:00",
+    "cards": [
+      {
+        "id": "feasible_winner",
+        "description": "Best full-chain candidate that fits the current six-slot structure.",
+        "dataset": "summary",
+        "sourceId": "summary_sql",
+        "metrics": [
+          {
+            "label": "Six-slot winner",
+            "field": "feasible_winner",
+            "format": "text"
+          }
+        ]
+      },
+      {
+        "id": "feasible_profit",
+        "description": "Current net profit after all production and retail labor.",
+        "dataset": "summary",
+        "sourceId": "summary_sql",
+        "metrics": [
+          {
+            "label": "Net $ / h / retail level",
+            "field": "feasible_profit_per_store_level",
+            "format": "currency"
+          }
+        ]
+      },
+      {
+        "id": "coffee_baseline",
+        "description": "Current fully self-produced Coffee Powder estimate per Grocery level.",
+        "dataset": "summary",
+        "sourceId": "summary_sql",
+        "metrics": [
+          {
+            "label": "Coffee net $ / h / retail level",
+            "field": "coffee_profit_per_store_level",
+            "format": "currency"
+          }
+        ]
+      }
+    ],
+    "charts": [
+      {
+        "id": "retailer_chart",
+        "title": "Best product by non-aerospace retailer",
+        "subtitle": "Current net dollars per hour per retail-building level; all recursive production labor included.",
+        "type": "bar",
+        "dataset": "non_aerospace_winners",
+        "sourceId": "store_sql",
+        "valueFormat": "currency",
+        "encodings": {
+          "x": {
+            "field": "store",
+            "type": "nominal",
+            "label": "Retailer"
+          },
+          "y": {
+            "field": "current_profit_per_store_level",
+            "type": "quantitative",
+            "label": "Net profit per hour per retail level",
+            "format": "currency"
+          }
+        },
+        "yAxisTitle": "Net $ / h / retail-building level",
+        "layout": "full"
+      },
+      {
+        "id": "feasible_chart",
+        "title": "Six-slot full-chain candidates",
+        "subtitle": "Current net dollars per hour divided by all production and retail building levels needed to sustain output.",
+        "type": "bar",
+        "dataset": "feasible_candidates",
+        "sourceId": "feasible_sql",
+        "valueFormat": "currency",
+        "encodings": {
+          "x": {
+            "field": "product",
+            "type": "nominal",
+            "label": "Product"
+          },
+          "y": {
+            "field": "profit_per_total_building_level",
+            "type": "quantitative",
+            "label": "Net profit per total building level",
+            "format": "currency"
+          }
+        },
+        "yAxisTitle": "Net $ / h / total building level",
+        "layout": "full"
+      }
+    ],
+    "tables": [
+      {
+        "id": "store_table",
+        "title": "Winner inside each permanent retailer",
+        "subtitle": "Current weather and modifiers; neutral-weather profit is included as a stability check.",
+        "dataset": "store_winners",
+        "sourceId": "store_sql",
+        "defaultSort": {
+          "field": "current_profit_per_store_level",
+          "direction": "desc"
+        },
+        "columns": [
+          {
+            "field": "store",
+            "label": "Retailer",
+            "type": "text"
+          },
+          {
+            "field": "product",
+            "label": "Best product",
+            "type": "text"
+          },
+          {
+            "field": "current_profit_per_store_level",
+            "label": "Current $/h/store level",
+            "format": "currency"
+          },
+          {
+            "field": "neutral_profit_per_store_level",
+            "label": "Neutral $/h/store level",
+            "format": "currency"
+          },
+          {
+            "field": "minimum_slots",
+            "label": "Minimum slots",
+            "type": "number"
+          },
+          {
+            "field": "production_levels_needed",
+            "label": "Production levels needed",
+            "format": "number"
+          },
+          {
+            "field": "profit_per_total_building_level",
+            "label": "$/h/total level",
+            "format": "currency"
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "notebook",
+        "label": "Fully self-produced retail notebook",
+        "path": "autopilot/analysis/self-produced-retail-2026-07-26/self-produced-retail.ipynb"
+      },
+      {
+        "id": "summary_sql",
+        "label": "Self-produced retail summary query",
+        "path": "autopilot/analysis/self-produced-retail-2026-07-26/self-produced-retail.sqlite",
+        "query": {
+          "engine": "sqlite",
+          "sql": "SELECT * FROM summary",
+          "description": "Loads the theoretical winner, six-slot winner, and current Coffee baseline.",
+          "executed_at": "2026-07-26T06:16:03.448Z",
+          "tables_used": [
+            "summary"
+          ]
+        }
+      },
+      {
+        "id": "store_sql",
+        "label": "Retailer winner query",
+        "path": "autopilot/analysis/self-produced-retail-2026-07-26/self-produced-retail.sqlite",
+        "query": {
+          "engine": "sqlite",
+          "sql": "SELECT * FROM store_winners ORDER BY current_net_profit_per_hour_per_store_level DESC",
+          "description": "Loads each permanent retailer's best fully self-produced Q0 product.",
+          "executed_at": "2026-07-26T06:16:03.448Z",
+          "tables_used": [
+            "store_winners"
+          ]
+        }
+      },
+      {
+        "id": "feasible_sql",
+        "label": "Six-slot candidate query",
+        "path": "autopilot/analysis/self-produced-retail-2026-07-26/self-produced-retail.sqlite",
+        "query": {
+          "engine": "sqlite",
+          "sql": "SELECT * FROM feasible_candidates ORDER BY current_profit_per_total_building_level DESC",
+          "description": "Loads products whose full self-produced chain fits within six distinct building slots.",
+          "executed_at": "2026-07-26T06:16:03.448Z",
+          "tables_used": [
+            "feasible_candidates"
+          ]
+        }
+      }
+    ],
+    "blocks": [
+      {
+        "id": "title",
+        "type": "markdown",
+        "body": "# Fully Self-Produced Retail"
+      },
+      {
+        "id": "executive_summary",
+        "type": "markdown",
+        "sourceId": "summary_sql",
+        "body": "## Executive Summary\n\n- **理论绝对第一是 Sales Offices 的 BFR：约 $555,885/h/零售等级。** 但它至少需要 16 种建筑槽，并要约 767 个生产等级喂满一级 Sales Office，对当前公司不可执行。\n- **当前六槽限制下，Fashion Store 的 Necklace 是纸面第一：约 $2,541/h/店铺等级。** 完整链效率约 $568/h/总建筑等级。\n- **Coffee Powder 约 $2,308/h/Grocery 等级。** Necklace 只在未计建造资本、停产切换和债务利息时领先；公司已有整套咖啡资产，因此不能据此立即转型。"
+      },
+      {
+        "id": "metrics",
+        "type": "metric-strip",
+        "cardIds": [
+          "feasible_winner",
+          "feasible_profit",
+          "coffee_baseline"
+        ]
+      },
+      {
+        "id": "definition",
+        "type": "markdown",
+        "sourceId": "notebook",
+        "body": "## 这次的 $/h 是完整自产利润\n\n每件商品从 Power、Water 和原料开始递归自产；利润扣除每一道生产工资和零售店工资。没有交易所买入、4% 手续费或 Transport。主列按当前天气与临时生产修正；neutral 列移除天气和临时修正，用来检查结论是否只靠短期事件。"
+      },
+      {
+        "id": "retailer_finding",
+        "type": "markdown",
+        "sourceId": "store_sql",
+        "body": "## 高店铺利润不等于当前公司能做\n\n除去数值极端的 Aerospace，Hardware 的 Tools、Car Dealership 的 Economy E-Car 和 Gas Station 的 Diesel 都高于现有 Coffee Powder；但它们的完整链分别至少需要 9、13 和 7 种建筑槽。当前容量只有 6，所以这些是未来大公司机会，不是现在可执行的替代品。"
+      },
+      {
+        "id": "retailer_chart_block",
+        "type": "chart",
+        "chartId": "retailer_chart",
+        "layout": "full"
+      },
+      {
+        "id": "store_table_block",
+        "type": "table",
+        "tableId": "store_table",
+        "layout": "full"
+      },
+      {
+        "id": "feasible_finding",
+        "type": "markdown",
+        "sourceId": "feasible_sql",
+        "body": "## 六槽闭环里 Necklace 最强，但 Coffee 最容易继续执行\n\nNecklace 的完整链需要 Fashion Factory、Mine、Factory、Power、Water 加 Fashion Store，刚好占满六种建筑。Coffee Powder 只需 Power、Water、Farm、Mill 加 Grocery，和现有资产完全一致。Necklace 的纸面效率更高，但它要求拆换整条产业链；在没有建造成本和回本期之前，Coffee 仍应是运营基线。"
+      },
+      {
+        "id": "feasible_chart_block",
+        "type": "chart",
+        "chartId": "feasible_chart",
+        "layout": "full"
+      },
+      {
+        "id": "recommendations",
+        "type": "markdown",
+        "sourceId": "notebook",
+        "body": "## Recommended next steps\n\n1. 继续把 Coffee Powder 当作当前运营基线，不因纸面榜立即拆建筑。\n2. 把 Necklace 作为未来转型候选，下一步单独计算六座建筑的建造/升级总成本、债务利息、停产损失和回本小时。\n3. Tools、汽车、燃油和 Aerospace 等待更多建筑槽后再评估；当前不具备完整自产闭环。\n4. 若真的转型，先做一轮最新 UI 生产/零售 dry quote，验证公式估计。"
+      },
+      {
+        "id": "further_questions",
+        "type": "markdown",
+        "body": "## Further questions\n\n- Necklace 从零建链，相对继续升级咖啡的真实回本期是多少？\n- 若允许部分原料从 Exchange 购买，六槽约束下是否会出现更好的混合方案？\n- 公司升级后增加建筑槽时，Tools、Diesel 或 Economy E-Car 何时首次变得可执行？"
+      },
+      {
+        "id": "caveats",
+        "type": "markdown",
+        "body": "## Caveats and assumptions\n\n结果按 Q0、当前 5.882% administration overhead、2% 永久生产加成、1% 永久销售加成和当前 1.083× 零售天气计算。Neutral 列移除天气和临时资源修正，且各店冠军不变。最低槽位只按不同建筑种类计数，假设可以通过升级在一个槽内集中等级。未计建造资本、升级时间、债务利息、切换停产、研究质量和库存周转。Restaurant、季节市场及 Ramadan Sweets 不在主榜。"
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-07-26T06:20:47+00:00",
+    "status": "ready",
+    "datasets": {
+      "summary": [
+        {
+          "theoretical_winner": "BFR",
+          "theoretical_profit_per_store_level": 555885.35,
+          "theoretical_minimum_slots": 16,
+          "feasible_winner": "Necklace",
+          "feasible_profit_per_store_level": 2541.11,
+          "feasible_profit_per_total_level": 567.67,
+          "coffee_profit_per_store_level": 2308.31,
+          "as_of_utc": "2026-07-26T06:16:03.448Z"
+        }
+      ],
+      "store_winners": [
+        {
+          "store_rank": 1,
+          "store": "Sales Offices",
+          "product": "BFR",
+          "current_profit_per_store_level": 555885.35,
+          "neutral_profit_per_store_level": 513442.77,
+          "optimal_retail_price": 483175.6,
+          "units_per_hour_per_store_level": 1.873,
+          "own_cost_per_unit": 186041.11,
+          "production_levels_needed": 767.3,
+          "minimum_slots": 16,
+          "profit_per_total_building_level": 723.53
+        },
+        {
+          "store_rank": 2,
+          "store": "Hardware Store",
+          "product": "Tools",
+          "current_profit_per_store_level": 6309.8,
+          "neutral_profit_per_store_level": 5833.35,
+          "optimal_retail_price": 137.7,
+          "units_per_hour_per_store_level": 71.224,
+          "own_cost_per_unit": 46.54,
+          "production_levels_needed": 8.37,
+          "minimum_slots": 9,
+          "profit_per_total_building_level": 673.74
+        },
+        {
+          "store_rank": 3,
+          "store": "Car Dealership",
+          "product": "Economy E-Car",
+          "current_profit_per_store_level": 5622.98,
+          "neutral_profit_per_store_level": 5159.45,
+          "optimal_retail_price": 2629.87,
+          "units_per_hour_per_store_level": 3.385,
+          "own_cost_per_unit": 850.17,
+          "production_levels_needed": 7.51,
+          "minimum_slots": 13,
+          "profit_per_total_building_level": 660.69
+        },
+        {
+          "store_rank": 4,
+          "store": "Gas Station",
+          "product": "Diesel",
+          "current_profit_per_store_level": 3837.29,
+          "neutral_profit_per_store_level": 3516.77,
+          "optimal_retail_price": 33.46,
+          "units_per_hour_per_store_level": 178.447,
+          "own_cost_per_unit": 9.91,
+          "production_levels_needed": 4.63,
+          "minimum_slots": 7,
+          "profit_per_total_building_level": 682.14
+        },
+        {
+          "store_rank": 5,
+          "store": "Grocery Store",
+          "product": "Frozen Pizza",
+          "current_profit_per_store_level": 3068.3,
+          "neutral_profit_per_store_level": 2821.47,
+          "optimal_retail_price": 358.85,
+          "units_per_hour_per_store_level": 14.235,
+          "own_cost_per_unit": 133.04,
+          "production_levels_needed": 6.24,
+          "minimum_slots": 9,
+          "profit_per_total_building_level": 423.72
+        },
+        {
+          "store_rank": 6,
+          "store": "Fashion Store",
+          "product": "Necklace",
+          "current_profit_per_store_level": 2541.11,
+          "neutral_profit_per_store_level": 2322.24,
+          "optimal_retail_price": 1437.31,
+          "units_per_hour_per_store_level": 2.898,
+          "own_cost_per_unit": 446.9,
+          "production_levels_needed": 3.48,
+          "minimum_slots": 6,
+          "profit_per_total_building_level": 567.67
+        },
+        {
+          "store_rank": 7,
+          "store": "Electronics Store",
+          "product": "Televisions",
+          "current_profit_per_store_level": 1635.21,
+          "neutral_profit_per_store_level": 1496.57,
+          "optimal_retail_price": 852.61,
+          "units_per_hour_per_store_level": 2.932,
+          "own_cost_per_unit": 232.53,
+          "production_levels_needed": 1.71,
+          "minimum_slots": 9,
+          "profit_per_total_building_level": 602.42
+        }
+      ],
+      "non_aerospace_winners": [
+        {
+          "store_rank": 2,
+          "store": "Hardware Store",
+          "product": "Tools",
+          "current_profit_per_store_level": 6309.8,
+          "neutral_profit_per_store_level": 5833.35,
+          "optimal_retail_price": 137.7,
+          "units_per_hour_per_store_level": 71.224,
+          "own_cost_per_unit": 46.54,
+          "production_levels_needed": 8.37,
+          "minimum_slots": 9,
+          "profit_per_total_building_level": 673.74
+        },
+        {
+          "store_rank": 3,
+          "store": "Car Dealership",
+          "product": "Economy E-Car",
+          "current_profit_per_store_level": 5622.98,
+          "neutral_profit_per_store_level": 5159.45,
+          "optimal_retail_price": 2629.87,
+          "units_per_hour_per_store_level": 3.385,
+          "own_cost_per_unit": 850.17,
+          "production_levels_needed": 7.51,
+          "minimum_slots": 13,
+          "profit_per_total_building_level": 660.69
+        },
+        {
+          "store_rank": 4,
+          "store": "Gas Station",
+          "product": "Diesel",
+          "current_profit_per_store_level": 3837.29,
+          "neutral_profit_per_store_level": 3516.77,
+          "optimal_retail_price": 33.46,
+          "units_per_hour_per_store_level": 178.447,
+          "own_cost_per_unit": 9.91,
+          "production_levels_needed": 4.63,
+          "minimum_slots": 7,
+          "profit_per_total_building_level": 682.14
+        },
+        {
+          "store_rank": 5,
+          "store": "Grocery Store",
+          "product": "Frozen Pizza",
+          "current_profit_per_store_level": 3068.3,
+          "neutral_profit_per_store_level": 2821.47,
+          "optimal_retail_price": 358.85,
+          "units_per_hour_per_store_level": 14.235,
+          "own_cost_per_unit": 133.04,
+          "production_levels_needed": 6.24,
+          "minimum_slots": 9,
+          "profit_per_total_building_level": 423.72
+        },
+        {
+          "store_rank": 6,
+          "store": "Fashion Store",
+          "product": "Necklace",
+          "current_profit_per_store_level": 2541.11,
+          "neutral_profit_per_store_level": 2322.24,
+          "optimal_retail_price": 1437.31,
+          "units_per_hour_per_store_level": 2.898,
+          "own_cost_per_unit": 446.9,
+          "production_levels_needed": 3.48,
+          "minimum_slots": 6,
+          "profit_per_total_building_level": 567.67
+        },
+        {
+          "store_rank": 7,
+          "store": "Electronics Store",
+          "product": "Televisions",
+          "current_profit_per_store_level": 1635.21,
+          "neutral_profit_per_store_level": 1496.57,
+          "optimal_retail_price": 852.61,
+          "units_per_hour_per_store_level": 2.932,
+          "own_cost_per_unit": 232.53,
+          "production_levels_needed": 1.71,
+          "minimum_slots": 9,
+          "profit_per_total_building_level": 602.42
+        }
+      ],
+      "feasible_candidates": [
+        {
+          "rank": 1,
+          "store": "Fashion Store",
+          "product": "Necklace",
+          "profit_per_store_level": 2541.11,
+          "profit_per_total_building_level": 567.67,
+          "minimum_slots": 6,
+          "production_levels_needed": 3.48
+        },
+        {
+          "rank": 2,
+          "store": "Fashion Store",
+          "product": "Sneakers",
+          "profit_per_store_level": 583.31,
+          "profit_per_total_building_level": 426.56,
+          "minimum_slots": 5,
+          "production_levels_needed": 0.37
+        },
+        {
+          "rank": 3,
+          "store": "Hardware Store",
+          "product": "Planks",
+          "profit_per_store_level": 949.32,
+          "profit_per_total_building_level": 360.9,
+          "minimum_slots": 5,
+          "production_levels_needed": 1.63
+        },
+        {
+          "rank": 4,
+          "store": "Hardware Store",
+          "product": "Cement",
+          "profit_per_store_level": 482.36,
+          "profit_per_total_building_level": 359.08,
+          "minimum_slots": 4,
+          "production_levels_needed": 0.34
+        },
+        {
+          "rank": 5,
+          "store": "Grocery Store",
+          "product": "Coffee Powder",
+          "profit_per_store_level": 2308.31,
+          "profit_per_total_building_level": 308.8,
+          "minimum_slots": 5,
+          "production_levels_needed": 6.48
+        },
+        {
+          "rank": 6,
+          "store": "Hardware Store",
+          "product": "Bricks",
+          "profit_per_store_level": 337.71,
+          "profit_per_total_building_level": 294.81,
+          "minimum_slots": 4,
+          "production_levels_needed": 0.15
+        },
+        {
+          "rank": 7,
+          "store": "Grocery Store",
+          "product": "Ginger Beer",
+          "profit_per_store_level": 456.92,
+          "profit_per_total_building_level": 271.07,
+          "minimum_slots": 6,
+          "production_levels_needed": 0.69
+        },
+        {
+          "rank": 8,
+          "store": "Grocery Store",
+          "product": "Orange Juice",
+          "profit_per_store_level": 466.77,
+          "profit_per_total_building_level": 250.26,
+          "minimum_slots": 6,
+          "production_levels_needed": 0.87
+        }
+      ]
+    }
+  }
+}

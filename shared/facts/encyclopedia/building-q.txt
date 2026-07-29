@@ -1,0 +1,127 @@
+# https://www.simcompanies.com/encyclopedia/0/building/q/
+
+BUILDINGS
+FOOD
+Slaughterhouse
+Mill
+Ranch
+Grocery store
+Food processing plant
+Beverage factory
+Bakery
+Catering
+Restaurant
+CONSTRUCTION
+Hardware store
+Farm
+Concrete plant
+Quarry
+Construction factory
+General contractor
+FASHION
+Ranch
+Fashion store
+Fashion factory
+ENERGY
+Power plant
+Oil rig
+Refinery
+Beverage factory
+Gas station
+ELECTRONICS
+Electronics store
+Electronics factory
+Aerospace electronics
+AUTOMOTIVE
+Electronics factory
+Car factory
+Car dealership
+Propulsion factory
+AEROSPACE
+Propulsion factory
+Aerospace factory
+Aerospace electronics
+Vertical integration facility
+Hangar
+Sales offices
+RESOURCES
+Water reservoir
+Refinery
+Quarry
+Shipping depot
+Mine
+Factory
+RESEARCH
+Breeding laboratory
+Chemistry laboratory
+Fashion & Design
+Physics laboratory
+Plant research center
+Kitchen
+Software R&D
+Automotive R&D
+Launch pad
+OTHER
+Forest nursery
+Bank
+Academy
+PARKS & RECREATION
+Temple
+Park
+Lake
+SEASONAL
+Halloween market
+Xmas market
+Spring market
+Beach market
+Kitchen
+Worker wages: $518/hour
+
+
+RECIPES
+Construction and upgrades require:
+The monetary costs are an approximation of the value of needed resources.
+Approximate cost
+Level 1	~ $90,845
+96x1,320x
+384x24x
+Upgrade to lvl 2	~ $90,845
+96x1,320x
+384x24x
+Upgrade to lvl 3	~ $181,690
+192x2,640x
+768x48x
+Upgrade to lvl 4	~ $272,534
+288x3,960x
+1,152x72x
+Upgrade to lvl 5	~ $363,379
+384x5,280x
+1,536x96x
+Upgrade to lvl 6	~ $454,224
+480x6,600x
+1,920x120x
+(and so on..)
+Reference value
+Level 1	$82,800
+Level 2	$165,600
+Level 3	$248,400
+Level 4	$331,200
+Level 5	$414,000
+Level 6	$496,800
+Level 7	$579,600
+Level 8	$662,400
+Level 9	$745,200
+Level 10	$828,000
+(and so on..)
+Construction time
+Level 1	4:00h
+Upgrade to lvl 2	4:00h
+Upgrade to lvl 3	8:00h
+Upgrade to lvl 4	12:00h
+Upgrade to lvl 5	16:00h
+Upgrade to lvl 6	20:00h
+Upgrade to lvl 7	24:00h
+Upgrade to lvl 8	28:00h
+Upgrade to lvl 9	32:00h
+Upgrade to lvl 10	36:00h
+(and so on..)

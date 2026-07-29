@@ -1,0 +1,6402 @@
+{
+ "generated": "2026-07-29T13:20:01.767Z",
+ "source": "encyclopedia/ (scraped in-game) + defs.json (public bundle) — all MEASURED",
+ "buildingCount": 48,
+ "resourceCount": 151,
+ "mechanics": {
+  "L1_rate_factor": 0.8087,
+  "exchange_fee": 0.04,
+  "scrap_returns_pct": 1,
+  "scrap_unlocks_company_level": 5,
+  "build_uses_warehouse_first": true,
+  "patent_base_probability": 0.0625,
+  "patents_needed_per_quality": [
+   12,
+   50,
+   500,
+   2000,
+   5000,
+   10000,
+   10000,
+   10000,
+   10000,
+   10000,
+   50000,
+   50000
+  ],
+  "realm_phase": 8,
+  "realm_research_limit": 12,
+  "acceleration_ladder": "x3 → x2(24h) → x1 (read live from auth-data)",
+  "level_unlocks": {
+   "contracts": 5,
+   "research": 10,
+   "bonds": 10,
+   "executives": 15,
+   "buyOrders": 25
+  },
+  "building_slots": {
+   "0": 4,
+   "5": 5,
+   "10": 6,
+   "15": 8,
+   "20": 10,
+   "25": 12,
+   "30": 14
+  },
+  "_note": "All MEASURED from the game bundle/encyclopedia. Cite these; do not re-assume."
+ },
+ "buildings": {
+  "0": {
+   "letter": "0",
+   "name": "Hangar",
+   "wage": 759,
+   "products": [
+    "JUMBO JET",
+    "LUXURY JET",
+    "SINGLE ENGINE PLANE"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 109771,
+     "materials": {
+      "concrete": 116,
+      "bricks": 1595,
+      "planks": 464,
+      "constructionUnits": 29
+     },
+     "buildTime": "3:00h"
+    },
+    "2": {
+     "approxCost": 109771,
+     "materials": {
+      "concrete": 116,
+      "bricks": 1595,
+      "planks": 464,
+      "constructionUnits": 29
+     },
+     "buildTime": "3:00h"
+    },
+    "3": {
+     "approxCost": 219542,
+     "materials": {
+      "concrete": 232,
+      "bricks": 3190,
+      "planks": 928,
+      "constructionUnits": 58
+     },
+     "buildTime": "6:00h"
+    },
+    "4": {
+     "approxCost": 329312,
+     "materials": {
+      "concrete": 348,
+      "bricks": 4785,
+      "planks": 1392,
+      "constructionUnits": 87
+     },
+     "buildTime": "9:00h"
+    },
+    "5": {
+     "approxCost": 439083,
+     "materials": {
+      "concrete": 464,
+      "bricks": 6380,
+      "planks": 1856,
+      "constructionUnits": 116
+     },
+     "buildTime": "12:00h"
+    },
+    "6": {
+     "approxCost": 548854,
+     "materials": {
+      "concrete": 580,
+      "bricks": 7975,
+      "planks": 2320,
+      "constructionUnits": 145
+     },
+     "buildTime": "15:00h"
+    }
+   }
+  },
+  "1": {
+   "letter": "1",
+   "name": "Car factory",
+   "wage": 449,
+   "products": [
+    "LUXURY CAR INTERIOR",
+    "BASIC INTERIOR",
+    "CAR BODY",
+    "ECONOMY E-CAR",
+    "LUXURY E-CAR",
+    "ECONOMY CAR",
+    "LUXURY CAR",
+    "TRUCK",
+    "BULLDOZER"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 102200,
+     "materials": {
+      "concrete": 108,
+      "bricks": 1485,
+      "planks": 432,
+      "constructionUnits": 27
+     },
+     "buildTime": "6:00h"
+    },
+    "2": {
+     "approxCost": 102200,
+     "materials": {
+      "concrete": 108,
+      "bricks": 1485,
+      "planks": 432,
+      "constructionUnits": 27
+     },
+     "buildTime": "6:00h"
+    },
+    "3": {
+     "approxCost": 204401,
+     "materials": {
+      "concrete": 216,
+      "bricks": 2970,
+      "planks": 864,
+      "constructionUnits": 54
+     },
+     "buildTime": "12:00h"
+    },
+    "4": {
+     "approxCost": 306601,
+     "materials": {
+      "concrete": 324,
+      "bricks": 4455,
+      "planks": 1296,
+      "constructionUnits": 81
+     },
+     "buildTime": "18:00h"
+    },
+    "5": {
+     "approxCost": 408802,
+     "materials": {
+      "concrete": 432,
+      "bricks": 5940,
+      "planks": 1728,
+      "constructionUnits": 108
+     },
+     "buildTime": "24:00h"
+    },
+    "6": {
+     "approxCost": 511002,
+     "materials": {
+      "concrete": 540,
+      "bricks": 7425,
+      "planks": 2160,
+      "constructionUnits": 135
+     },
+     "buildTime": "30:00h"
+    }
+   }
+  },
+  "2": {
+   "letter": "2",
+   "name": "Car dealership",
+   "wage": 380,
+   "products": [],
+   "levels": {
+    "1": {
+     "approxCost": 22865,
+     "materials": {
+      "concrete": 24,
+      "bricks": 330,
+      "planks": 96,
+      "constructionUnits": 6
+     },
+     "buildTime": "3:00h"
+    },
+    "2": {
+     "approxCost": 22865,
+     "materials": {
+      "concrete": 24,
+      "bricks": 330,
+      "planks": 96,
+      "constructionUnits": 6
+     },
+     "buildTime": "3:00h"
+    },
+    "3": {
+     "approxCost": 45731,
+     "materials": {
+      "concrete": 48,
+      "bricks": 660,
+      "planks": 192,
+      "constructionUnits": 12
+     },
+     "buildTime": "6:00h"
+    },
+    "4": {
+     "approxCost": 68596,
+     "materials": {
+      "concrete": 72,
+      "bricks": 990,
+      "planks": 288,
+      "constructionUnits": 18
+     },
+     "buildTime": "9:00h"
+    },
+    "5": {
+     "approxCost": 91462,
+     "materials": {
+      "concrete": 96,
+      "bricks": 1320,
+      "planks": 384,
+      "constructionUnits": 24
+     },
+     "buildTime": "12:00h"
+    },
+    "6": {
+     "approxCost": 114327,
+     "materials": {
+      "concrete": 120,
+      "bricks": 1650,
+      "planks": 480,
+      "constructionUnits": 30
+     },
+     "buildTime": "15:00h"
+    }
+   }
+  },
+  "6": {
+   "letter": "6",
+   "name": "Beverage factory",
+   "wage": 241,
+   "products": [
+    "ETHANOL",
+    "ORANGE JUICE",
+    "APPLE CIDER",
+    "GINGER BEER"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 15141,
+     "materials": {
+      "concrete": 16,
+      "bricks": 220,
+      "planks": 64,
+      "constructionUnits": 4
+     },
+     "buildTime": "2:00h"
+    },
+    "2": {
+     "approxCost": 15141,
+     "materials": {
+      "concrete": 16,
+      "bricks": 220,
+      "planks": 64,
+      "constructionUnits": 4
+     },
+     "buildTime": "2:00h"
+    },
+    "3": {
+     "approxCost": 30282,
+     "materials": {
+      "concrete": 32,
+      "bricks": 440,
+      "planks": 128,
+      "constructionUnits": 8
+     },
+     "buildTime": "4:00h"
+    },
+    "4": {
+     "approxCost": 45422,
+     "materials": {
+      "concrete": 48,
+      "bricks": 660,
+      "planks": 192,
+      "constructionUnits": 12
+     },
+     "buildTime": "6:00h"
+    },
+    "5": {
+     "approxCost": 60563,
+     "materials": {
+      "concrete": 64,
+      "bricks": 880,
+      "planks": 256,
+      "constructionUnits": 16
+     },
+     "buildTime": "8:00h"
+    },
+    "6": {
+     "approxCost": 75704,
+     "materials": {
+      "concrete": 80,
+      "bricks": 1100,
+      "planks": 320,
+      "constructionUnits": 20
+     },
+     "buildTime": "10:00h"
+    }
+   }
+  },
+  "7": {
+   "letter": "7",
+   "name": "Aerospace factory",
+   "wage": 587,
+   "products": [
+    "FUSELAGE",
+    "WING",
+    "PROPELLANT TANK",
+    "HEAT SHIELD",
+    "SUB-ORBITAL 2ND STAGE",
+    "ORBITAL BOOSTER",
+    "STARSHIP"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 117341,
+     "materials": {
+      "concrete": 124,
+      "bricks": 1705,
+      "planks": 496,
+      "constructionUnits": 31
+     },
+     "buildTime": "6:00h"
+    },
+    "2": {
+     "approxCost": 117341,
+     "materials": {
+      "concrete": 124,
+      "bricks": 1705,
+      "planks": 496,
+      "constructionUnits": 31
+     },
+     "buildTime": "6:00h"
+    },
+    "3": {
+     "approxCost": 234682,
+     "materials": {
+      "concrete": 248,
+      "bricks": 3410,
+      "planks": 992,
+      "constructionUnits": 62
+     },
+     "buildTime": "12:00h"
+    },
+    "4": {
+     "approxCost": 352024,
+     "materials": {
+      "concrete": 372,
+      "bricks": 5115,
+      "planks": 1488,
+      "constructionUnits": 93
+     },
+     "buildTime": "18:00h"
+    },
+    "5": {
+     "approxCost": 469365,
+     "materials": {
+      "concrete": 496,
+      "bricks": 6820,
+      "planks": 1984,
+      "constructionUnits": 124
+     },
+     "buildTime": "24:00h"
+    },
+    "6": {
+     "approxCost": 586706,
+     "materials": {
+      "concrete": 620,
+      "bricks": 8525,
+      "planks": 2480,
+      "constructionUnits": 155
+     },
+     "buildTime": "30:00h"
+    }
+   }
+  },
+  "8": {
+   "letter": "8",
+   "name": "Aerospace electronics",
+   "wage": 725,
+   "products": [
+    "FLIGHT COMPUTER",
+    "COCKPIT",
+    "ATTITUDE CONTROL",
+    "QUADCOPTER",
+    "SATELLITE"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 155193,
+     "materials": {
+      "concrete": 164,
+      "bricks": 2255,
+      "planks": 656,
+      "constructionUnits": 41
+     },
+     "buildTime": "6:00h"
+    },
+    "2": {
+     "approxCost": 155193,
+     "materials": {
+      "concrete": 164,
+      "bricks": 2255,
+      "planks": 656,
+      "constructionUnits": 41
+     },
+     "buildTime": "6:00h"
+    },
+    "3": {
+     "approxCost": 310386,
+     "materials": {
+      "concrete": 328,
+      "bricks": 4510,
+      "planks": 1312,
+      "constructionUnits": 82
+     },
+     "buildTime": "12:00h"
+    },
+    "4": {
+     "approxCost": 465580,
+     "materials": {
+      "concrete": 492,
+      "bricks": 6765,
+      "planks": 1968,
+      "constructionUnits": 123
+     },
+     "buildTime": "18:00h"
+    },
+    "5": {
+     "approxCost": 620773,
+     "materials": {
+      "concrete": 656,
+      "bricks": 9020,
+      "planks": 2624,
+      "constructionUnits": 164
+     },
+     "buildTime": "24:00h"
+    },
+    "6": {
+     "approxCost": 775966,
+     "materials": {
+      "concrete": 820,
+      "bricks": 11275,
+      "planks": 3280,
+      "constructionUnits": 205
+     },
+     "buildTime": "30:00h"
+    }
+   }
+  },
+  "9": {
+   "letter": "9",
+   "name": "Vertical integration facility",
+   "wage": 759,
+   "products": [
+    "SUB-ORBITAL ROCKET",
+    "BFR"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 124912,
+     "materials": {
+      "concrete": 132,
+      "bricks": 1815,
+      "planks": 528,
+      "constructionUnits": 33
+     },
+     "buildTime": "3:00h"
+    },
+    "2": {
+     "approxCost": 124912,
+     "materials": {
+      "concrete": 132,
+      "bricks": 1815,
+      "planks": 528,
+      "constructionUnits": 33
+     },
+     "buildTime": "3:00h"
+    },
+    "3": {
+     "approxCost": 249823,
+     "materials": {
+      "concrete": 264,
+      "bricks": 3630,
+      "planks": 1056,
+      "constructionUnits": 66
+     },
+     "buildTime": "6:00h"
+    },
+    "4": {
+     "approxCost": 374735,
+     "materials": {
+      "concrete": 396,
+      "bricks": 5445,
+      "planks": 1584,
+      "constructionUnits": 99
+     },
+     "buildTime": "9:00h"
+    },
+    "5": {
+     "approxCost": 499646,
+     "materials": {
+      "concrete": 528,
+      "bricks": 7260,
+      "planks": 2112,
+      "constructionUnits": 132
+     },
+     "buildTime": "12:00h"
+    },
+    "6": {
+     "approxCost": 624558,
+     "materials": {
+      "concrete": 660,
+      "bricks": 9075,
+      "planks": 2640,
+      "constructionUnits": 165
+     },
+     "buildTime": "15:00h"
+    }
+   }
+  },
+  "A": {
+   "letter": "A",
+   "name": "Gas station",
+   "wage": 345,
+   "products": [],
+   "levels": {
+    "1": {
+     "approxCost": 26684,
+     "materials": {
+      "concrete": 28,
+      "bricks": 385,
+      "planks": 112,
+      "constructionUnits": 7
+     },
+     "buildTime": "2:00h"
+    },
+    "2": {
+     "approxCost": 26684,
+     "materials": {
+      "concrete": 28,
+      "bricks": 385,
+      "planks": 112,
+      "constructionUnits": 7
+     },
+     "buildTime": "2:00h"
+    },
+    "3": {
+     "approxCost": 53369,
+     "materials": {
+      "concrete": 56,
+      "bricks": 770,
+      "planks": 224,
+      "constructionUnits": 14
+     },
+     "buildTime": "4:00h"
+    },
+    "4": {
+     "approxCost": 80053,
+     "materials": {
+      "concrete": 84,
+      "bricks": 1155,
+      "planks": 336,
+      "constructionUnits": 21
+     },
+     "buildTime": "6:00h"
+    },
+    "5": {
+     "approxCost": 106737,
+     "materials": {
+      "concrete": 112,
+      "bricks": 1540,
+      "planks": 448,
+      "constructionUnits": 28
+     },
+     "buildTime": "8:00h"
+    },
+    "6": {
+     "approxCost": 133422,
+     "materials": {
+      "concrete": 140,
+      "bricks": 1925,
+      "planks": 560,
+      "constructionUnits": 35
+     },
+     "buildTime": "10:00h"
+    }
+   }
+  },
+  "B": {
+   "letter": "B",
+   "name": "Sales offices",
+   "wage": 587,
+   "products": [],
+   "levels": {
+    "1": {
+     "approxCost": 68596,
+     "materials": {
+      "concrete": 72,
+      "bricks": 990,
+      "planks": 288,
+      "constructionUnits": 18
+     },
+     "buildTime": "2:00h"
+    },
+    "2": {
+     "approxCost": 68596,
+     "materials": {
+      "concrete": 72,
+      "bricks": 990,
+      "planks": 288,
+      "constructionUnits": 18
+     },
+     "buildTime": "2:00h"
+    },
+    "3": {
+     "approxCost": 137192,
+     "materials": {
+      "concrete": 144,
+      "bricks": 1980,
+      "planks": 576,
+      "constructionUnits": 36
+     },
+     "buildTime": "4:00h"
+    },
+    "4": {
+     "approxCost": 205789,
+     "materials": {
+      "concrete": 216,
+      "bricks": 2970,
+      "planks": 864,
+      "constructionUnits": 54
+     },
+     "buildTime": "6:00h"
+    },
+    "5": {
+     "approxCost": 274385,
+     "materials": {
+      "concrete": 288,
+      "bricks": 3960,
+      "planks": 1152,
+      "constructionUnits": 72
+     },
+     "buildTime": "8:00h"
+    },
+    "6": {
+     "approxCost": 342981,
+     "materials": {
+      "concrete": 360,
+      "bricks": 4950,
+      "planks": 1440,
+      "constructionUnits": 90
+     },
+     "buildTime": "10:00h"
+    }
+   }
+  },
+  "C": {
+   "letter": "C",
+   "name": "Electronics store",
+   "wage": 173,
+   "products": [],
+   "levels": {
+    "1": {
+     "approxCost": 19060,
+     "materials": {
+      "concrete": 20,
+      "bricks": 275,
+      "planks": 80,
+      "constructionUnits": 5
+     },
+     "buildTime": "1:00h"
+    },
+    "2": {
+     "approxCost": 19060,
+     "materials": {
+      "concrete": 20,
+      "bricks": 275,
+      "planks": 80,
+      "constructionUnits": 5
+     },
+     "buildTime": "1:00h"
+    },
+    "3": {
+     "approxCost": 38121,
+     "materials": {
+      "concrete": 40,
+      "bricks": 550,
+      "planks": 160,
+      "constructionUnits": 10
+     },
+     "buildTime": "2:00h"
+    },
+    "4": {
+     "approxCost": 57181,
+     "materials": {
+      "concrete": 60,
+      "bricks": 825,
+      "planks": 240,
+      "constructionUnits": 15
+     },
+     "buildTime": "3:00h"
+    },
+    "5": {
+     "approxCost": 76241,
+     "materials": {
+      "concrete": 80,
+      "bricks": 1100,
+      "planks": 320,
+      "constructionUnits": 20
+     },
+     "buildTime": "4:00h"
+    },
+    "6": {
+     "approxCost": 95301,
+     "materials": {
+      "concrete": 100,
+      "bricks": 1375,
+      "planks": 400,
+      "constructionUnits": 25
+     },
+     "buildTime": "5:00h"
+    }
+   }
+  },
+  "D": {
+   "letter": "D",
+   "name": "Propulsion factory",
+   "wage": 621,
+   "products": [
+    "ELECTRIC MOTOR",
+    "COMBUSTION ENGINE",
+    "SOLID FUEL BOOSTER",
+    "ROCKET ENGINE",
+    "ION DRIVE",
+    "JET ENGINE"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 113474,
+     "materials": {
+      "concrete": 120,
+      "bricks": 1650,
+      "planks": 480,
+      "constructionUnits": 30
+     },
+     "buildTime": "7:00h"
+    },
+    "2": {
+     "approxCost": 113474,
+     "materials": {
+      "concrete": 120,
+      "bricks": 1650,
+      "planks": 480,
+      "constructionUnits": 30
+     },
+     "buildTime": "7:00h"
+    },
+    "3": {
+     "approxCost": 226947,
+     "materials": {
+      "concrete": 240,
+      "bricks": 3300,
+      "planks": 960,
+      "constructionUnits": 60
+     },
+     "buildTime": "14:00h"
+    },
+    "4": {
+     "approxCost": 340421,
+     "materials": {
+      "concrete": 360,
+      "bricks": 4950,
+      "planks": 1440,
+      "constructionUnits": 90
+     },
+     "buildTime": "21:00h"
+    },
+    "5": {
+     "approxCost": 453894,
+     "materials": {
+      "concrete": 480,
+      "bricks": 6600,
+      "planks": 1920,
+      "constructionUnits": 120
+     },
+     "buildTime": "28:00h"
+    },
+    "6": {
+     "approxCost": 567368,
+     "materials": {
+      "concrete": 600,
+      "bricks": 8250,
+      "planks": 2400,
+      "constructionUnits": 150
+     },
+     "buildTime": "35:00h"
+    }
+   }
+  },
+  "E": {
+   "letter": "E",
+   "name": "Power plant",
+   "wage": 414,
+   "products": [
+    "POWER"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 56682,
+     "materials": {
+      "concrete": 60,
+      "bricks": 825,
+      "planks": 240,
+      "constructionUnits": 15
+     },
+     "buildTime": "3:00h"
+    },
+    "2": {
+     "approxCost": 56682,
+     "materials": {
+      "concrete": 60,
+      "bricks": 825,
+      "planks": 240,
+      "constructionUnits": 15
+     },
+     "buildTime": "3:00h"
+    },
+    "3": {
+     "approxCost": 113364,
+     "materials": {
+      "concrete": 120,
+      "bricks": 1650,
+      "planks": 480,
+      "constructionUnits": 30
+     },
+     "buildTime": "6:00h"
+    },
+    "4": {
+     "approxCost": 170046,
+     "materials": {
+      "concrete": 180,
+      "bricks": 2475,
+      "planks": 720,
+      "constructionUnits": 45
+     },
+     "buildTime": "9:00h"
+    },
+    "5": {
+     "approxCost": 226728,
+     "materials": {
+      "concrete": 240,
+      "bricks": 3300,
+      "planks": 960,
+      "constructionUnits": 60
+     },
+     "buildTime": "12:00h"
+    },
+    "6": {
+     "approxCost": 283410,
+     "materials": {
+      "concrete": 300,
+      "bricks": 4125,
+      "planks": 1200,
+      "constructionUnits": 75
+     },
+     "buildTime": "15:00h"
+    }
+   }
+  },
+  "F": {
+   "letter": "F",
+   "name": "Ranch",
+   "wage": 138,
+   "products": [
+    "EGGS",
+    "LEATHER",
+    "COWS",
+    "PIGS",
+    "MILK"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 11336,
+     "materials": {
+      "concrete": 12,
+      "bricks": 165,
+      "planks": 48,
+      "constructionUnits": 3
+     },
+     "buildTime": "2:00h"
+    },
+    "2": {
+     "approxCost": 11336,
+     "materials": {
+      "concrete": 12,
+      "bricks": 165,
+      "planks": 48,
+      "constructionUnits": 3
+     },
+     "buildTime": "2:00h"
+    },
+    "3": {
+     "approxCost": 22673,
+     "materials": {
+      "concrete": 24,
+      "bricks": 330,
+      "planks": 96,
+      "constructionUnits": 6
+     },
+     "buildTime": "4:00h"
+    },
+    "4": {
+     "approxCost": 34009,
+     "materials": {
+      "concrete": 36,
+      "bricks": 495,
+      "planks": 144,
+      "constructionUnits": 9
+     },
+     "buildTime": "6:00h"
+    },
+    "5": {
+     "approxCost": 45346,
+     "materials": {
+      "concrete": 48,
+      "bricks": 660,
+      "planks": 192,
+      "constructionUnits": 12
+     },
+     "buildTime": "8:00h"
+    },
+    "6": {
+     "approxCost": 56682,
+     "materials": {
+      "concrete": 60,
+      "bricks": 825,
+      "planks": 240,
+      "constructionUnits": 15
+     },
+     "buildTime": "10:00h"
+    }
+   }
+  },
+  "G": {
+   "letter": "G",
+   "name": "Grocery store",
+   "wage": 138,
+   "products": [],
+   "levels": {
+    "1": {
+     "approxCost": 11436,
+     "materials": {
+      "concrete": 12,
+      "bricks": 165,
+      "planks": 48,
+      "constructionUnits": 3
+     },
+     "buildTime": "1:00h"
+    },
+    "2": {
+     "approxCost": 11436,
+     "materials": {
+      "concrete": 12,
+      "bricks": 165,
+      "planks": 48,
+      "constructionUnits": 3
+     },
+     "buildTime": "1:00h"
+    },
+    "3": {
+     "approxCost": 22872,
+     "materials": {
+      "concrete": 24,
+      "bricks": 330,
+      "planks": 96,
+      "constructionUnits": 6
+     },
+     "buildTime": "2:00h"
+    },
+    "4": {
+     "approxCost": 34308,
+     "materials": {
+      "concrete": 36,
+      "bricks": 495,
+      "planks": 144,
+      "constructionUnits": 9
+     },
+     "buildTime": "3:00h"
+    },
+    "5": {
+     "approxCost": 45745,
+     "materials": {
+      "concrete": 48,
+      "bricks": 660,
+      "planks": 192,
+      "constructionUnits": 12
+     },
+     "buildTime": "4:00h"
+    },
+    "6": {
+     "approxCost": 57181,
+     "materials": {
+      "concrete": 60,
+      "bricks": 825,
+      "planks": 240,
+      "constructionUnits": 15
+     },
+     "buildTime": "5:00h"
+    }
+   }
+  },
+  "H": {
+   "letter": "H",
+   "name": "Fashion store",
+   "wage": 311,
+   "products": [],
+   "levels": {
+    "1": {
+     "approxCost": 19060,
+     "materials": {
+      "concrete": 20,
+      "bricks": 275,
+      "planks": 80,
+      "constructionUnits": 5
+     },
+     "buildTime": "3:00h"
+    },
+    "2": {
+     "approxCost": 19060,
+     "materials": {
+      "concrete": 20,
+      "bricks": 275,
+      "planks": 80,
+      "constructionUnits": 5
+     },
+     "buildTime": "3:00h"
+    },
+    "3": {
+     "approxCost": 38121,
+     "materials": {
+      "concrete": 40,
+      "bricks": 550,
+      "planks": 160,
+      "constructionUnits": 10
+     },
+     "buildTime": "6:00h"
+    },
+    "4": {
+     "approxCost": 57181,
+     "materials": {
+      "concrete": 60,
+      "bricks": 825,
+      "planks": 240,
+      "constructionUnits": 15
+     },
+     "buildTime": "9:00h"
+    },
+    "5": {
+     "approxCost": 76241,
+     "materials": {
+      "concrete": 80,
+      "bricks": 1100,
+      "planks": 320,
+      "constructionUnits": 20
+     },
+     "buildTime": "12:00h"
+    },
+    "6": {
+     "approxCost": 95301,
+     "materials": {
+      "concrete": 100,
+      "bricks": 1375,
+      "planks": 400,
+      "constructionUnits": 25
+     },
+     "buildTime": "15:00h"
+    }
+   }
+  },
+  "I": {
+   "letter": "I",
+   "name": "Spring market",
+   "wage": 241,
+   "products": [],
+   "levels": {
+    "1": {
+     "approxCost": 7616,
+     "materials": {
+      "concrete": 8,
+      "bricks": 110,
+      "planks": 32,
+      "constructionUnits": 2
+     },
+     "buildTime": "1:00h"
+    },
+    "2": {
+     "approxCost": 7616,
+     "materials": {
+      "concrete": 8,
+      "bricks": 110,
+      "planks": 32,
+      "constructionUnits": 2
+     },
+     "buildTime": "1:00h"
+    },
+    "3": {
+     "approxCost": 15233,
+     "materials": {
+      "concrete": 16,
+      "bricks": 220,
+      "planks": 64,
+      "constructionUnits": 4
+     },
+     "buildTime": "2:00h"
+    },
+    "4": {
+     "approxCost": 22849,
+     "materials": {
+      "concrete": 24,
+      "bricks": 330,
+      "planks": 96,
+      "constructionUnits": 6
+     },
+     "buildTime": "3:00h"
+    },
+    "5": {
+     "approxCost": 30465,
+     "materials": {
+      "concrete": 32,
+      "bricks": 440,
+      "planks": 128,
+      "constructionUnits": 8
+     },
+     "buildTime": "4:00h"
+    },
+    "6": {
+     "approxCost": 38082,
+     "materials": {
+      "concrete": 40,
+      "bricks": 550,
+      "planks": 160,
+      "constructionUnits": 10
+     },
+     "buildTime": "5:00h"
+    }
+   }
+  },
+  "L": {
+   "letter": "L",
+   "name": "Electronics factory",
+   "wage": 380,
+   "products": [
+    "PROCESSORS",
+    "ELECTRONIC COMPONENTS",
+    "BATTERIES",
+    "DISPLAYS",
+    "SMART PHONES",
+    "TABLETS",
+    "LAPTOPS",
+    "MONITORS",
+    "TELEVISIONS",
+    "ON-BOARD COMPUTER",
+    "HIGH GRADE E-COMPS",
+    "ROBOTS"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 90691,
+     "materials": {
+      "concrete": 96,
+      "bricks": 1320,
+      "planks": 384,
+      "constructionUnits": 24
+     },
+     "buildTime": "5:00h"
+    },
+    "2": {
+     "approxCost": 90691,
+     "materials": {
+      "concrete": 96,
+      "bricks": 1320,
+      "planks": 384,
+      "constructionUnits": 24
+     },
+     "buildTime": "5:00h"
+    },
+    "3": {
+     "approxCost": 181382,
+     "materials": {
+      "concrete": 192,
+      "bricks": 2640,
+      "planks": 768,
+      "constructionUnits": 48
+     },
+     "buildTime": "10:00h"
+    },
+    "4": {
+     "approxCost": 272074,
+     "materials": {
+      "concrete": 288,
+      "bricks": 3960,
+      "planks": 1152,
+      "constructionUnits": 72
+     },
+     "buildTime": "15:00h"
+    },
+    "5": {
+     "approxCost": 362765,
+     "materials": {
+      "concrete": 384,
+      "bricks": 5280,
+      "planks": 1536,
+      "constructionUnits": 96
+     },
+     "buildTime": "20:00h"
+    },
+    "6": {
+     "approxCost": 453456,
+     "materials": {
+      "concrete": 480,
+      "bricks": 6600,
+      "planks": 1920,
+      "constructionUnits": 120
+     },
+     "buildTime": "25:00h"
+    }
+   }
+  },
+  "M": {
+   "letter": "M",
+   "name": "Mine",
+   "wage": 276,
+   "products": [
+    "MINERALS",
+    "BAUXITE",
+    "IRON ORE",
+    "GOLD ORE"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 26452,
+     "materials": {
+      "concrete": 28,
+      "bricks": 385,
+      "planks": 112,
+      "constructionUnits": 7
+     },
+     "buildTime": "4:00h"
+    },
+    "2": {
+     "approxCost": 26452,
+     "materials": {
+      "concrete": 28,
+      "bricks": 385,
+      "planks": 112,
+      "constructionUnits": 7
+     },
+     "buildTime": "4:00h"
+    },
+    "3": {
+     "approxCost": 52903,
+     "materials": {
+      "concrete": 56,
+      "bricks": 770,
+      "planks": 224,
+      "constructionUnits": 14
+     },
+     "buildTime": "8:00h"
+    },
+    "4": {
+     "approxCost": 79355,
+     "materials": {
+      "concrete": 84,
+      "bricks": 1155,
+      "planks": 336,
+      "constructionUnits": 21
+     },
+     "buildTime": "12:00h"
+    },
+    "5": {
+     "approxCost": 105806,
+     "materials": {
+      "concrete": 112,
+      "bricks": 1540,
+      "planks": 448,
+      "constructionUnits": 28
+     },
+     "buildTime": "16:00h"
+    },
+    "6": {
+     "approxCost": 132258,
+     "materials": {
+      "concrete": 140,
+      "bricks": 1925,
+      "planks": 560,
+      "constructionUnits": 35
+     },
+     "buildTime": "20:00h"
+    }
+   }
+  },
+  "O": {
+   "letter": "O",
+   "name": "Oil rig",
+   "wage": 518,
+   "products": [
+    "CRUDE OIL",
+    "METHANE"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 75576,
+     "materials": {
+      "concrete": 80,
+      "bricks": 1100,
+      "planks": 320,
+      "constructionUnits": 20
+     },
+     "buildTime": "4:00h"
+    },
+    "2": {
+     "approxCost": 75576,
+     "materials": {
+      "concrete": 80,
+      "bricks": 1100,
+      "planks": 320,
+      "constructionUnits": 20
+     },
+     "buildTime": "4:00h"
+    },
+    "3": {
+     "approxCost": 151152,
+     "materials": {
+      "concrete": 160,
+      "bricks": 2200,
+      "planks": 640,
+      "constructionUnits": 40
+     },
+     "buildTime": "8:00h"
+    },
+    "4": {
+     "approxCost": 226728,
+     "materials": {
+      "concrete": 240,
+      "bricks": 3300,
+      "planks": 960,
+      "constructionUnits": 60
+     },
+     "buildTime": "12:00h"
+    },
+    "5": {
+     "approxCost": 302304,
+     "materials": {
+      "concrete": 320,
+      "bricks": 4400,
+      "planks": 1280,
+      "constructionUnits": 80
+     },
+     "buildTime": "16:00h"
+    },
+    "6": {
+     "approxCost": 377880,
+     "materials": {
+      "concrete": 400,
+      "bricks": 5500,
+      "planks": 1600,
+      "constructionUnits": 100
+     },
+     "buildTime": "20:00h"
+    }
+   }
+  },
+  "P": {
+   "letter": "P",
+   "name": "Farm",
+   "wage": 104,
+   "products": [
+    "APPLES",
+    "ORANGES",
+    "GRAPES",
+    "GRAIN",
+    "COTTON",
+    "SEEDS",
+    "SUGARCANE",
+    "WOOD",
+    "COFFEE BEANS",
+    "VEGETABLES",
+    "COCOA",
+    "PUMPKIN"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 7558,
+     "materials": {
+      "concrete": 8,
+      "bricks": 110,
+      "planks": 32,
+      "constructionUnits": 2
+     },
+     "buildTime": "1:00h"
+    },
+    "2": {
+     "approxCost": 7558,
+     "materials": {
+      "concrete": 8,
+      "bricks": 110,
+      "planks": 32,
+      "constructionUnits": 2
+     },
+     "buildTime": "1:00h"
+    },
+    "3": {
+     "approxCost": 15115,
+     "materials": {
+      "concrete": 16,
+      "bricks": 220,
+      "planks": 64,
+      "constructionUnits": 4
+     },
+     "buildTime": "2:00h"
+    },
+    "4": {
+     "approxCost": 22673,
+     "materials": {
+      "concrete": 24,
+      "bricks": 330,
+      "planks": 96,
+      "constructionUnits": 6
+     },
+     "buildTime": "3:00h"
+    },
+    "5": {
+     "approxCost": 30230,
+     "materials": {
+      "concrete": 32,
+      "bricks": 440,
+      "planks": 128,
+      "constructionUnits": 8
+     },
+     "buildTime": "4:00h"
+    },
+    "6": {
+     "approxCost": 37788,
+     "materials": {
+      "concrete": 40,
+      "bricks": 550,
+      "planks": 160,
+      "constructionUnits": 10
+     },
+     "buildTime": "5:00h"
+    }
+   }
+  },
+  "Q": {
+   "letter": "Q",
+   "name": "Quarry",
+   "wage": 276,
+   "products": [
+    "SAND",
+    "CLAY",
+    "LIMESTONE"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 26452,
+     "materials": {
+      "concrete": 28,
+      "bricks": 385,
+      "planks": 112,
+      "constructionUnits": 7
+     },
+     "buildTime": "3:00h"
+    },
+    "2": {
+     "approxCost": 26452,
+     "materials": {
+      "concrete": 28,
+      "bricks": 385,
+      "planks": 112,
+      "constructionUnits": 7
+     },
+     "buildTime": "3:00h"
+    },
+    "3": {
+     "approxCost": 52903,
+     "materials": {
+      "concrete": 56,
+      "bricks": 770,
+      "planks": 224,
+      "constructionUnits": 14
+     },
+     "buildTime": "6:00h"
+    },
+    "4": {
+     "approxCost": 79355,
+     "materials": {
+      "concrete": 84,
+      "bricks": 1155,
+      "planks": 336,
+      "constructionUnits": 21
+     },
+     "buildTime": "9:00h"
+    },
+    "5": {
+     "approxCost": 105806,
+     "materials": {
+      "concrete": 112,
+      "bricks": 1540,
+      "planks": 448,
+      "constructionUnits": 28
+     },
+     "buildTime": "12:00h"
+    },
+    "6": {
+     "approxCost": 132258,
+     "materials": {
+      "concrete": 140,
+      "bricks": 1925,
+      "planks": 560,
+      "constructionUnits": 35
+     },
+     "buildTime": "15:00h"
+    }
+   }
+  },
+  "R": {
+   "letter": "R",
+   "name": "Refinery",
+   "wage": 483,
+   "products": [
+    "PETROL",
+    "DIESEL",
+    "PLASTIC",
+    "CARBON FIBERS",
+    "ROCKET FUEL"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 75576,
+     "materials": {
+      "concrete": 80,
+      "bricks": 1100,
+      "planks": 320,
+      "constructionUnits": 20
+     },
+     "buildTime": "4:00h"
+    },
+    "2": {
+     "approxCost": 75576,
+     "materials": {
+      "concrete": 80,
+      "bricks": 1100,
+      "planks": 320,
+      "constructionUnits": 20
+     },
+     "buildTime": "4:00h"
+    },
+    "3": {
+     "approxCost": 151152,
+     "materials": {
+      "concrete": 160,
+      "bricks": 2200,
+      "planks": 640,
+      "constructionUnits": 40
+     },
+     "buildTime": "8:00h"
+    },
+    "4": {
+     "approxCost": 226728,
+     "materials": {
+      "concrete": 240,
+      "bricks": 3300,
+      "planks": 960,
+      "constructionUnits": 60
+     },
+     "buildTime": "12:00h"
+    },
+    "5": {
+     "approxCost": 302304,
+     "materials": {
+      "concrete": 320,
+      "bricks": 4400,
+      "planks": 1280,
+      "constructionUnits": 80
+     },
+     "buildTime": "16:00h"
+    },
+    "6": {
+     "approxCost": 377880,
+     "materials": {
+      "concrete": 400,
+      "bricks": 5500,
+      "planks": 1600,
+      "constructionUnits": 100
+     },
+     "buildTime": "20:00h"
+    }
+   }
+  },
+  "S": {
+   "letter": "S",
+   "name": "Shipping depot",
+   "wage": 311,
+   "products": [
+    "TRANSPORT"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 56682,
+     "materials": {
+      "concrete": 60,
+      "bricks": 825,
+      "planks": 240,
+      "constructionUnits": 15
+     },
+     "buildTime": "3:00h"
+    },
+    "2": {
+     "approxCost": 56682,
+     "materials": {
+      "concrete": 60,
+      "bricks": 825,
+      "planks": 240,
+      "constructionUnits": 15
+     },
+     "buildTime": "3:00h"
+    },
+    "3": {
+     "approxCost": 113364,
+     "materials": {
+      "concrete": 120,
+      "bricks": 1650,
+      "planks": 480,
+      "constructionUnits": 30
+     },
+     "buildTime": "6:00h"
+    },
+    "4": {
+     "approxCost": 170046,
+     "materials": {
+      "concrete": 180,
+      "bricks": 2475,
+      "planks": 720,
+      "constructionUnits": 45
+     },
+     "buildTime": "9:00h"
+    },
+    "5": {
+     "approxCost": 226728,
+     "materials": {
+      "concrete": 240,
+      "bricks": 3300,
+      "planks": 960,
+      "constructionUnits": 60
+     },
+     "buildTime": "12:00h"
+    },
+    "6": {
+     "approxCost": 283410,
+     "materials": {
+      "concrete": 300,
+      "bricks": 4125,
+      "planks": 1200,
+      "constructionUnits": 75
+     },
+     "buildTime": "15:00h"
+    }
+   }
+  },
+  "T": {
+   "letter": "T",
+   "name": "Fashion factory",
+   "wage": 138,
+   "products": [
+    "FABRIC",
+    "UNDERWEAR",
+    "GLOVES",
+    "DRESS",
+    "STILETTO HEEL",
+    "HANDBAGS",
+    "SNEAKERS",
+    "LUXURY WATCH",
+    "NECKLACE",
+    "WITCH COSTUME"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 15115,
+     "materials": {
+      "concrete": 16,
+      "bricks": 220,
+      "planks": 64,
+      "constructionUnits": 4
+     },
+     "buildTime": "2:00h"
+    },
+    "2": {
+     "approxCost": 15115,
+     "materials": {
+      "concrete": 16,
+      "bricks": 220,
+      "planks": 64,
+      "constructionUnits": 4
+     },
+     "buildTime": "2:00h"
+    },
+    "3": {
+     "approxCost": 30230,
+     "materials": {
+      "concrete": 32,
+      "bricks": 440,
+      "planks": 128,
+      "constructionUnits": 8
+     },
+     "buildTime": "4:00h"
+    },
+    "4": {
+     "approxCost": 45346,
+     "materials": {
+      "concrete": 48,
+      "bricks": 660,
+      "planks": 192,
+      "constructionUnits": 12
+     },
+     "buildTime": "6:00h"
+    },
+    "5": {
+     "approxCost": 60461,
+     "materials": {
+      "concrete": 64,
+      "bricks": 880,
+      "planks": 256,
+      "constructionUnits": 16
+     },
+     "buildTime": "8:00h"
+    },
+    "6": {
+     "approxCost": 75576,
+     "materials": {
+      "concrete": 80,
+      "bricks": 1100,
+      "planks": 320,
+      "constructionUnits": 20
+     },
+     "buildTime": "10:00h"
+    }
+   }
+  },
+  "W": {
+   "letter": "W",
+   "name": "Water reservoir",
+   "wage": 345,
+   "products": [
+    "WATER"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 22673,
+     "materials": {
+      "concrete": 24,
+      "bricks": 330,
+      "planks": 96,
+      "constructionUnits": 6
+     },
+     "buildTime": "2:00h"
+    },
+    "2": {
+     "approxCost": 22673,
+     "materials": {
+      "concrete": 24,
+      "bricks": 330,
+      "planks": 96,
+      "constructionUnits": 6
+     },
+     "buildTime": "2:00h"
+    },
+    "3": {
+     "approxCost": 45346,
+     "materials": {
+      "concrete": 48,
+      "bricks": 660,
+      "planks": 192,
+      "constructionUnits": 12
+     },
+     "buildTime": "4:00h"
+    },
+    "4": {
+     "approxCost": 68018,
+     "materials": {
+      "concrete": 72,
+      "bricks": 990,
+      "planks": 288,
+      "constructionUnits": 18
+     },
+     "buildTime": "6:00h"
+    },
+    "5": {
+     "approxCost": 90691,
+     "materials": {
+      "concrete": 96,
+      "bricks": 1320,
+      "planks": 384,
+      "constructionUnits": 24
+     },
+     "buildTime": "8:00h"
+    },
+    "6": {
+     "approxCost": 113364,
+     "materials": {
+      "concrete": 120,
+      "bricks": 1650,
+      "planks": 480,
+      "constructionUnits": 30
+     },
+     "buildTime": "10:00h"
+    }
+   }
+  },
+  "Y": {
+   "letter": "Y",
+   "name": "Factory",
+   "wage": 414,
+   "products": [
+    "SILICON",
+    "CHEMICALS",
+    "ALUMINIUM",
+    "STEEL",
+    "GLASS",
+    "XMAS CRACKERS",
+    "GOLDEN BARS",
+    "CARBON COMPOSITE",
+    "XMAS ORNAMENT"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 52903,
+     "materials": {
+      "concrete": 56,
+      "bricks": 770,
+      "planks": 224,
+      "constructionUnits": 14
+     },
+     "buildTime": "3:00h"
+    },
+    "2": {
+     "approxCost": 52903,
+     "materials": {
+      "concrete": 56,
+      "bricks": 770,
+      "planks": 224,
+      "constructionUnits": 14
+     },
+     "buildTime": "3:00h"
+    },
+    "3": {
+     "approxCost": 105806,
+     "materials": {
+      "concrete": 112,
+      "bricks": 1540,
+      "planks": 448,
+      "constructionUnits": 28
+     },
+     "buildTime": "6:00h"
+    },
+    "4": {
+     "approxCost": 158710,
+     "materials": {
+      "concrete": 168,
+      "bricks": 2310,
+      "planks": 672,
+      "constructionUnits": 42
+     },
+     "buildTime": "9:00h"
+    },
+    "5": {
+     "approxCost": 211613,
+     "materials": {
+      "concrete": 224,
+      "bricks": 3080,
+      "planks": 896,
+      "constructionUnits": 56
+     },
+     "buildTime": "12:00h"
+    },
+    "6": {
+     "approxCost": 264516,
+     "materials": {
+      "concrete": 280,
+      "bricks": 3850,
+      "planks": 1120,
+      "constructionUnits": 70
+     },
+     "buildTime": "15:00h"
+    }
+   }
+  },
+  "a": {
+   "letter": "a",
+   "name": "Automotive R&D",
+   "wage": 552,
+   "products": [
+    "AUTOMOTIVE RESEARCH"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 151408,
+     "materials": {
+      "concrete": 160,
+      "bricks": 2200,
+      "planks": 640,
+      "constructionUnits": 40
+     },
+     "buildTime": "6:00h"
+    },
+    "2": {
+     "approxCost": 151408,
+     "materials": {
+      "concrete": 160,
+      "bricks": 2200,
+      "planks": 640,
+      "constructionUnits": 40
+     },
+     "buildTime": "6:00h"
+    },
+    "3": {
+     "approxCost": 302816,
+     "materials": {
+      "concrete": 320,
+      "bricks": 4400,
+      "planks": 1280,
+      "constructionUnits": 80
+     },
+     "buildTime": "12:00h"
+    },
+    "4": {
+     "approxCost": 454224,
+     "materials": {
+      "concrete": 480,
+      "bricks": 6600,
+      "planks": 1920,
+      "constructionUnits": 120
+     },
+     "buildTime": "18:00h"
+    },
+    "5": {
+     "approxCost": 605632,
+     "materials": {
+      "concrete": 640,
+      "bricks": 8800,
+      "planks": 2560,
+      "constructionUnits": 160
+     },
+     "buildTime": "24:00h"
+    },
+    "6": {
+     "approxCost": 757040,
+     "materials": {
+      "concrete": 800,
+      "bricks": 11000,
+      "planks": 3200,
+      "constructionUnits": 200
+     },
+     "buildTime": "30:00h"
+    }
+   }
+  },
+  "b": {
+   "letter": "b",
+   "name": "Breeding laboratory",
+   "wage": 414,
+   "products": [
+    "BREEDING RESEARCH"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 105986,
+     "materials": {
+      "concrete": 112,
+      "bricks": 1540,
+      "planks": 448,
+      "constructionUnits": 28
+     },
+     "buildTime": "5:00h"
+    },
+    "2": {
+     "approxCost": 105986,
+     "materials": {
+      "concrete": 112,
+      "bricks": 1540,
+      "planks": 448,
+      "constructionUnits": 28
+     },
+     "buildTime": "5:00h"
+    },
+    "3": {
+     "approxCost": 211971,
+     "materials": {
+      "concrete": 224,
+      "bricks": 3080,
+      "planks": 896,
+      "constructionUnits": 56
+     },
+     "buildTime": "10:00h"
+    },
+    "4": {
+     "approxCost": 317957,
+     "materials": {
+      "concrete": 336,
+      "bricks": 4620,
+      "planks": 1344,
+      "constructionUnits": 84
+     },
+     "buildTime": "15:00h"
+    },
+    "5": {
+     "approxCost": 423942,
+     "materials": {
+      "concrete": 448,
+      "bricks": 6160,
+      "planks": 1792,
+      "constructionUnits": 112
+     },
+     "buildTime": "20:00h"
+    },
+    "6": {
+     "approxCost": 529928,
+     "materials": {
+      "concrete": 560,
+      "bricks": 7700,
+      "planks": 2240,
+      "constructionUnits": 140
+     },
+     "buildTime": "25:00h"
+    }
+   }
+  },
+  "c": {
+   "letter": "c",
+   "name": "Chemistry laboratory",
+   "wage": 414,
+   "products": [
+    "CHEMISTRY RESEARCH",
+    "MATERIALS RESEARCH"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 105986,
+     "materials": {
+      "concrete": 112,
+      "bricks": 1540,
+      "planks": 448,
+      "constructionUnits": 28
+     },
+     "buildTime": "5:00h"
+    },
+    "2": {
+     "approxCost": 105986,
+     "materials": {
+      "concrete": 112,
+      "bricks": 1540,
+      "planks": 448,
+      "constructionUnits": 28
+     },
+     "buildTime": "5:00h"
+    },
+    "3": {
+     "approxCost": 211971,
+     "materials": {
+      "concrete": 224,
+      "bricks": 3080,
+      "planks": 896,
+      "constructionUnits": 56
+     },
+     "buildTime": "10:00h"
+    },
+    "4": {
+     "approxCost": 317957,
+     "materials": {
+      "concrete": 336,
+      "bricks": 4620,
+      "planks": 1344,
+      "constructionUnits": 84
+     },
+     "buildTime": "15:00h"
+    },
+    "5": {
+     "approxCost": 423942,
+     "materials": {
+      "concrete": 448,
+      "bricks": 6160,
+      "planks": 1792,
+      "constructionUnits": 112
+     },
+     "buildTime": "20:00h"
+    },
+    "6": {
+     "approxCost": 529928,
+     "materials": {
+      "concrete": 560,
+      "bricks": 7700,
+      "planks": 2240,
+      "constructionUnits": 140
+     },
+     "buildTime": "25:00h"
+    }
+   }
+  },
+  "d": {
+   "letter": "d",
+   "name": "Hardware store",
+   "wage": 173,
+   "products": [],
+   "levels": {
+    "1": {
+     "approxCost": 15248,
+     "materials": {
+      "concrete": 16,
+      "bricks": 220,
+      "planks": 64,
+      "constructionUnits": 4
+     },
+     "buildTime": "4:00h"
+    },
+    "2": {
+     "approxCost": 15248,
+     "materials": {
+      "concrete": 16,
+      "bricks": 220,
+      "planks": 64,
+      "constructionUnits": 4
+     },
+     "buildTime": "4:00h"
+    },
+    "3": {
+     "approxCost": 30496,
+     "materials": {
+      "concrete": 32,
+      "bricks": 440,
+      "planks": 128,
+      "constructionUnits": 8
+     },
+     "buildTime": "8:00h"
+    },
+    "4": {
+     "approxCost": 45745,
+     "materials": {
+      "concrete": 48,
+      "bricks": 660,
+      "planks": 192,
+      "constructionUnits": 12
+     },
+     "buildTime": "12:00h"
+    },
+    "5": {
+     "approxCost": 60993,
+     "materials": {
+      "concrete": 64,
+      "bricks": 880,
+      "planks": 256,
+      "constructionUnits": 16
+     },
+     "buildTime": "16:00h"
+    },
+    "6": {
+     "approxCost": 76241,
+     "materials": {
+      "concrete": 80,
+      "bricks": 1100,
+      "planks": 320,
+      "constructionUnits": 20
+     },
+     "buildTime": "20:00h"
+    }
+   }
+  },
+  "e": {
+   "letter": "e",
+   "name": "Slaughterhouse",
+   "wage": 414,
+   "products": [
+    "STEAK",
+    "SAUSAGES"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 22663,
+     "materials": {
+      "concrete": 24,
+      "bricks": 330,
+      "planks": 96,
+      "constructionUnits": 6
+     },
+     "buildTime": "4:00h"
+    },
+    "2": {
+     "approxCost": 22663,
+     "materials": {
+      "concrete": 24,
+      "bricks": 330,
+      "planks": 96,
+      "constructionUnits": 6
+     },
+     "buildTime": "4:00h"
+    },
+    "3": {
+     "approxCost": 45326,
+     "materials": {
+      "concrete": 48,
+      "bricks": 660,
+      "planks": 192,
+      "constructionUnits": 12
+     },
+     "buildTime": "8:00h"
+    },
+    "4": {
+     "approxCost": 67990,
+     "materials": {
+      "concrete": 72,
+      "bricks": 990,
+      "planks": 288,
+      "constructionUnits": 18
+     },
+     "buildTime": "12:00h"
+    },
+    "5": {
+     "approxCost": 90653,
+     "materials": {
+      "concrete": 96,
+      "bricks": 1320,
+      "planks": 384,
+      "constructionUnits": 24
+     },
+     "buildTime": "16:00h"
+    },
+    "6": {
+     "approxCost": 113316,
+     "materials": {
+      "concrete": 120,
+      "bricks": 1650,
+      "planks": 480,
+      "constructionUnits": 30
+     },
+     "buildTime": "20:00h"
+    }
+   }
+  },
+  "f": {
+   "letter": "f",
+   "name": "Fashion & Design",
+   "wage": 449,
+   "products": [
+    "FASHION RESEARCH"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 79489,
+     "materials": {
+      "concrete": 84,
+      "bricks": 1155,
+      "planks": 336,
+      "constructionUnits": 21
+     },
+     "buildTime": "2:00h"
+    },
+    "2": {
+     "approxCost": 79489,
+     "materials": {
+      "concrete": 84,
+      "bricks": 1155,
+      "planks": 336,
+      "constructionUnits": 21
+     },
+     "buildTime": "2:00h"
+    },
+    "3": {
+     "approxCost": 158978,
+     "materials": {
+      "concrete": 168,
+      "bricks": 2310,
+      "planks": 672,
+      "constructionUnits": 42
+     },
+     "buildTime": "4:00h"
+    },
+    "4": {
+     "approxCost": 238468,
+     "materials": {
+      "concrete": 252,
+      "bricks": 3465,
+      "planks": 1008,
+      "constructionUnits": 63
+     },
+     "buildTime": "6:00h"
+    },
+    "5": {
+     "approxCost": 317957,
+     "materials": {
+      "concrete": 336,
+      "bricks": 4620,
+      "planks": 1344,
+      "constructionUnits": 84
+     },
+     "buildTime": "8:00h"
+    },
+    "6": {
+     "approxCost": 397446,
+     "materials": {
+      "concrete": 420,
+      "bricks": 5775,
+      "planks": 1680,
+      "constructionUnits": 105
+     },
+     "buildTime": "10:00h"
+    }
+   }
+  },
+  "g": {
+   "letter": "g",
+   "name": "General contractor",
+   "wage": 345,
+   "products": [
+    "CONSTRUCTION UNITS"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 52881,
+     "materials": {
+      "concrete": 56,
+      "bricks": 770,
+      "planks": 224,
+      "constructionUnits": 14
+     },
+     "buildTime": "2:00h"
+    },
+    "2": {
+     "approxCost": 52881,
+     "materials": {
+      "concrete": 56,
+      "bricks": 770,
+      "planks": 224,
+      "constructionUnits": 14
+     },
+     "buildTime": "2:00h"
+    },
+    "3": {
+     "approxCost": 105762,
+     "materials": {
+      "concrete": 112,
+      "bricks": 1540,
+      "planks": 448,
+      "constructionUnits": 28
+     },
+     "buildTime": "4:00h"
+    },
+    "4": {
+     "approxCost": 158642,
+     "materials": {
+      "concrete": 168,
+      "bricks": 2310,
+      "planks": 672,
+      "constructionUnits": 42
+     },
+     "buildTime": "6:00h"
+    },
+    "5": {
+     "approxCost": 211523,
+     "materials": {
+      "concrete": 224,
+      "bricks": 3080,
+      "planks": 896,
+      "constructionUnits": 56
+     },
+     "buildTime": "8:00h"
+    },
+    "6": {
+     "approxCost": 264404,
+     "materials": {
+      "concrete": 280,
+      "bricks": 3850,
+      "planks": 1120,
+      "constructionUnits": 70
+     },
+     "buildTime": "10:00h"
+    }
+   }
+  },
+  "h": {
+   "letter": "h",
+   "name": "Physics laboratory",
+   "wage": 587,
+   "products": [
+    "ENERGY RESEARCH",
+    "MINING RESEARCH",
+    "ELECTRONICS RESEARCH"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 181690,
+     "materials": {
+      "concrete": 192,
+      "bricks": 2640,
+      "planks": 768,
+      "constructionUnits": 48
+     },
+     "buildTime": "7:00h"
+    },
+    "2": {
+     "approxCost": 181690,
+     "materials": {
+      "concrete": 192,
+      "bricks": 2640,
+      "planks": 768,
+      "constructionUnits": 48
+     },
+     "buildTime": "7:00h"
+    },
+    "3": {
+     "approxCost": 363379,
+     "materials": {
+      "concrete": 384,
+      "bricks": 5280,
+      "planks": 1536,
+      "constructionUnits": 96
+     },
+     "buildTime": "14:00h"
+    },
+    "4": {
+     "approxCost": 545069,
+     "materials": {
+      "concrete": 576,
+      "bricks": 7920,
+      "planks": 2304,
+      "constructionUnits": 144
+     },
+     "buildTime": "21:00h"
+    },
+    "5": {
+     "approxCost": 726758,
+     "materials": {
+      "concrete": 768,
+      "bricks": 10560,
+      "planks": 3072,
+      "constructionUnits": 192
+     },
+     "buildTime": "28:00h"
+    },
+    "6": {
+     "approxCost": 908448,
+     "materials": {
+      "concrete": 960,
+      "bricks": 13200,
+      "planks": 3840,
+      "constructionUnits": 240
+     },
+     "buildTime": "35:00h"
+    }
+   }
+  },
+  "i": {
+   "letter": "i",
+   "name": "Mill",
+   "wage": 380,
+   "products": [
+    "COFFEE POWDER",
+    "FLOUR",
+    "FODDER"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 30218,
+     "materials": {
+      "concrete": 32,
+      "bricks": 440,
+      "planks": 128,
+      "constructionUnits": 8
+     },
+     "buildTime": "3:00h"
+    },
+    "2": {
+     "approxCost": 30218,
+     "materials": {
+      "concrete": 32,
+      "bricks": 440,
+      "planks": 128,
+      "constructionUnits": 8
+     },
+     "buildTime": "3:00h"
+    },
+    "3": {
+     "approxCost": 60435,
+     "materials": {
+      "concrete": 64,
+      "bricks": 880,
+      "planks": 256,
+      "constructionUnits": 16
+     },
+     "buildTime": "6:00h"
+    },
+    "4": {
+     "approxCost": 90653,
+     "materials": {
+      "concrete": 96,
+      "bricks": 1320,
+      "planks": 384,
+      "constructionUnits": 24
+     },
+     "buildTime": "9:00h"
+    },
+    "5": {
+     "approxCost": 120870,
+     "materials": {
+      "concrete": 128,
+      "bricks": 1760,
+      "planks": 512,
+      "constructionUnits": 32
+     },
+     "buildTime": "12:00h"
+    },
+    "6": {
+     "approxCost": 151088,
+     "materials": {
+      "concrete": 160,
+      "bricks": 2200,
+      "planks": 640,
+      "constructionUnits": 40
+     },
+     "buildTime": "15:00h"
+    }
+   }
+  },
+  "j": {
+   "letter": "j",
+   "name": "Bakery",
+   "wage": 449,
+   "products": [
+    "BREAD",
+    "APPLE PIE",
+    "DOUGH"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 41637,
+     "materials": {
+      "concrete": 44,
+      "bricks": 605,
+      "planks": 176,
+      "constructionUnits": 11
+     },
+     "buildTime": "5:00h"
+    },
+    "2": {
+     "approxCost": 41637,
+     "materials": {
+      "concrete": 44,
+      "bricks": 605,
+      "planks": 176,
+      "constructionUnits": 11
+     },
+     "buildTime": "5:00h"
+    },
+    "3": {
+     "approxCost": 83274,
+     "materials": {
+      "concrete": 88,
+      "bricks": 1210,
+      "planks": 352,
+      "constructionUnits": 22
+     },
+     "buildTime": "10:00h"
+    },
+    "4": {
+     "approxCost": 124912,
+     "materials": {
+      "concrete": 132,
+      "bricks": 1815,
+      "planks": 528,
+      "constructionUnits": 33
+     },
+     "buildTime": "15:00h"
+    },
+    "5": {
+     "approxCost": 166549,
+     "materials": {
+      "concrete": 176,
+      "bricks": 2420,
+      "planks": 704,
+      "constructionUnits": 44
+     },
+     "buildTime": "20:00h"
+    },
+    "6": {
+     "approxCost": 208186,
+     "materials": {
+      "concrete": 220,
+      "bricks": 3025,
+      "planks": 880,
+      "constructionUnits": 55
+     },
+     "buildTime": "25:00h"
+    }
+   }
+  },
+  "k": {
+   "letter": "k",
+   "name": "Food processing plant",
+   "wage": 380,
+   "products": [
+    "CHEESE",
+    "FROZEN PIZZA",
+    "PASTA",
+    "BUTTER",
+    "SUGAR",
+    "CHOCOLATE",
+    "VEGETABLE OIL",
+    "EASTER BUNNY",
+    "RAMADAN SWEETS",
+    "CHOCOLATE ICECREAM",
+    "APPLE ICECREAM",
+    "CREAM EGG"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 94430,
+     "materials": {
+      "concrete": 100,
+      "bricks": 1375,
+      "planks": 400,
+      "constructionUnits": 25
+     },
+     "buildTime": "6:00h"
+    },
+    "2": {
+     "approxCost": 94430,
+     "materials": {
+      "concrete": 100,
+      "bricks": 1375,
+      "planks": 400,
+      "constructionUnits": 25
+     },
+     "buildTime": "6:00h"
+    },
+    "3": {
+     "approxCost": 188860,
+     "materials": {
+      "concrete": 200,
+      "bricks": 2750,
+      "planks": 800,
+      "constructionUnits": 50
+     },
+     "buildTime": "12:00h"
+    },
+    "4": {
+     "approxCost": 283290,
+     "materials": {
+      "concrete": 300,
+      "bricks": 4125,
+      "planks": 1200,
+      "constructionUnits": 75
+     },
+     "buildTime": "18:00h"
+    },
+    "5": {
+     "approxCost": 377720,
+     "materials": {
+      "concrete": 400,
+      "bricks": 5500,
+      "planks": 1600,
+      "constructionUnits": 100
+     },
+     "buildTime": "24:00h"
+    },
+    "6": {
+     "approxCost": 472150,
+     "materials": {
+      "concrete": 500,
+      "bricks": 6875,
+      "planks": 2000,
+      "constructionUnits": 125
+     },
+     "buildTime": "30:00h"
+    }
+   }
+  },
+  "m": {
+   "letter": "m",
+   "name": "Catering",
+   "wage": 656,
+   "products": [
+    "HAMBURGER",
+    "LASAGNA",
+    "MEAT BALLS",
+    "COCKTAILS",
+    "SAUCE",
+    "SALAD",
+    "SAMOSA",
+    "PUMPKIN SOUP"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 113556,
+     "materials": {
+      "concrete": 120,
+      "bricks": 1650,
+      "planks": 480,
+      "constructionUnits": 30
+     },
+     "buildTime": "4:00h"
+    },
+    "2": {
+     "approxCost": 113556,
+     "materials": {
+      "concrete": 120,
+      "bricks": 1650,
+      "planks": 480,
+      "constructionUnits": 30
+     },
+     "buildTime": "4:00h"
+    },
+    "3": {
+     "approxCost": 227112,
+     "materials": {
+      "concrete": 240,
+      "bricks": 3300,
+      "planks": 960,
+      "constructionUnits": 60
+     },
+     "buildTime": "8:00h"
+    },
+    "4": {
+     "approxCost": 340668,
+     "materials": {
+      "concrete": 360,
+      "bricks": 4950,
+      "planks": 1440,
+      "constructionUnits": 90
+     },
+     "buildTime": "12:00h"
+    },
+    "5": {
+     "approxCost": 454224,
+     "materials": {
+      "concrete": 480,
+      "bricks": 6600,
+      "planks": 1920,
+      "constructionUnits": 120
+     },
+     "buildTime": "16:00h"
+    },
+    "6": {
+     "approxCost": 567780,
+     "materials": {
+      "concrete": 600,
+      "bricks": 8250,
+      "planks": 2400,
+      "constructionUnits": 150
+     },
+     "buildTime": "20:00h"
+    }
+   }
+  },
+  "o": {
+   "letter": "o",
+   "name": "Concrete plant",
+   "wage": 380,
+   "products": [
+    "REINFORCED CONCRETE",
+    "BRICKS",
+    "CEMENT"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 64212,
+     "materials": {
+      "concrete": 68,
+      "bricks": 935,
+      "planks": 272,
+      "constructionUnits": 17
+     },
+     "buildTime": "5:00h"
+    },
+    "2": {
+     "approxCost": 64212,
+     "materials": {
+      "concrete": 68,
+      "bricks": 935,
+      "planks": 272,
+      "constructionUnits": 17
+     },
+     "buildTime": "5:00h"
+    },
+    "3": {
+     "approxCost": 128425,
+     "materials": {
+      "concrete": 136,
+      "bricks": 1870,
+      "planks": 544,
+      "constructionUnits": 34
+     },
+     "buildTime": "10:00h"
+    },
+    "4": {
+     "approxCost": 192637,
+     "materials": {
+      "concrete": 204,
+      "bricks": 2805,
+      "planks": 816,
+      "constructionUnits": 51
+     },
+     "buildTime": "15:00h"
+    },
+    "5": {
+     "approxCost": 256850,
+     "materials": {
+      "concrete": 272,
+      "bricks": 3740,
+      "planks": 1088,
+      "constructionUnits": 68
+     },
+     "buildTime": "20:00h"
+    },
+    "6": {
+     "approxCost": 321062,
+     "materials": {
+      "concrete": 340,
+      "bricks": 4675,
+      "planks": 1360,
+      "constructionUnits": 85
+     },
+     "buildTime": "25:00h"
+    }
+   }
+  },
+  "p": {
+   "letter": "p",
+   "name": "Plant research center",
+   "wage": 449,
+   "products": [
+    "PLANT RESEARCH"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 113556,
+     "materials": {
+      "concrete": 120,
+      "bricks": 1650,
+      "planks": 480,
+      "constructionUnits": 30
+     },
+     "buildTime": "5:00h"
+    },
+    "2": {
+     "approxCost": 113556,
+     "materials": {
+      "concrete": 120,
+      "bricks": 1650,
+      "planks": 480,
+      "constructionUnits": 30
+     },
+     "buildTime": "5:00h"
+    },
+    "3": {
+     "approxCost": 227112,
+     "materials": {
+      "concrete": 240,
+      "bricks": 3300,
+      "planks": 960,
+      "constructionUnits": 60
+     },
+     "buildTime": "10:00h"
+    },
+    "4": {
+     "approxCost": 340668,
+     "materials": {
+      "concrete": 360,
+      "bricks": 4950,
+      "planks": 1440,
+      "constructionUnits": 90
+     },
+     "buildTime": "15:00h"
+    },
+    "5": {
+     "approxCost": 454224,
+     "materials": {
+      "concrete": 480,
+      "bricks": 6600,
+      "planks": 1920,
+      "constructionUnits": 120
+     },
+     "buildTime": "20:00h"
+    },
+    "6": {
+     "approxCost": 567780,
+     "materials": {
+      "concrete": 600,
+      "bricks": 8250,
+      "planks": 2400,
+      "constructionUnits": 150
+     },
+     "buildTime": "25:00h"
+    }
+   }
+  },
+  "q": {
+   "letter": "q",
+   "name": "Kitchen",
+   "wage": 518,
+   "products": [
+    "RECIPES"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 90845,
+     "materials": {
+      "concrete": 96,
+      "bricks": 1320,
+      "planks": 384,
+      "constructionUnits": 24
+     },
+     "buildTime": "4:00h"
+    },
+    "2": {
+     "approxCost": 90845,
+     "materials": {
+      "concrete": 96,
+      "bricks": 1320,
+      "planks": 384,
+      "constructionUnits": 24
+     },
+     "buildTime": "4:00h"
+    },
+    "3": {
+     "approxCost": 181690,
+     "materials": {
+      "concrete": 192,
+      "bricks": 2640,
+      "planks": 768,
+      "constructionUnits": 48
+     },
+     "buildTime": "8:00h"
+    },
+    "4": {
+     "approxCost": 272534,
+     "materials": {
+      "concrete": 288,
+      "bricks": 3960,
+      "planks": 1152,
+      "constructionUnits": 72
+     },
+     "buildTime": "12:00h"
+    },
+    "5": {
+     "approxCost": 363379,
+     "materials": {
+      "concrete": 384,
+      "bricks": 5280,
+      "planks": 1536,
+      "constructionUnits": 96
+     },
+     "buildTime": "16:00h"
+    },
+    "6": {
+     "approxCost": 454224,
+     "materials": {
+      "concrete": 480,
+      "bricks": 6600,
+      "planks": 1920,
+      "constructionUnits": 120
+     },
+     "buildTime": "20:00h"
+    }
+   }
+  },
+  "r": {
+   "letter": "r",
+   "name": "Restaurant",
+   "wage": 587,
+   "products": [],
+   "levels": {
+    "1": {
+     "approxCost": 99113,
+     "materials": {
+      "concrete": 104,
+      "bricks": 1430,
+      "planks": 416,
+      "constructionUnits": 26
+     },
+     "buildTime": "3:00h"
+    },
+    "2": {
+     "approxCost": 99113,
+     "materials": {
+      "concrete": 104,
+      "bricks": 1430,
+      "planks": 416,
+      "constructionUnits": 26
+     },
+     "buildTime": "3:00h"
+    },
+    "3": {
+     "approxCost": 198227,
+     "materials": {
+      "concrete": 208,
+      "bricks": 2860,
+      "planks": 832,
+      "constructionUnits": 52
+     },
+     "buildTime": "6:00h"
+    },
+    "4": {
+     "approxCost": 297340,
+     "materials": {
+      "concrete": 312,
+      "bricks": 4290,
+      "planks": 1248,
+      "constructionUnits": 78
+     },
+     "buildTime": "9:00h"
+    },
+    "5": {
+     "approxCost": 396453,
+     "materials": {
+      "concrete": 416,
+      "bricks": 5720,
+      "planks": 1664,
+      "constructionUnits": 104
+     },
+     "buildTime": "12:00h"
+    },
+    "6": {
+     "approxCost": 495567,
+     "materials": {
+      "concrete": 520,
+      "bricks": 7150,
+      "planks": 2080,
+      "constructionUnits": 130
+     },
+     "buildTime": "15:00h"
+    }
+   }
+  },
+  "s": {
+   "letter": "s",
+   "name": "Software R&D",
+   "wage": 587,
+   "products": [
+    "SOFTWARE"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 71919,
+     "materials": {
+      "concrete": 76,
+      "bricks": 1045,
+      "planks": 304,
+      "constructionUnits": 19
+     },
+     "buildTime": "3:00h"
+    },
+    "2": {
+     "approxCost": 71919,
+     "materials": {
+      "concrete": 76,
+      "bricks": 1045,
+      "planks": 304,
+      "constructionUnits": 19
+     },
+     "buildTime": "3:00h"
+    },
+    "3": {
+     "approxCost": 143838,
+     "materials": {
+      "concrete": 152,
+      "bricks": 2090,
+      "planks": 608,
+      "constructionUnits": 38
+     },
+     "buildTime": "6:00h"
+    },
+    "4": {
+     "approxCost": 215756,
+     "materials": {
+      "concrete": 228,
+      "bricks": 3135,
+      "planks": 912,
+      "constructionUnits": 57
+     },
+     "buildTime": "9:00h"
+    },
+    "5": {
+     "approxCost": 287675,
+     "materials": {
+      "concrete": 304,
+      "bricks": 4180,
+      "planks": 1216,
+      "constructionUnits": 76
+     },
+     "buildTime": "12:00h"
+    },
+    "6": {
+     "approxCost": 359594,
+     "materials": {
+      "concrete": 380,
+      "bricks": 5225,
+      "planks": 1520,
+      "constructionUnits": 95
+     },
+     "buildTime": "15:00h"
+    }
+   }
+  },
+  "t": {
+   "letter": "t",
+   "name": "Halloween market",
+   "wage": 207,
+   "products": [],
+   "levels": {
+    "1": {
+     "approxCost": 15233,
+     "materials": {
+      "concrete": 16,
+      "bricks": 220,
+      "planks": 64,
+      "constructionUnits": 4
+     },
+     "buildTime": "2:00h"
+    },
+    "2": {
+     "approxCost": 15233,
+     "materials": {
+      "concrete": 16,
+      "bricks": 220,
+      "planks": 64,
+      "constructionUnits": 4
+     },
+     "buildTime": "2:00h"
+    },
+    "3": {
+     "approxCost": 30465,
+     "materials": {
+      "concrete": 32,
+      "bricks": 440,
+      "planks": 128,
+      "constructionUnits": 8
+     },
+     "buildTime": "4:00h"
+    },
+    "4": {
+     "approxCost": 45698,
+     "materials": {
+      "concrete": 48,
+      "bricks": 660,
+      "planks": 192,
+      "constructionUnits": 12
+     },
+     "buildTime": "6:00h"
+    },
+    "5": {
+     "approxCost": 60930,
+     "materials": {
+      "concrete": 64,
+      "bricks": 880,
+      "planks": 256,
+      "constructionUnits": 16
+     },
+     "buildTime": "8:00h"
+    },
+    "6": {
+     "approxCost": 76163,
+     "materials": {
+      "concrete": 80,
+      "bricks": 1100,
+      "planks": 320,
+      "constructionUnits": 20
+     },
+     "buildTime": "10:00h"
+    }
+   }
+  },
+  "u": {
+   "letter": "u",
+   "name": "Xmas market",
+   "wage": 241,
+   "products": [],
+   "levels": {
+    "1": {
+     "approxCost": 19041,
+     "materials": {
+      "concrete": 20,
+      "bricks": 275,
+      "planks": 80,
+      "constructionUnits": 5
+     },
+     "buildTime": "2:00h"
+    },
+    "2": {
+     "approxCost": 19041,
+     "materials": {
+      "concrete": 20,
+      "bricks": 275,
+      "planks": 80,
+      "constructionUnits": 5
+     },
+     "buildTime": "2:00h"
+    },
+    "3": {
+     "approxCost": 38082,
+     "materials": {
+      "concrete": 40,
+      "bricks": 550,
+      "planks": 160,
+      "constructionUnits": 10
+     },
+     "buildTime": "4:00h"
+    },
+    "4": {
+     "approxCost": 57122,
+     "materials": {
+      "concrete": 60,
+      "bricks": 825,
+      "planks": 240,
+      "constructionUnits": 15
+     },
+     "buildTime": "6:00h"
+    },
+    "5": {
+     "approxCost": 76163,
+     "materials": {
+      "concrete": 80,
+      "bricks": 1100,
+      "planks": 320,
+      "constructionUnits": 20
+     },
+     "buildTime": "8:00h"
+    },
+    "6": {
+     "approxCost": 95204,
+     "materials": {
+      "concrete": 100,
+      "bricks": 1375,
+      "planks": 400,
+      "constructionUnits": 25
+     },
+     "buildTime": "10:00h"
+    }
+   }
+  },
+  "v": {
+   "letter": "v",
+   "name": "Forest nursery",
+   "wage": 79,
+   "products": [
+    "TREE"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 18926,
+     "materials": {
+      "concrete": 20,
+      "bricks": 275,
+      "planks": 80,
+      "constructionUnits": 5
+     },
+     "buildTime": "2:00h"
+    },
+    "2": {
+     "approxCost": 18926,
+     "materials": {
+      "concrete": 20,
+      "bricks": 275,
+      "planks": 80,
+      "constructionUnits": 5
+     },
+     "buildTime": "2:00h"
+    },
+    "3": {
+     "approxCost": 37852,
+     "materials": {
+      "concrete": 40,
+      "bricks": 550,
+      "planks": 160,
+      "constructionUnits": 10
+     },
+     "buildTime": "4:00h"
+    },
+    "4": {
+     "approxCost": 56778,
+     "materials": {
+      "concrete": 60,
+      "bricks": 825,
+      "planks": 240,
+      "constructionUnits": 15
+     },
+     "buildTime": "6:00h"
+    },
+    "5": {
+     "approxCost": 75704,
+     "materials": {
+      "concrete": 80,
+      "bricks": 1100,
+      "planks": 320,
+      "constructionUnits": 20
+     },
+     "buildTime": "8:00h"
+    },
+    "6": {
+     "approxCost": 94630,
+     "materials": {
+      "concrete": 100,
+      "bricks": 1375,
+      "planks": 400,
+      "constructionUnits": 25
+     },
+     "buildTime": "10:00h"
+    }
+   }
+  },
+  "x": {
+   "letter": "x",
+   "name": "Construction factory",
+   "wage": 483,
+   "products": [
+    "BEAMS",
+    "PLANKS",
+    "WINDOWS",
+    "TOOLS"
+   ],
+   "levels": {
+    "1": {
+     "approxCost": 79321,
+     "materials": {
+      "concrete": 84,
+      "bricks": 1155,
+      "planks": 336,
+      "constructionUnits": 21
+     },
+     "buildTime": "6:00h"
+    },
+    "2": {
+     "approxCost": 79321,
+     "materials": {
+      "concrete": 84,
+      "bricks": 1155,
+      "planks": 336,
+      "constructionUnits": 21
+     },
+     "buildTime": "6:00h"
+    },
+    "3": {
+     "approxCost": 158642,
+     "materials": {
+      "concrete": 168,
+      "bricks": 2310,
+      "planks": 672,
+      "constructionUnits": 42
+     },
+     "buildTime": "12:00h"
+    },
+    "4": {
+     "approxCost": 237964,
+     "materials": {
+      "concrete": 252,
+      "bricks": 3465,
+      "planks": 1008,
+      "constructionUnits": 63
+     },
+     "buildTime": "18:00h"
+    },
+    "5": {
+     "approxCost": 317285,
+     "materials": {
+      "concrete": 336,
+      "bricks": 4620,
+      "planks": 1344,
+      "constructionUnits": 84
+     },
+     "buildTime": "24:00h"
+    },
+    "6": {
+     "approxCost": 396606,
+     "materials": {
+      "concrete": 420,
+      "bricks": 5775,
+      "planks": 1680,
+      "constructionUnits": 105
+     },
+     "buildTime": "30:00h"
+    }
+   }
+  },
+  "z": {
+   "letter": "z",
+   "name": "Beach market",
+   "wage": 241,
+   "products": [],
+   "levels": {
+    "1": {
+     "approxCost": 11424,
+     "materials": {
+      "concrete": 12,
+      "bricks": 165,
+      "planks": 48,
+      "constructionUnits": 3
+     },
+     "buildTime": "2:00h"
+    },
+    "2": {
+     "approxCost": 11424,
+     "materials": {
+      "concrete": 12,
+      "bricks": 165,
+      "planks": 48,
+      "constructionUnits": 3
+     },
+     "buildTime": "2:00h"
+    },
+    "3": {
+     "approxCost": 22849,
+     "materials": {
+      "concrete": 24,
+      "bricks": 330,
+      "planks": 96,
+      "constructionUnits": 6
+     },
+     "buildTime": "4:00h"
+    },
+    "4": {
+     "approxCost": 34273,
+     "materials": {
+      "concrete": 36,
+      "bricks": 495,
+      "planks": 144,
+      "constructionUnits": 9
+     },
+     "buildTime": "6:00h"
+    },
+    "5": {
+     "approxCost": 45698,
+     "materials": {
+      "concrete": 48,
+      "bricks": 660,
+      "planks": 192,
+      "constructionUnits": 12
+     },
+     "buildTime": "8:00h"
+    },
+    "6": {
+     "approxCost": 57122,
+     "materials": {
+      "concrete": 60,
+      "bricks": 825,
+      "planks": 240,
+      "constructionUnits": 15
+     },
+     "buildTime": "10:00h"
+    }
+   }
+  }
+ },
+ "resources": {
+  "1": {
+   "kind": 1,
+   "dbLetter": 1,
+   "producedAt": "E",
+   "ratePerHourRaw": 6000,
+   "recipe": {},
+   "transportation": 0,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "2": {
+   "kind": 2,
+   "dbLetter": 2,
+   "producedAt": "W",
+   "ratePerHourRaw": 3300,
+   "recipe": {
+    "1": 0.2
+   },
+   "transportation": 0,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "3": {
+   "kind": 3,
+   "dbLetter": 3,
+   "producedAt": "P",
+   "ratePerHourRaw": 250,
+   "recipe": {
+    "2": 3,
+    "66": 1
+   },
+   "transportation": 1,
+   "consumption": 12.461219936489451,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 110,
+   "accumulator": false
+  },
+  "4": {
+   "kind": 4,
+   "dbLetter": 4,
+   "producedAt": "P",
+   "ratePerHourRaw": 230,
+   "recipe": {
+    "2": 3,
+    "66": 1
+   },
+   "transportation": 1,
+   "consumption": 11.84147601112778,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 90,
+   "accumulator": false
+  },
+  "5": {
+   "kind": 5,
+   "dbLetter": 5,
+   "producedAt": "P",
+   "ratePerHourRaw": 200,
+   "recipe": {
+    "2": 4,
+    "66": 1
+   },
+   "transportation": 1,
+   "consumption": 10.091929186909828,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 80,
+   "accumulator": false
+  },
+  "6": {
+   "kind": 6,
+   "dbLetter": 6,
+   "producedAt": "P",
+   "ratePerHourRaw": 1000,
+   "recipe": {
+    "2": 0.5,
+    "66": 1
+   },
+   "transportation": 0.1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "7": {
+   "kind": 7,
+   "dbLetter": 7,
+   "producedAt": "e",
+   "ratePerHourRaw": 60,
+   "recipe": {
+    "115": 0.125
+   },
+   "transportation": 1,
+   "consumption": 1.0371148135420547,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 35,
+   "accumulator": false
+  },
+  "8": {
+   "kind": 8,
+   "dbLetter": 8,
+   "producedAt": "e",
+   "ratePerHourRaw": 180,
+   "recipe": {
+    "116": 0.0625
+   },
+   "transportation": 0.1,
+   "consumption": 4.434424375876213,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 110,
+   "accumulator": false
+  },
+  "9": {
+   "kind": 9,
+   "dbLetter": 9,
+   "producedAt": "F",
+   "ratePerHourRaw": 420,
+   "recipe": {
+    "2": 0.4,
+    "6": 0.5
+   },
+   "transportation": 0.1,
+   "consumption": 21.22272274461854,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 340,
+   "accumulator": false
+  },
+  "10": {
+   "kind": 10,
+   "dbLetter": 10,
+   "producedAt": "O",
+   "ratePerHourRaw": 120,
+   "recipe": {
+    "1": 25
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "11": {
+   "kind": 11,
+   "dbLetter": 11,
+   "producedAt": "R",
+   "ratePerHourRaw": 300,
+   "recipe": {
+    "1": 15,
+    "10": 0.75,
+    "73": 0.25
+   },
+   "transportation": 1,
+   "consumption": 19.449300724281276,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 2,
+   "unitsSoldAnHour": 103,
+   "accumulator": false
+  },
+  "12": {
+   "kind": 12,
+   "dbLetter": 12,
+   "producedAt": "R",
+   "ratePerHourRaw": 310,
+   "recipe": {
+    "1": 15,
+    "10": 0.75,
+    "73": 0.25
+   },
+   "transportation": 1,
+   "consumption": 19.544842047471025,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 2,
+   "unitsSoldAnHour": 105,
+   "accumulator": false
+  },
+  "13": {
+   "kind": 13,
+   "dbLetter": 13,
+   "producedAt": "S",
+   "ratePerHourRaw": 6000,
+   "recipe": {
+    "1": 0.01,
+    "12": 0.005
+   },
+   "transportation": 0,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "14": {
+   "kind": 14,
+   "dbLetter": 14,
+   "producedAt": "M",
+   "ratePerHourRaw": 210,
+   "recipe": {
+    "1": 20,
+    "2": 1
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "15": {
+   "kind": 15,
+   "dbLetter": 15,
+   "producedAt": "M",
+   "ratePerHourRaw": 170,
+   "recipe": {
+    "1": 14,
+    "2": 0.5
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "16": {
+   "kind": 16,
+   "dbLetter": 16,
+   "producedAt": "Y",
+   "ratePerHourRaw": 360,
+   "recipe": {
+    "1": 3,
+    "44": 2
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "17": {
+   "kind": 17,
+   "dbLetter": 17,
+   "producedAt": "Y",
+   "ratePerHourRaw": 500,
+   "recipe": {
+    "1": 0.2,
+    "14": 1
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "18": {
+   "kind": 18,
+   "dbLetter": 18,
+   "producedAt": "Y",
+   "ratePerHourRaw": 280,
+   "recipe": {
+    "1": 15,
+    "15": 1
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "19": {
+   "kind": 19,
+   "dbLetter": 19,
+   "producedAt": "R",
+   "ratePerHourRaw": 550,
+   "recipe": {
+    "1": 5,
+    "10": 0.2
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "20": {
+   "kind": 20,
+   "dbLetter": 20,
+   "producedAt": "L",
+   "ratePerHourRaw": 20,
+   "recipe": {
+    "16": 4,
+    "17": 1
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "21": {
+   "kind": 21,
+   "dbLetter": 21,
+   "producedAt": "L",
+   "ratePerHourRaw": 90,
+   "recipe": {
+    "16": 3,
+    "17": 1
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "22": {
+   "kind": 22,
+   "dbLetter": 22,
+   "producedAt": "L",
+   "ratePerHourRaw": 55,
+   "recipe": {
+    "17": 4
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "23": {
+   "kind": 23,
+   "dbLetter": 23,
+   "producedAt": "L",
+   "ratePerHourRaw": 70,
+   "recipe": {
+    "16": 5,
+    "17": 4
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "24": {
+   "kind": 24,
+   "dbLetter": 24,
+   "producedAt": "L",
+   "ratePerHourRaw": 25,
+   "recipe": {
+    "18": 2,
+    "20": 2,
+    "21": 1,
+    "22": 1,
+    "23": 1
+   },
+   "transportation": 2,
+   "consumption": 0.6146040856797423,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 2,
+   "accumulator": false
+  },
+  "25": {
+   "kind": 25,
+   "dbLetter": 25,
+   "producedAt": "L",
+   "ratePerHourRaw": 25,
+   "recipe": {
+    "18": 3,
+    "20": 2,
+    "21": 1,
+    "22": 1,
+    "23": 2
+   },
+   "transportation": 2,
+   "consumption": 0.49836120340057916,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 0.8,
+   "accumulator": false
+  },
+  "26": {
+   "kind": 26,
+   "dbLetter": 26,
+   "producedAt": "L",
+   "ratePerHourRaw": 20,
+   "recipe": {
+    "19": 3,
+    "20": 4,
+    "21": 3,
+    "22": 2,
+    "23": 2
+   },
+   "transportation": 2,
+   "consumption": 0.31997886554425375,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 1.2,
+   "accumulator": false
+  },
+  "27": {
+   "kind": 27,
+   "dbLetter": 27,
+   "producedAt": "L",
+   "ratePerHourRaw": 40,
+   "recipe": {
+    "19": 3,
+    "21": 2,
+    "23": 3
+   },
+   "transportation": 2,
+   "consumption": 0.6969915079031326,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 2,
+   "accumulator": false
+  },
+  "28": {
+   "kind": 28,
+   "dbLetter": 28,
+   "producedAt": "L",
+   "ratePerHourRaw": 35,
+   "recipe": {
+    "19": 5,
+    "20": 1,
+    "21": 4,
+    "23": 4
+   },
+   "transportation": 2,
+   "consumption": 0.4105027254839135,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 1.8,
+   "accumulator": false
+  },
+  "29": {
+   "kind": 29,
+   "dbLetter": 29,
+   "producedAt": "p",
+   "ratePerHourRaw": 12,
+   "recipe": {},
+   "transportation": 0,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": true,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "30": {
+   "kind": 30,
+   "dbLetter": 30,
+   "producedAt": "h",
+   "ratePerHourRaw": 11,
+   "recipe": {},
+   "transportation": 0,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": true,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "31": {
+   "kind": 31,
+   "dbLetter": 31,
+   "producedAt": "h",
+   "ratePerHourRaw": 10,
+   "recipe": {},
+   "transportation": 0,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": true,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "32": {
+   "kind": 32,
+   "dbLetter": 32,
+   "producedAt": "h",
+   "ratePerHourRaw": 8,
+   "recipe": {},
+   "transportation": 0,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": true,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "33": {
+   "kind": 33,
+   "dbLetter": 33,
+   "producedAt": "b",
+   "ratePerHourRaw": 9,
+   "recipe": {},
+   "transportation": 0,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": true,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "34": {
+   "kind": 34,
+   "dbLetter": 34,
+   "producedAt": "c",
+   "ratePerHourRaw": 11,
+   "recipe": {},
+   "transportation": 0,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": true,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "35": {
+   "kind": 35,
+   "dbLetter": 35,
+   "producedAt": "s",
+   "ratePerHourRaw": 19,
+   "recipe": {},
+   "transportation": 0,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": true,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "40": {
+   "kind": 40,
+   "dbLetter": 40,
+   "producedAt": "P",
+   "ratePerHourRaw": 320,
+   "recipe": {
+    "2": 1,
+    "66": 1
+   },
+   "transportation": 0.5,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "41": {
+   "kind": 41,
+   "dbLetter": 41,
+   "producedAt": "T",
+   "ratePerHourRaw": 320,
+   "recipe": {
+    "1": 1,
+    "40": 2
+   },
+   "transportation": 0.5,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "42": {
+   "kind": 42,
+   "dbLetter": 42,
+   "producedAt": "M",
+   "ratePerHourRaw": 320,
+   "recipe": {
+    "1": 7,
+    "2": 0.5
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "43": {
+   "kind": 43,
+   "dbLetter": 43,
+   "producedAt": "Y",
+   "ratePerHourRaw": 450,
+   "recipe": {
+    "1": 5,
+    "17": 0.1,
+    "42": 1
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "44": {
+   "kind": 44,
+   "dbLetter": 44,
+   "producedAt": "Q",
+   "ratePerHourRaw": 2500,
+   "recipe": {
+    "1": 2
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "45": {
+   "kind": 45,
+   "dbLetter": 45,
+   "producedAt": "Y",
+   "ratePerHourRaw": 300,
+   "recipe": {
+    "1": 2,
+    "16": 1
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 4,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "46": {
+   "kind": 46,
+   "dbLetter": 46,
+   "producedAt": "F",
+   "ratePerHourRaw": 40,
+   "recipe": {
+    "115": 0.125
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "47": {
+   "kind": 47,
+   "dbLetter": 47,
+   "producedAt": "L",
+   "ratePerHourRaw": 30,
+   "recipe": {
+    "20": 2,
+    "21": 3
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 6,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "48": {
+   "kind": 48,
+   "dbLetter": 48,
+   "producedAt": "D",
+   "ratePerHourRaw": 110,
+   "recipe": {
+    "21": 3,
+    "43": 2
+   },
+   "transportation": 2,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 6,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "49": {
+   "kind": 49,
+   "dbLetter": 49,
+   "producedAt": "1",
+   "ratePerHourRaw": 50,
+   "recipe": {
+    "18": 2,
+    "23": 6,
+    "46": 5
+   },
+   "transportation": 2,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 6,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "50": {
+   "kind": 50,
+   "dbLetter": 50,
+   "producedAt": "1",
+   "ratePerHourRaw": 80,
+   "recipe": {
+    "19": 2,
+    "23": 2,
+    "41": 5
+   },
+   "transportation": 2,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 6,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "51": {
+   "kind": 51,
+   "dbLetter": 51,
+   "producedAt": "1",
+   "ratePerHourRaw": 60,
+   "recipe": {
+    "18": 30,
+    "43": 5,
+    "45": 5
+   },
+   "transportation": 2,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 6,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "52": {
+   "kind": 52,
+   "dbLetter": 52,
+   "producedAt": "D",
+   "ratePerHourRaw": 20,
+   "recipe": {
+    "17": 5,
+    "21": 5,
+    "43": 6
+   },
+   "transportation": 2,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 6,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "53": {
+   "kind": 53,
+   "dbLetter": 53,
+   "producedAt": "1",
+   "ratePerHourRaw": 50,
+   "recipe": {
+    "22": 15,
+    "47": 1,
+    "48": 2,
+    "50": 1,
+    "51": 1
+   },
+   "transportation": 5,
+   "consumption": 0.1367239964257795,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 6,
+   "unitsSoldAnHour": 2,
+   "accumulator": false
+  },
+  "54": {
+   "kind": 54,
+   "dbLetter": 54,
+   "producedAt": "1",
+   "ratePerHourRaw": 10,
+   "recipe": {
+    "22": 30,
+    "47": 2,
+    "48": 4,
+    "49": 1,
+    "51": 1
+   },
+   "transportation": 5,
+   "consumption": 0.07102515107609757,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 6,
+   "unitsSoldAnHour": 0.5,
+   "accumulator": false
+  },
+  "55": {
+   "kind": 55,
+   "dbLetter": 55,
+   "producedAt": "1",
+   "ratePerHourRaw": 35,
+   "recipe": {
+    "47": 1,
+    "50": 1,
+    "51": 1,
+    "52": 1
+   },
+   "transportation": 5,
+   "consumption": 0.2110459827531645,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 6,
+   "unitsSoldAnHour": 2,
+   "accumulator": false
+  },
+  "56": {
+   "kind": 56,
+   "dbLetter": 56,
+   "producedAt": "1",
+   "ratePerHourRaw": 5,
+   "recipe": {
+    "47": 2,
+    "49": 1,
+    "51": 1,
+    "52": 2
+   },
+   "transportation": 5,
+   "consumption": 0.10824201463956734,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 6,
+   "unitsSoldAnHour": 0.5,
+   "accumulator": false
+  },
+  "57": {
+   "kind": 57,
+   "dbLetter": 57,
+   "producedAt": "1",
+   "ratePerHourRaw": 12,
+   "recipe": {
+    "43": 10,
+    "47": 1,
+    "50": 1,
+    "51": 1,
+    "52": 6
+   },
+   "transportation": 5,
+   "consumption": 0.08975019566439191,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 6,
+   "unitsSoldAnHour": 1,
+   "accumulator": false
+  },
+  "58": {
+   "kind": 58,
+   "dbLetter": 58,
+   "producedAt": "a",
+   "ratePerHourRaw": 13,
+   "recipe": {},
+   "transportation": 0,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": true,
+   "sincePhase": 6,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "59": {
+   "kind": 59,
+   "dbLetter": 59,
+   "producedAt": "f",
+   "ratePerHourRaw": 17,
+   "recipe": {},
+   "transportation": 0,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": true,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "60": {
+   "kind": 60,
+   "dbLetter": 60,
+   "producedAt": "T",
+   "ratePerHourRaw": 220,
+   "recipe": {
+    "41": 1
+   },
+   "transportation": 1,
+   "consumption": 10.399038365820862,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 25,
+   "accumulator": false
+  },
+  "61": {
+   "kind": 61,
+   "dbLetter": 61,
+   "producedAt": "T",
+   "ratePerHourRaw": 190,
+   "recipe": {
+    "41": 0.5,
+    "46": 0.5
+   },
+   "transportation": 1,
+   "consumption": 3.7328170447503237,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 20,
+   "accumulator": false
+  },
+  "62": {
+   "kind": 62,
+   "dbLetter": 62,
+   "producedAt": "T",
+   "ratePerHourRaw": 200,
+   "recipe": {
+    "19": 0.5,
+    "41": 3
+   },
+   "transportation": 1,
+   "consumption": 3.720968553762571,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 45,
+   "accumulator": false
+  },
+  "63": {
+   "kind": 63,
+   "dbLetter": 63,
+   "producedAt": "T",
+   "ratePerHourRaw": 130,
+   "recipe": {
+    "19": 0.2,
+    "46": 1
+   },
+   "transportation": 1,
+   "consumption": 2.1663660375783356,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 30,
+   "accumulator": false
+  },
+  "64": {
+   "kind": 64,
+   "dbLetter": 64,
+   "producedAt": "T",
+   "ratePerHourRaw": 90,
+   "recipe": {
+    "46": 1.5
+   },
+   "transportation": 1,
+   "consumption": 1.488510899065273,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 20,
+   "accumulator": false
+  },
+  "65": {
+   "kind": 65,
+   "dbLetter": 65,
+   "producedAt": "T",
+   "ratePerHourRaw": 230,
+   "recipe": {
+    "19": 1
+   },
+   "transportation": 1,
+   "consumption": 11.690068141489643,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 30,
+   "accumulator": false
+  },
+  "66": {
+   "kind": 66,
+   "dbLetter": 66,
+   "producedAt": "P",
+   "ratePerHourRaw": 1100,
+   "recipe": {
+    "2": 0.1
+   },
+   "transportation": 0.1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "67": {
+   "kind": 67,
+   "dbLetter": 67,
+   "producedAt": "Y",
+   "ratePerHourRaw": 520,
+   "recipe": {
+    "17": 0.5,
+    "19": 0.1
+   },
+   "transportation": 0.5,
+   "consumption": 14.11038473365268,
+   "retailSeason": "Xmas",
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 400,
+   "accumulator": false
+  },
+  "68": {
+   "kind": 68,
+   "dbLetter": 68,
+   "producedAt": "M",
+   "ratePerHourRaw": 100,
+   "recipe": {
+    "1": 80,
+    "2": 2
+   },
+   "transportation": 10,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 4,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "69": {
+   "kind": 69,
+   "dbLetter": 69,
+   "producedAt": "Y",
+   "ratePerHourRaw": 70,
+   "recipe": {
+    "1": 40,
+    "68": 200
+   },
+   "transportation": 1000,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 4,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "70": {
+   "kind": 70,
+   "dbLetter": 70,
+   "producedAt": "T",
+   "ratePerHourRaw": 25,
+   "recipe": {
+    "21": 2,
+    "45": 0.5,
+    "69": 0.1
+   },
+   "transportation": 1,
+   "consumption": 0.1829073948264703,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 4,
+   "unitsSoldAnHour": 3,
+   "accumulator": false
+  },
+  "71": {
+   "kind": 71,
+   "dbLetter": 71,
+   "producedAt": "T",
+   "ratePerHourRaw": 55,
+   "recipe": {
+    "69": 0.25
+   },
+   "transportation": 1,
+   "consumption": 0.08790291527640993,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 4,
+   "unitsSoldAnHour": 2,
+   "accumulator": false
+  },
+  "72": {
+   "kind": 72,
+   "dbLetter": 72,
+   "producedAt": "P",
+   "ratePerHourRaw": 800,
+   "recipe": {
+    "2": 3,
+    "66": 1
+   },
+   "transportation": 0.1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 2,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "73": {
+   "kind": 73,
+   "dbLetter": 73,
+   "producedAt": "6",
+   "ratePerHourRaw": 100,
+   "recipe": {
+    "1": 20,
+    "72": 10
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 2,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "74": {
+   "kind": 74,
+   "dbLetter": 74,
+   "producedAt": "O",
+   "ratePerHourRaw": 160,
+   "recipe": {
+    "1": 20
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "75": {
+   "kind": 75,
+   "dbLetter": 75,
+   "producedAt": "R",
+   "ratePerHourRaw": 660,
+   "recipe": {
+    "1": 0.5,
+    "10": 0.1
+   },
+   "transportation": 0.1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "76": {
+   "kind": 76,
+   "dbLetter": 76,
+   "producedAt": "Y",
+   "ratePerHourRaw": 160,
+   "recipe": {
+    "75": 8
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "77": {
+   "kind": 77,
+   "dbLetter": 77,
+   "producedAt": "7",
+   "ratePerHourRaw": 11,
+   "recipe": {
+    "76": 40
+   },
+   "transportation": 2,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "78": {
+   "kind": 78,
+   "dbLetter": 78,
+   "producedAt": "7",
+   "ratePerHourRaw": 27,
+   "recipe": {
+    "18": 5,
+    "76": 30
+   },
+   "transportation": 2,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "79": {
+   "kind": 79,
+   "dbLetter": 79,
+   "producedAt": "L",
+   "ratePerHourRaw": 4,
+   "recipe": {
+    "16": 4,
+    "17": 3,
+    "69": 0.0625
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "80": {
+   "kind": 80,
+   "dbLetter": 80,
+   "producedAt": "8",
+   "ratePerHourRaw": 10,
+   "recipe": {
+    "47": 2,
+    "79": 4
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "81": {
+   "kind": 81,
+   "dbLetter": 81,
+   "producedAt": "8",
+   "ratePerHourRaw": 10,
+   "recipe": {
+    "23": 8,
+    "50": 1,
+    "79": 4
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "82": {
+   "kind": 82,
+   "dbLetter": 82,
+   "producedAt": "8",
+   "ratePerHourRaw": 12,
+   "recipe": {
+    "22": 5,
+    "43": 3,
+    "48": 3
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "83": {
+   "kind": 83,
+   "dbLetter": 83,
+   "producedAt": "R",
+   "ratePerHourRaw": 210,
+   "recipe": {
+    "1": 5,
+    "74": 1
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "84": {
+   "kind": 84,
+   "dbLetter": 84,
+   "producedAt": "7",
+   "ratePerHourRaw": 15,
+   "recipe": {
+    "18": 50,
+    "83": 250
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "85": {
+   "kind": 85,
+   "dbLetter": 85,
+   "producedAt": "D",
+   "ratePerHourRaw": 1,
+   "recipe": {
+    "17": 50,
+    "18": 30,
+    "83": 100
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "86": {
+   "kind": 86,
+   "dbLetter": 86,
+   "producedAt": "D",
+   "ratePerHourRaw": 1,
+   "recipe": {
+    "18": 10,
+    "43": 20,
+    "79": 8
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "87": {
+   "kind": 87,
+   "dbLetter": 87,
+   "producedAt": "7",
+   "ratePerHourRaw": 40,
+   "recipe": {
+    "16": 30,
+    "43": 20
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "88": {
+   "kind": 88,
+   "dbLetter": 88,
+   "producedAt": "D",
+   "ratePerHourRaw": 2,
+   "recipe": {
+    "17": 15,
+    "22": 30,
+    "79": 8
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "89": {
+   "kind": 89,
+   "dbLetter": 89,
+   "producedAt": "D",
+   "ratePerHourRaw": 3,
+   "recipe": {
+    "18": 5,
+    "79": 4
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "90": {
+   "kind": 90,
+   "dbLetter": 90,
+   "producedAt": "7",
+   "ratePerHourRaw": 10,
+   "recipe": {
+    "77": 8,
+    "80": 2,
+    "82": 2,
+    "84": 2,
+    "88": 4
+   },
+   "transportation": 20,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": false,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "91": {
+   "kind": 91,
+   "dbLetter": 91,
+   "producedAt": "9",
+   "ratePerHourRaw": 3,
+   "recipe": {
+    "85": 1,
+    "90": 1
+   },
+   "transportation": 20,
+   "consumption": 0.005297550761169041,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": false,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 1,
+   "accumulator": false
+  },
+  "92": {
+   "kind": 92,
+   "dbLetter": 92,
+   "producedAt": "7",
+   "ratePerHourRaw": 5,
+   "recipe": {
+    "77": 40,
+    "84": 16,
+    "86": 34
+   },
+   "transportation": 100,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": false,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "93": {
+   "kind": 93,
+   "dbLetter": 93,
+   "producedAt": "7",
+   "ratePerHourRaw": 1,
+   "recipe": {
+    "81": 2,
+    "82": 4,
+    "84": 6,
+    "86": 7,
+    "87": 10
+   },
+   "transportation": 100,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": false,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "94": {
+   "kind": 94,
+   "dbLetter": 94,
+   "producedAt": "9",
+   "ratePerHourRaw": 1,
+   "recipe": {
+    "92": 1,
+    "93": 1
+   },
+   "transportation": 2000,
+   "consumption": 0.0007437606790276186,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": false,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 1,
+   "accumulator": false
+  },
+  "95": {
+   "kind": 95,
+   "dbLetter": 95,
+   "producedAt": "0",
+   "ratePerHourRaw": 0.3,
+   "recipe": {
+    "50": 140,
+    "77": 40,
+    "78": 10,
+    "81": 2,
+    "89": 4
+   },
+   "transportation": 2000,
+   "consumption": 0.002711541424033801,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": false,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 1,
+   "accumulator": false
+  },
+  "96": {
+   "kind": 96,
+   "dbLetter": 96,
+   "producedAt": "0",
+   "ratePerHourRaw": 0.8,
+   "recipe": {
+    "69": 2,
+    "77": 14,
+    "78": 2,
+    "81": 1,
+    "89": 2
+   },
+   "transportation": 1000,
+   "consumption": 0.007782958596561506,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": false,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 1,
+   "accumulator": false
+  },
+  "97": {
+   "kind": 97,
+   "dbLetter": 97,
+   "producedAt": "0",
+   "ratePerHourRaw": 7,
+   "recipe": {
+    "52": 1,
+    "77": 8,
+    "78": 2,
+    "81": 1
+   },
+   "transportation": 100,
+   "consumption": 0.018840998226920744,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": false,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 1,
+   "accumulator": false
+  },
+  "98": {
+   "kind": 98,
+   "dbLetter": 98,
+   "producedAt": "8",
+   "ratePerHourRaw": 55,
+   "recipe": {
+    "19": 2,
+    "21": 3,
+    "22": 1,
+    "47": 1
+   },
+   "transportation": 2,
+   "consumption": 0.47814131848286356,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 1,
+   "accumulator": false
+  },
+  "99": {
+   "kind": 99,
+   "dbLetter": 99,
+   "producedAt": "8",
+   "ratePerHourRaw": 0.5,
+   "recipe": {
+    "79": 8,
+    "80": 4,
+    "82": 2,
+    "88": 1
+   },
+   "transportation": 10,
+   "consumption": 0.011508659279044705,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": false,
+   "isResearch": false,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 1,
+   "accumulator": false
+  },
+  "100": {
+   "kind": 100,
+   "dbLetter": 100,
+   "producedAt": "l",
+   "ratePerHourRaw": 1,
+   "recipe": {
+    "91": 1,
+    "94": 1
+   },
+   "transportation": 0,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": true,
+   "sincePhase": 7,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "101": {
+   "kind": 101,
+   "dbLetter": 101,
+   "producedAt": "o",
+   "ratePerHourRaw": 410,
+   "recipe": {
+    "2": 20,
+    "43": 5,
+    "44": 20,
+    "103": 15
+   },
+   "transportation": 10,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "102": {
+   "kind": 102,
+   "dbLetter": 102,
+   "producedAt": "o",
+   "ratePerHourRaw": 800,
+   "recipe": {
+    "104": 0.5
+   },
+   "transportation": 1,
+   "consumption": 67.46034872188807,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 80,
+   "accumulator": false
+  },
+  "103": {
+   "kind": 103,
+   "dbLetter": 103,
+   "producedAt": "o",
+   "ratePerHourRaw": 650,
+   "recipe": {
+    "105": 3
+   },
+   "transportation": 1,
+   "consumption": 23.640505676121432,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 60,
+   "accumulator": false
+  },
+  "104": {
+   "kind": 104,
+   "dbLetter": 104,
+   "producedAt": "Q",
+   "ratePerHourRaw": 1900,
+   "recipe": {
+    "1": 1
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 2,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "105": {
+   "kind": 105,
+   "dbLetter": 105,
+   "producedAt": "Q",
+   "ratePerHourRaw": 1400,
+   "recipe": {
+    "1": 2
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "106": {
+   "kind": 106,
+   "dbLetter": 106,
+   "producedAt": "P",
+   "ratePerHourRaw": 95,
+   "recipe": {
+    "2": 4,
+    "66": 1
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "107": {
+   "kind": 107,
+   "dbLetter": 107,
+   "producedAt": "x",
+   "ratePerHourRaw": 350,
+   "recipe": {
+    "1": 4,
+    "43": 1
+   },
+   "transportation": 5,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 4,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "108": {
+   "kind": 108,
+   "dbLetter": 108,
+   "producedAt": "x",
+   "ratePerHourRaw": 310,
+   "recipe": {
+    "106": 0.5
+   },
+   "transportation": 1,
+   "consumption": 13.413985138554409,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 120,
+   "accumulator": false
+  },
+  "109": {
+   "kind": 109,
+   "dbLetter": 109,
+   "producedAt": "x",
+   "ratePerHourRaw": 45,
+   "recipe": {
+    "18": 2,
+    "45": 1
+   },
+   "transportation": 1,
+   "consumption": 1.6293362454152975,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 4,
+   "unitsSoldAnHour": 30,
+   "accumulator": false
+  },
+  "110": {
+   "kind": 110,
+   "dbLetter": 110,
+   "producedAt": "x",
+   "ratePerHourRaw": 70,
+   "recipe": {
+    "21": 1,
+    "22": 1,
+    "43": 0.5,
+    "108": 0.5
+   },
+   "transportation": 1,
+   "consumption": 0.8743587396790189,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 4,
+   "unitsSoldAnHour": 40,
+   "accumulator": false
+  },
+  "111": {
+   "kind": 111,
+   "dbLetter": 111,
+   "producedAt": "g",
+   "ratePerHourRaw": 2,
+   "recipe": {
+    "12": 5,
+    "107": 8,
+    "109": 4,
+    "110": 4,
+    "112": 0.125
+   },
+   "transportation": 0,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "112": {
+   "kind": 112,
+   "dbLetter": 112,
+   "producedAt": "1",
+   "ratePerHourRaw": 14,
+   "recipe": {
+    "43": 4,
+    "51": 1,
+    "52": 2
+   },
+   "transportation": 5,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 4,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "113": {
+   "kind": 113,
+   "dbLetter": 113,
+   "producedAt": "c",
+   "ratePerHourRaw": 8,
+   "recipe": {},
+   "transportation": 0,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": true,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "114": {
+   "kind": 114,
+   "dbLetter": 114,
+   "producedAt": "L",
+   "ratePerHourRaw": 5,
+   "recipe": {
+    "19": 10,
+    "20": 2,
+    "48": 1
+   },
+   "transportation": 2,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 6,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "115": {
+   "kind": 115,
+   "dbLetter": 115,
+   "producedAt": "F",
+   "ratePerHourRaw": 50,
+   "recipe": {
+    "2": 16,
+    "139": 12
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "116": {
+   "kind": 116,
+   "dbLetter": 116,
+   "producedAt": "F",
+   "ratePerHourRaw": 110,
+   "recipe": {
+    "2": 4,
+    "139": 4
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "117": {
+   "kind": 117,
+   "dbLetter": 117,
+   "producedAt": "F",
+   "ratePerHourRaw": 160,
+   "recipe": {
+    "2": 2,
+    "139": 0.5
+   },
+   "transportation": 1,
+   "consumption": 7.70369926296349,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 2,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "118": {
+   "kind": 118,
+   "dbLetter": 118,
+   "producedAt": "P",
+   "ratePerHourRaw": 510,
+   "recipe": {
+    "2": 0.5,
+    "66": 1
+   },
+   "transportation": 0.1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "119": {
+   "kind": 119,
+   "dbLetter": 119,
+   "producedAt": "i",
+   "ratePerHourRaw": 50,
+   "recipe": {
+    "118": 10
+   },
+   "transportation": 1,
+   "consumption": 1.2308197940435037,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 100,
+   "accumulator": false
+  },
+  "120": {
+   "kind": 120,
+   "dbLetter": 120,
+   "producedAt": "P",
+   "ratePerHourRaw": 350,
+   "recipe": {
+    "2": 2,
+    "66": 5
+   },
+   "transportation": 0.2,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "121": {
+   "kind": 121,
+   "dbLetter": 121,
+   "producedAt": "j",
+   "ratePerHourRaw": 30,
+   "recipe": {
+    "137": 1
+   },
+   "transportation": 1,
+   "consumption": 0.6716591748959703,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "122": {
+   "kind": 122,
+   "dbLetter": 122,
+   "producedAt": "k",
+   "ratePerHourRaw": 12,
+   "recipe": {
+    "117": 1
+   },
+   "transportation": 1,
+   "consumption": 0.488742806887689,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 30,
+   "accumulator": false
+  },
+  "123": {
+   "kind": 123,
+   "dbLetter": 123,
+   "producedAt": "j",
+   "ratePerHourRaw": 15,
+   "recipe": {
+    "3": 2,
+    "135": 2,
+    "137": 1
+   },
+   "transportation": 2,
+   "consumption": 0.21330180193121684,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 10,
+   "accumulator": false
+  },
+  "124": {
+   "kind": 124,
+   "dbLetter": 124,
+   "producedAt": "6",
+   "ratePerHourRaw": 150,
+   "recipe": {
+    "4": 5,
+    "135": 1
+   },
+   "transportation": 1,
+   "consumption": 1.2280141886460516,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 2,
+   "unitsSoldAnHour": 15,
+   "accumulator": false
+  },
+  "125": {
+   "kind": 125,
+   "dbLetter": 125,
+   "producedAt": "6",
+   "ratePerHourRaw": 60,
+   "recipe": {
+    "3": 8
+   },
+   "transportation": 1,
+   "consumption": 1.100021221822842,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 2,
+   "unitsSoldAnHour": 15,
+   "accumulator": false
+  },
+  "126": {
+   "kind": 126,
+   "dbLetter": 126,
+   "producedAt": "6",
+   "ratePerHourRaw": 120,
+   "recipe": {
+    "2": 1,
+    "120": 3,
+    "135": 2
+   },
+   "transportation": 1,
+   "consumption": 0.9711631069922098,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 2,
+   "unitsSoldAnHour": 10,
+   "accumulator": false
+  },
+  "127": {
+   "kind": 127,
+   "dbLetter": 127,
+   "producedAt": "k",
+   "ratePerHourRaw": 20,
+   "recipe": {
+    "8": 1,
+    "120": 2,
+    "122": 1,
+    "137": 2
+   },
+   "transportation": 1,
+   "consumption": 0.12202130379094847,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 10,
+   "accumulator": false
+  },
+  "128": {
+   "kind": 128,
+   "dbLetter": 128,
+   "producedAt": "k",
+   "ratePerHourRaw": 40,
+   "recipe": {
+    "9": 2,
+    "133": 2
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "129": {
+   "kind": 129,
+   "dbLetter": 129,
+   "producedAt": "m",
+   "ratePerHourRaw": 2,
+   "recipe": {
+    "7": 4,
+    "120": 3,
+    "121": 0.5,
+    "134": 1,
+    "141": 0.5
+   },
+   "transportation": 2,
+   "consumption": 0.08117190310213346,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "130": {
+   "kind": 130,
+   "dbLetter": 130,
+   "producedAt": "m",
+   "ratePerHourRaw": 6,
+   "recipe": {
+    "7": 1,
+    "122": 0.5,
+    "128": 1,
+    "138": 1
+   },
+   "transportation": 2,
+   "consumption": 0.09164176149329359,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "131": {
+   "kind": 131,
+   "dbLetter": 131,
+   "producedAt": "m",
+   "ratePerHourRaw": 4,
+   "recipe": {
+    "8": 2,
+    "121": 1,
+    "138": 1,
+    "141": 0.5
+   },
+   "transportation": 2,
+   "consumption": 0.07886537910032686,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "132": {
+   "kind": 132,
+   "dbLetter": 132,
+   "producedAt": "m",
+   "ratePerHourRaw": 2,
+   "recipe": {
+    "119": 8,
+    "124": 1,
+    "125": 1,
+    "126": 2
+   },
+   "transportation": 2,
+   "consumption": 0.07270976977244983,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "133": {
+   "kind": 133,
+   "dbLetter": 133,
+   "producedAt": "i",
+   "ratePerHourRaw": 190,
+   "recipe": {
+    "6": 15
+   },
+   "transportation": 0.1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "134": {
+   "kind": 134,
+   "dbLetter": 134,
+   "producedAt": "k",
+   "ratePerHourRaw": 30,
+   "recipe": {
+    "117": 0.5
+   },
+   "transportation": 1,
+   "consumption": 2.493917963779126,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "135": {
+   "kind": 135,
+   "dbLetter": 135,
+   "producedAt": "k",
+   "ratePerHourRaw": 90,
+   "recipe": {
+    "1": 0.5,
+    "72": 1
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 2,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "136": {
+   "kind": 136,
+   "dbLetter": 136,
+   "producedAt": "P",
+   "ratePerHourRaw": 210,
+   "recipe": {
+    "2": 1,
+    "66": 1
+   },
+   "transportation": 0.1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 2,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "137": {
+   "kind": 137,
+   "dbLetter": 137,
+   "producedAt": "j",
+   "ratePerHourRaw": 30,
+   "recipe": {
+    "9": 1,
+    "133": 2,
+    "134": 0.5
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "138": {
+   "kind": 138,
+   "dbLetter": 138,
+   "producedAt": "m",
+   "ratePerHourRaw": 3,
+   "recipe": {
+    "2": 0.5,
+    "120": 2,
+    "134": 0.5
+   },
+   "transportation": 2,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "139": {
+   "kind": 139,
+   "dbLetter": 139,
+   "producedAt": "i",
+   "ratePerHourRaw": 620,
+   "recipe": {
+    "6": 10,
+    "120": 0.5
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 0,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "140": {
+   "kind": 140,
+   "dbLetter": 140,
+   "producedAt": "k",
+   "ratePerHourRaw": 7,
+   "recipe": {
+    "117": 0.5,
+    "135": 1,
+    "136": 10
+   },
+   "transportation": 1,
+   "consumption": 0.23699578950046152,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 2,
+   "unitsSoldAnHour": 15,
+   "accumulator": false
+  },
+  "141": {
+   "kind": 141,
+   "dbLetter": 141,
+   "producedAt": "k",
+   "ratePerHourRaw": 80,
+   "recipe": {
+    "1": 1,
+    "120": 10
+   },
+   "transportation": 1,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "142": {
+   "kind": 142,
+   "dbLetter": 142,
+   "producedAt": "m",
+   "ratePerHourRaw": 8,
+   "recipe": {
+    "120": 5,
+    "122": 2,
+    "141": 0.5
+   },
+   "transportation": 2,
+   "consumption": 0.21152908202029969,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "143": {
+   "kind": 143,
+   "dbLetter": 143,
+   "producedAt": "m",
+   "ratePerHourRaw": 7,
+   "recipe": {
+    "120": 5,
+    "133": 4,
+    "141": 1
+   },
+   "transportation": 2,
+   "consumption": 0.22707121891244617,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "144": {
+   "kind": 144,
+   "dbLetter": 144,
+   "producedAt": "Y",
+   "ratePerHourRaw": 420,
+   "recipe": {
+    "14": 0.25,
+    "18": 0.125,
+    "45": 0.5
+   },
+   "transportation": 0.5,
+   "consumption": 10.219287036480221,
+   "retailSeason": "Xmas",
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 70,
+   "accumulator": false
+  },
+  "145": {
+   "kind": 145,
+   "dbLetter": 145,
+   "producedAt": "q",
+   "ratePerHourRaw": 11,
+   "recipe": {},
+   "transportation": 0,
+   "consumption": 0,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": true,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "146": {
+   "kind": 146,
+   "dbLetter": 146,
+   "producedAt": "P",
+   "ratePerHourRaw": 170,
+   "recipe": {
+    "2": 8,
+    "66": 2
+   },
+   "transportation": 1,
+   "consumption": 10.524864611018845,
+   "retailSeason": null,
+   "productionSeason": "AutumnHarvest",
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 50,
+   "accumulator": false
+  },
+  "147": {
+   "kind": 147,
+   "dbLetter": 147,
+   "producedAt": "L",
+   "ratePerHourRaw": 620,
+   "recipe": {
+    "21": 0.5,
+    "146": 1
+   },
+   "transportation": 1,
+   "consumption": 2.756578708359408,
+   "retailSeason": "Halloween",
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 3,
+   "unitsSoldAnHour": 40,
+   "accumulator": false
+  },
+  "148": {
+   "kind": 148,
+   "dbLetter": 148,
+   "producedAt": "T",
+   "ratePerHourRaw": 160,
+   "recipe": {
+    "19": 1,
+    "41": 4
+   },
+   "transportation": 1,
+   "consumption": 1.8539046052047292,
+   "retailSeason": "Halloween",
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 12,
+   "accumulator": false
+  },
+  "149": {
+   "kind": 149,
+   "dbLetter": 149,
+   "producedAt": "m",
+   "ratePerHourRaw": 8,
+   "recipe": {
+    "121": 0.5,
+    "134": 2,
+    "146": 10
+   },
+   "transportation": 2,
+   "consumption": 0.22372186012363351,
+   "retailSeason": null,
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 0,
+   "accumulator": false
+  },
+  "150": {
+   "kind": 150,
+   "dbLetter": 150,
+   "producedAt": "v",
+   "ratePerHourRaw": 11.7672277,
+   "recipe": {
+    "2": 12
+   },
+   "transportation": 1,
+   "consumption": 0.2237218601236336,
+   "retailSeason": "Xmas",
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 1,
+   "unitsSoldAnHour": 10,
+   "accumulator": true
+  },
+  "151": {
+   "kind": 151,
+   "dbLetter": 151,
+   "producedAt": "k",
+   "ratePerHourRaw": 8,
+   "recipe": {
+    "18": 0.0625,
+    "117": 0.25,
+    "135": 0.25,
+    "136": 8
+   },
+   "transportation": 1,
+   "consumption": 0.5817467277111408,
+   "retailSeason": "Easter",
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 4,
+   "unitsSoldAnHour": 30,
+   "accumulator": false
+  },
+  "152": {
+   "kind": 152,
+   "dbLetter": 152,
+   "producedAt": "k",
+   "ratePerHourRaw": 11,
+   "recipe": {
+    "117": 0.5,
+    "133": 2,
+    "134": 1,
+    "135": 0.25
+   },
+   "transportation": 1,
+   "consumption": 0.24847237313667883,
+   "retailSeason": "Ramadan",
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 4,
+   "unitsSoldAnHour": 40,
+   "accumulator": false
+  },
+  "153": {
+   "kind": 153,
+   "dbLetter": 153,
+   "producedAt": "k",
+   "ratePerHourRaw": 70,
+   "recipe": {
+    "117": 2,
+    "135": 0.5,
+    "140": 0.0625
+   },
+   "transportation": 1,
+   "consumption": 3.1677792212485656,
+   "retailSeason": "Summer",
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 22,
+   "accumulator": false
+  },
+  "154": {
+   "kind": 154,
+   "dbLetter": 154,
+   "producedAt": "k",
+   "ratePerHourRaw": 70,
+   "recipe": {
+    "3": 4,
+    "117": 2,
+    "135": 0.5
+   },
+   "transportation": 1,
+   "consumption": 3.0298050053167156,
+   "retailSeason": "Summer",
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 18,
+   "accumulator": false
+  },
+  "155": {
+   "kind": 155,
+   "dbLetter": 155,
+   "producedAt": "k",
+   "ratePerHourRaw": 25,
+   "recipe": {
+    "134": 0.5,
+    "135": 0.75,
+    "140": 0.1
+   },
+   "transportation": 1,
+   "consumption": 1.0433208761863204,
+   "retailSeason": "Easter",
+   "productionSeason": null,
+   "isExchangeTradable": true,
+   "isResearch": false,
+   "sincePhase": 8,
+   "unitsSoldAnHour": 70,
+   "accumulator": false
+  }
+ },
+ "warnings": []
+}

@@ -1,0 +1,217 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "Tools 与 Coffee：利润率和每小时利润核对",
+    "description": "按当前市场和修正后的统一口径，区分 Tools 与 Coffee 的利润率、单位利润和每小时利润。",
+    "generatedAt": "2026-07-27T00:12:16.813Z",
+    "cards": [],
+    "charts": [
+      {
+        "id": "hourly_profit_chart",
+        "title": "每店级净利润/小时",
+        "subtitle": "Tools 的纸面 $/h 约为 Coffee 的 1.98 倍；并不代表利润率也更高。",
+        "type": "bar",
+        "dataset": "comparison",
+        "sourceId": "comparison_sql",
+        "valueFormat": "currency",
+        "encodings": {
+          "x": {
+            "field": "product",
+            "type": "nominal",
+            "label": "产品"
+          },
+          "y": {
+            "field": "net_profit_per_hour",
+            "type": "quantitative",
+            "label": "净利润/小时/店级",
+            "format": "currency"
+          }
+        },
+        "yAxisTitle": "净利润 $ / 小时 / 店级",
+        "layout": "full"
+      }
+    ],
+    "tables": [
+      {
+        "id": "product_comparison",
+        "title": "Tools 与 Coffee 的同口径比较",
+        "subtitle": "Q0、全自产、每一级零售店；已计生产与零售工资，未计转型资本和停工。",
+        "dataset": "comparison",
+        "sourceId": "comparison_sql",
+        "defaultSort": {
+          "field": "hourly_profit_rank",
+          "direction": "asc"
+        },
+        "columns": [
+          {
+            "field": "product",
+            "label": "产品",
+            "type": "text"
+          },
+          {
+            "field": "net_profit_per_hour",
+            "label": "净利润/小时/店级",
+            "format": "currency"
+          },
+          {
+            "field": "net_profit_margin",
+            "label": "净利润率",
+            "format": "percent"
+          },
+          {
+            "field": "net_profit_per_unit",
+            "label": "单位净利润",
+            "format": "currency"
+          },
+          {
+            "field": "hourly_profit_rank",
+            "label": "$/h 总排名",
+            "type": "number"
+          },
+          {
+            "field": "non_aerospace_hourly_rank",
+            "label": "非航空 $/h 排名",
+            "type": "number"
+          },
+          {
+            "field": "margin_rank",
+            "label": "利润率排名",
+            "type": "number"
+          },
+          {
+            "field": "minimum_slots",
+            "label": "最少建筑种类槽",
+            "type": "number"
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "analysis_results",
+        "label": "Executed Tools versus Coffee analysis",
+        "path": "chrome-automation/sim/autopilot/analysis/tools-vs-coffee-2026-07-26/analysis-results.json"
+      },
+      {
+        "id": "comparison_sql",
+        "label": "Reviewed Tools versus Coffee comparison query",
+        "path": "chrome-automation/sim/autopilot/analysis/tools-vs-coffee-2026-07-26/tools-vs-coffee.sqlite",
+        "query": {
+          "engine": "sqlite",
+          "sql": "SELECT product, net_profit_per_hour, net_profit_margin, net_profit_per_unit, hourly_profit_rank, non_aerospace_hourly_rank, margin_rank, minimum_slots FROM product_comparison ORDER BY net_profit_per_hour DESC",
+          "description": "Loads the reviewed same-grain Tools and Coffee comparison used by the report chart and table.",
+          "executed_at": "2026-07-27T00:12:16.813Z",
+          "tables_used": [
+            "product_comparison"
+          ]
+        }
+      },
+      {
+        "id": "analysis_script",
+        "label": "Reproducible current-market analysis",
+        "path": "chrome-automation/sim/autopilot/analysis/tools-vs-coffee-2026-07-26/analysis.mjs"
+      },
+      {
+        "id": "market_snapshot",
+        "label": "Current Sim Companies public API market snapshot",
+        "path": "chrome-automation/sim/autopilot/analysis/tools-vs-coffee-2026-07-26/market-snapshot.json"
+      },
+      {
+        "id": "live_coffee_diary",
+        "label": "Latest completed live Coffee retail observation",
+        "path": "chrome-automation/sim/autopilot/diaries/diary-2026-07-26-185017.md"
+      }
+    ],
+    "blocks": [
+      {
+        "id": "title",
+        "type": "markdown",
+        "body": "# Tools 与 Coffee：利润率和每小时利润核对"
+      },
+      {
+        "id": "executive_summary",
+        "type": "markdown",
+        "sourceId": "analysis_results",
+        "body": "## Executive Summary\n\n- **Tools 不是利润率冠军。** 当前同口径净利润率约 33.0%，Coffee 约 36.1%，Coffee 高约 3.1 个百分点。\n- **Tools 赢的是纸面每小时利润。** 每一级零售店约 $2,058/h，Coffee 约 $1,039/h；Tools 约为 Coffee 的 1.98 倍。\n- **Tools 是非航空产品中的纸面 $/h 第 1，但不是全游戏第 1。** 纳入航空产品后是 46 个候选中的第 7；Coffee 是第 13。\n- **Coffee 属于纸面第二档、现实运营第一档。** 它的利润率第 15、$/h 第 13，而且现有完整产业链已经实盘运行；Tools 仍是未建成、未实盘验证的转型候选。"
+      },
+      {
+        "id": "definition",
+        "type": "markdown",
+        "sourceId": "analysis_results",
+        "body": "## 三个指标不能混为一个冠军\n\n利润率回答每 $1 营收留下多少；单位利润回答每卖 1 件留下多少美元；每小时利润还要乘上销售速度，再扣零售工资。当前模型中，Tools 的单位净利润约 $55.62，Coffee 约 $13.70；Tools 的单位美元和每小时美元都更高，但 Coffee 的百分比利润率更高。"
+      },
+      {
+        "id": "hourly_profit_chart_block",
+        "type": "chart",
+        "chartId": "hourly_profit_chart",
+        "layout": "full"
+      },
+      {
+        "id": "comparison_table_block",
+        "type": "table",
+        "tableId": "product_comparison",
+        "layout": "full"
+      },
+      {
+        "id": "coffee_tier",
+        "type": "markdown",
+        "sourceId": "analysis_results",
+        "body": "## Coffee 是第二档纸面收益，但更适合当前公司\n\n按 46 个非季节 Q0 自产零售产品的每店级 $/h，Coffee 排第 13，约在前 28%；排除航空后为第 7。它不是数学上的最高收益线，但只需要 5 类建筑槽，而 Tools 至少需要 9 类。更重要的是，Coffee 已有现役 Farm、Water、Power、Mills 和 Grocery，生产率和订单都能现场验证；Tools 的 $2,058/h 仍是假设从零搭好完整链后得到的纸面值。"
+      },
+      {
+        "id": "live_context",
+        "type": "markdown",
+        "sourceId": "live_coffee_diary",
+        "body": "## 当前 Coffee 的实盘数字与模型数字用途不同\n\n最近完成的 Grocery L2 订单是 41 份 Coffee Powder、价格 $40.50、16 分 31 秒，界面显示 $1,626/h。这个数字来自两级商店、历史库存成本和游戏界面利润口径；报告中的 $1,039/h 是每一级商店、假设使用当前自产成本并扣零售工资后的标准化值。因此不能直接把 $1,626 与 Tools 的 $2,058 当成完全同口径实盘对决。"
+      },
+      {
+        "id": "recommendations",
+        "type": "markdown",
+        "sourceId": "analysis_results",
+        "body": "## Recommended next steps\n\n1. 将 Tools 的正确标签改为“非航空产品中，未实盘验证的每店级 $/h 领先候选”，不要再写成“利润率最高”。\n2. 继续把 Coffee 当作当前经营基线，不因 Tools 的纸面值立即拆线。\n3. 真正评估转型时，再补齐 Tools 的整数建筑方案、建造与升级成本、停工、拆除、债息和实际零售订单；只有完整公司利润明显领先才执行。"
+      },
+      {
+        "id": "further_questions",
+        "type": "markdown",
+        "body": "## Further questions\n\n- Tools 按 10 个现有槽位能做出的整数建筑等级组合，实际全公司利润是多少？\n- 建造、升级、拆除、停工和新增债息计入后，Tools 相对 Coffee 的回本期是多少？\n- 当前不利销售天气结束后，两者的稳定 $/h 差距是否仍接近 2 倍？"
+      },
+      {
+        "id": "caveats",
+        "type": "markdown",
+        "sourceId": "analysis_results",
+        "body": "## Caveats and assumptions\n\n数据快照为 2026-07-27 00:12 UTC：销售天气乘数约 0.8506；Coffee Powder 的 -23% 临时减产已经结束，Coffee Beans 仍为 +21%，Tools 链中的 Motor 仍为 -26%。排名统一使用 Q0、全自产、平均工资、当前管理费和每一级零售店，递归扣除生产成本并扣零售工资。它没有计入整数建筑取整、建设资本、拆除、停工、债息、运输和转型过程，因此适合筛选候选，不足以直接授权转型。验证评级：Share with caveats。"
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-07-27T00:12:16.813Z",
+    "status": "ready",
+    "datasets": {
+      "comparison": [
+        {
+          "product": "Tools",
+          "net_profit_per_hour": 2058.21,
+          "net_profit_margin": 0.330304,
+          "net_profit_per_unit": 55.62,
+          "hourly_profit_rank": 7,
+          "non_aerospace_hourly_rank": 1,
+          "margin_rank": 25,
+          "minimum_slots": 9
+        },
+        {
+          "product": "Coffee Powder",
+          "net_profit_per_hour": 1038.71,
+          "net_profit_margin": 0.361164,
+          "net_profit_per_unit": 13.70,
+          "hourly_profit_rank": 13,
+          "non_aerospace_hourly_rank": 7,
+          "margin_rank": 15,
+          "minimum_slots": 5
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,171 @@
+
+0
+3x for 18:42:59
+The Great SimCity Space Race
+$17,385
+10
+Lv. 5 (13%)
+BUILDINGS
+FOOD
+Slaughterhouse
+Mill
+Ranch
+Grocery store
+Food processing plant
+Beverage factory
+Bakery
+Catering
+Restaurant
+CONSTRUCTION
+Hardware store
+Farm
+Concrete plant
+Quarry
+Construction factory
+General contractor
+FASHION
+Ranch
+Fashion store
+Fashion factory
+ENERGY
+Power plant
+Oil rig
+Refinery
+Beverage factory
+Gas station
+ELECTRONICS
+Electronics store
+Electronics factory
+Aerospace electronics
+AUTOMOTIVE
+Electronics factory
+Car factory
+Car dealership
+Propulsion factory
+AEROSPACE
+Propulsion factory
+Aerospace factory
+Aerospace electronics
+Vertical integration facility
+Hangar
+Sales offices
+RESOURCES
+Water reservoir
+Refinery
+Quarry
+Shipping depot
+Mine
+Factory
+RESEARCH
+Breeding laboratory
+Chemistry laboratory
+Fashion & Design
+Physics laboratory
+Plant research center
+Kitchen
+Software R&D
+Automotive R&D
+Launch pad
+OTHER
+Forest nursery
+Bank
+Academy
+PARKS & RECREATION
+Temple
+Park
+Lake
+SEASONAL
+Halloween market
+Xmas market
+Spring market
+Beach market
+
+MILK
+
+BREAD
+
+BUTTER
+
+CHEESE
+
+COFFEE POWDER
+
+APPLE PIE
+
+HAMBURGER
+
+LASAGNA
+
+MEAT BALLS
+
+SALAD
+
+SAMOSA
+
+COCKTAILS
+
+ORANGE JUICE
+
+APPLE CIDER
+
+GINGER BEER
+
+PUMPKIN SOUP
+Restaurant
+Worker wages: $587/hour
+
+Read more in the Restaurant guide
+
+
+
+Construction and upgrades require:
+The monetary costs are an approximation of the value of needed resources.
+Approximate cost
+Level 1	~ $99,113
+104x1,430x
+416x26x
+Upgrade to lvl 2	~ $99,113
+104x1,430x
+416x26x
+Upgrade to lvl 3	~ $198,227
+208x2,860x
+832x52x
+Upgrade to lvl 4	~ $297,340
+312x4,290x
+1,248x78x
+Upgrade to lvl 5	~ $396,453
+416x5,720x
+1,664x104x
+Upgrade to lvl 6	~ $495,567
+520x7,150x
+2,080x130x
+(and so on..)
+Reference value
+Level 1	$89,700
+Level 2	$179,400
+Level 3	$269,100
+Level 4	$358,800
+Level 5	$448,500
+Level 6	$538,200
+Level 7	$627,900
+Level 8	$717,600
+Level 9	$807,300
+Level 10	$897,000
+(and so on..)
+Construction time
+Level 1	3:00h
+Upgrade to lvl 2	3:00h
+Upgrade to lvl 3	6:00h
+Upgrade to lvl 4	9:00h
+Upgrade to lvl 5	12:00h
+Upgrade to lvl 6	15:00h
+Upgrade to lvl 7	18:00h
+Upgrade to lvl 8	21:00h
+Upgrade to lvl 9	24:00h
+Upgrade to lvl 10	27:00h
+(and so on..)
+Map
+Warehouse
+Search
+Chat
+Exchange

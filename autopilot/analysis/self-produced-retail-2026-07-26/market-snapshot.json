@@ -1,0 +1,661 @@
+{
+  "capturedAtUtc": "2026-07-26T06:16:03.448Z",
+  "statuses": {
+    "retail": 200,
+    "weather": 200,
+    "modifiers": 200,
+    "company": 200,
+    "auth": 200
+  },
+  "company": {
+    "level": 12,
+    "administrationOverhead": 1.0588235294117647,
+    "permanentProductionModifierPercent": 2,
+    "permanentSalesModifierPercent": 1,
+    "maximumBuildings": 6,
+    "standardBuildings": 7
+  },
+  "weather": {
+    "id": 2219,
+    "realm": 0,
+    "since": "2026-07-26T02:00:00+00:00",
+    "until": "2026-07-26T12:00:00+00:00",
+    "sellingSpeedMultiplier": 1.0825628732220696
+  },
+  "productionModifiers": [
+    {
+      "id": 1024,
+      "realm": 0,
+      "kind": 118,
+      "speedModifier": 21,
+      "since": "2026-07-13T00:00:00+00:00",
+      "until": "2026-08-03T00:00:00+00:00"
+    },
+    {
+      "id": 1025,
+      "realm": 0,
+      "kind": 9,
+      "speedModifier": 23,
+      "since": "2026-07-13T00:00:00+00:00",
+      "until": "2026-08-03T00:00:00+00:00"
+    },
+    {
+      "id": 1026,
+      "realm": 0,
+      "kind": 142,
+      "speedModifier": -28,
+      "since": "2026-07-13T00:00:00+00:00",
+      "until": "2026-08-03T00:00:00+00:00"
+    },
+    {
+      "id": 1030,
+      "realm": 0,
+      "kind": 131,
+      "speedModifier": 24,
+      "since": "2026-07-20T00:00:00+00:00",
+      "until": "2026-08-10T00:00:00+00:00"
+    },
+    {
+      "id": 1031,
+      "realm": 0,
+      "kind": 27,
+      "speedModifier": -30,
+      "since": "2026-07-20T00:00:00+00:00",
+      "until": "2026-08-10T00:00:00+00:00"
+    },
+    {
+      "id": 1032,
+      "realm": 0,
+      "kind": 108,
+      "speedModifier": -26,
+      "since": "2026-07-20T00:00:00+00:00",
+      "until": "2026-08-10T00:00:00+00:00"
+    },
+    {
+      "id": 991,
+      "realm": 0,
+      "kind": 29,
+      "speedModifier": -30,
+      "since": "2026-07-06T00:00:00+00:00",
+      "until": "2026-07-27T00:00:00+00:00"
+    },
+    {
+      "id": 992,
+      "realm": 0,
+      "kind": 51,
+      "speedModifier": 20,
+      "since": "2026-07-06T00:00:00+00:00",
+      "until": "2026-07-27T00:00:00+00:00"
+    },
+    {
+      "id": 993,
+      "realm": 0,
+      "kind": 119,
+      "speedModifier": -23,
+      "since": "2026-07-06T00:00:00+00:00",
+      "until": "2026-07-27T00:00:00+00:00"
+    }
+  ],
+  "retail": [
+    {
+      "kind": 3,
+      "quality": null,
+      "averagePrice": 5.3166240294484,
+      "saturation": 1.490911320284267,
+      "demand": 0.2545443398578665
+    },
+    {
+      "kind": 4,
+      "quality": null,
+      "averagePrice": 6.123219476272685,
+      "saturation": 1.4813134065882172,
+      "demand": 0.2593432967058914
+    },
+    {
+      "kind": 5,
+      "quality": null,
+      "averagePrice": 7.200087584517264,
+      "saturation": 1.4735148061952899,
+      "demand": 0.2632425969023551
+    },
+    {
+      "kind": 7,
+      "quality": null,
+      "averagePrice": 58.21650965388444,
+      "saturation": 1.3261439828999508,
+      "demand": 0.3369280085500246
+    },
+    {
+      "kind": 8,
+      "quality": null,
+      "averagePrice": 16.638330455889385,
+      "saturation": 1.2210553360398801,
+      "demand": 0.3894723319800599
+    },
+    {
+      "kind": 9,
+      "quality": null,
+      "averagePrice": 2.210651641175268,
+      "saturation": 1.5835912062523514,
+      "demand": 0.2082043968738243
+    },
+    {
+      "kind": 11,
+      "quality": null,
+      "averagePrice": 50.755052697338584,
+      "saturation": 0.8578621777986638,
+      "demand": 0.5710689111006682
+    },
+    {
+      "kind": 12,
+      "quality": null,
+      "averagePrice": 50.655390476578965,
+      "saturation": 0.8529462587399291,
+      "demand": 0.5735268706300354
+    },
+    {
+      "kind": 24,
+      "quality": null,
+      "averagePrice": 875.7011353040396,
+      "saturation": 0.7858116734435968,
+      "demand": 0.6070941632782016
+    },
+    {
+      "kind": 25,
+      "quality": null,
+      "averagePrice": 1340.4976059464611,
+      "saturation": 0.8985742942285065,
+      "demand": 0.5507128528857468
+    },
+    {
+      "kind": 26,
+      "quality": null,
+      "averagePrice": 1664.5400592808653,
+      "saturation": 0.6994446081331379,
+      "demand": 0.6502776959334311
+    },
+    {
+      "kind": 27,
+      "quality": null,
+      "averagePrice": 834.0548450425813,
+      "saturation": 0.6278145059238042,
+      "demand": 0.686092747038098
+    },
+    {
+      "kind": 28,
+      "quality": null,
+      "averagePrice": 1256.2019040294292,
+      "saturation": 0.6659066794196468,
+      "demand": 0.6670466602901766
+    },
+    {
+      "kind": 53,
+      "quality": null,
+      "averagePrice": 4056.0069734490326,
+      "saturation": 0.745884752896763,
+      "demand": 0.6270576235516185
+    },
+    {
+      "kind": 54,
+      "quality": null,
+      "averagePrice": 8412.900973226795,
+      "saturation": 0.7141783299623884,
+      "demand": 0.6429108350188057
+    },
+    {
+      "kind": 55,
+      "quality": null,
+      "averagePrice": 2840.3169934872117,
+      "saturation": 0.5874809328290715,
+      "demand": 0.7062595335854642
+    },
+    {
+      "kind": 56,
+      "quality": null,
+      "averagePrice": 6048.497422879874,
+      "saturation": 0.6913721439799636,
+      "demand": 0.6543139280100182
+    },
+    {
+      "kind": 57,
+      "quality": null,
+      "averagePrice": 6670.333868639847,
+      "saturation": 0.5306868359451175,
+      "demand": 0.7346565820274413
+    },
+    {
+      "kind": 60,
+      "quality": null,
+      "averagePrice": 29.631347287671918,
+      "saturation": 1.3510939523005832,
+      "demand": 0.3244530238497084
+    },
+    {
+      "kind": 61,
+      "quality": null,
+      "averagePrice": 53.11294338473254,
+      "saturation": 1.2442114267241071,
+      "demand": 0.37789428663794644
+    },
+    {
+      "kind": 62,
+      "quality": null,
+      "averagePrice": 39.54559314132317,
+      "saturation": 1.2607069049523996,
+      "demand": 0.3696465475238002
+    },
+    {
+      "kind": 63,
+      "quality": null,
+      "averagePrice": 61.453776003647796,
+      "saturation": 1.3011060697151757,
+      "demand": 0.34944696514241214
+    },
+    {
+      "kind": 64,
+      "quality": null,
+      "averagePrice": 83.73025271237344,
+      "saturation": 1.3850374596511432,
+      "demand": 0.3074812701744284
+    },
+    {
+      "kind": 65,
+      "quality": null,
+      "averagePrice": 34.12657271139589,
+      "saturation": 0.8324093470421018,
+      "demand": 0.583795326478949
+    },
+    {
+      "kind": 67,
+      "quality": null,
+      "averagePrice": 13.7,
+      "saturation": 0.7251704835296412,
+      "demand": 0.6374147582351795
+    },
+    {
+      "kind": 70,
+      "quality": null,
+      "averagePrice": 1088.893442569739,
+      "saturation": 0.7839951494117183,
+      "demand": 0.6080024252941408
+    },
+    {
+      "kind": 71,
+      "quality": null,
+      "averagePrice": 2112.0202460977557,
+      "saturation": 1.0092706359796435,
+      "demand": 0.49536468201017825
+    },
+    {
+      "kind": 91,
+      "quality": null,
+      "averagePrice": null,
+      "saturation": 1.2746726308807104,
+      "demand": 0.3626636845596448
+    },
+    {
+      "kind": 94,
+      "quality": null,
+      "averagePrice": null,
+      "saturation": 1.2759184408995363,
+      "demand": 0.36204077955023184
+    },
+    {
+      "kind": 95,
+      "quality": null,
+      "averagePrice": null,
+      "saturation": 1.2699244518158983,
+      "demand": 0.36503777409205085
+    },
+    {
+      "kind": 96,
+      "quality": null,
+      "averagePrice": null,
+      "saturation": 1.2459703655484435,
+      "demand": 0.37701481722577823
+    },
+    {
+      "kind": 97,
+      "quality": null,
+      "averagePrice": null,
+      "saturation": 1.3018912556095172,
+      "demand": 0.3490543721952414
+    },
+    {
+      "kind": 98,
+      "quality": null,
+      "averagePrice": 1347.7418628330252,
+      "saturation": 0.7284193633739686,
+      "demand": 0.6357903183130157
+    },
+    {
+      "kind": 99,
+      "quality": null,
+      "averagePrice": null,
+      "saturation": 1.192375386789844,
+      "demand": 0.40381230660507805
+    },
+    {
+      "kind": 102,
+      "quality": null,
+      "averagePrice": 7.749111085419625,
+      "saturation": 1.0298331510906424,
+      "demand": 0.4850834244546788
+    },
+    {
+      "kind": 103,
+      "quality": null,
+      "averagePrice": 14.028764898017485,
+      "saturation": 0.9630342494218045,
+      "demand": 0.5184828752890978
+    },
+    {
+      "kind": 108,
+      "quality": null,
+      "averagePrice": 14.034382849320833,
+      "saturation": 1.061176771614549,
+      "demand": 0.4694116141927255
+    },
+    {
+      "kind": 109,
+      "quality": null,
+      "averagePrice": 128.81683870129737,
+      "saturation": 0.6948133726964798,
+      "demand": 0.6525933136517601
+    },
+    {
+      "kind": 110,
+      "quality": null,
+      "averagePrice": 214.85709147105072,
+      "saturation": 0.7242682776665965,
+      "demand": 0.6378658611667017
+    },
+    {
+      "kind": 117,
+      "quality": null,
+      "averagePrice": 0,
+      "saturation": 0.1,
+      "demand": 0.95
+    },
+    {
+      "kind": 119,
+      "quality": null,
+      "averagePrice": 46.38277341381975,
+      "saturation": 1.25968156444253,
+      "demand": 0.37015921777873495
+    },
+    {
+      "kind": 120,
+      "quality": null,
+      "averagePrice": 6.54,
+      "saturation": 0.1,
+      "demand": null
+    },
+    {
+      "kind": 121,
+      "quality": null,
+      "averagePrice": 0,
+      "saturation": 0.1,
+      "demand": 0.95
+    },
+    {
+      "kind": 122,
+      "quality": null,
+      "averagePrice": 151.66512412861215,
+      "saturation": 1.1458415707824983,
+      "demand": 0.42707921460875087
+    },
+    {
+      "kind": 123,
+      "quality": null,
+      "averagePrice": 355.06043063383913,
+      "saturation": 1.199375718965123,
+      "demand": 0.40031214051743846
+    },
+    {
+      "kind": 124,
+      "quality": null,
+      "averagePrice": 63.229456475061276,
+      "saturation": 1.320283996229472,
+      "demand": 0.33985800188526405
+    },
+    {
+      "kind": 125,
+      "quality": null,
+      "averagePrice": 49.62636053006858,
+      "saturation": 1.5682283431335582,
+      "demand": 0.2158858284332209
+    },
+    {
+      "kind": 126,
+      "quality": null,
+      "averagePrice": 91.41466230298442,
+      "saturation": 1.2854996572596742,
+      "demand": 0.3572501713701629
+    },
+    {
+      "kind": 127,
+      "quality": null,
+      "averagePrice": 541.0752560069144,
+      "saturation": 1.2773591366157178,
+      "demand": 0.3613204316921411
+    },
+    {
+      "kind": 129,
+      "quality": null,
+      "averagePrice": 0,
+      "saturation": 0.1,
+      "demand": 0.95
+    },
+    {
+      "kind": 130,
+      "quality": null,
+      "averagePrice": 0,
+      "saturation": 0.1,
+      "demand": 0.95
+    },
+    {
+      "kind": 131,
+      "quality": null,
+      "averagePrice": 0,
+      "saturation": 0.1,
+      "demand": 0.95
+    },
+    {
+      "kind": 132,
+      "quality": null,
+      "averagePrice": 0,
+      "saturation": 0.1,
+      "demand": 0.95
+    },
+    {
+      "kind": 134,
+      "quality": null,
+      "averagePrice": 0,
+      "saturation": 0.1,
+      "demand": 0.95
+    },
+    {
+      "kind": 140,
+      "quality": null,
+      "averagePrice": 305.1170658499232,
+      "saturation": 1.1032228468586638,
+      "demand": 0.4483885765706681
+    },
+    {
+      "kind": 142,
+      "quality": null,
+      "averagePrice": 0,
+      "saturation": 0.1,
+      "demand": 0.95
+    },
+    {
+      "kind": 143,
+      "quality": null,
+      "averagePrice": 0,
+      "saturation": 0.1,
+      "demand": 0.95
+    },
+    {
+      "kind": 144,
+      "quality": null,
+      "averagePrice": 23.83911921812946,
+      "saturation": 0.894559509209801,
+      "demand": 0.5527202453950995
+    },
+    {
+      "kind": 146,
+      "quality": null,
+      "averagePrice": 19.971790977740085,
+      "saturation": 0.19649964455055355,
+      "demand": 0.9017501777247232
+    },
+    {
+      "kind": 147,
+      "quality": null,
+      "averagePrice": 55.05526897568165,
+      "saturation": 0.22805433112908838,
+      "demand": 0.8859728344354558
+    },
+    {
+      "kind": 148,
+      "quality": null,
+      "averagePrice": 76.22075231649578,
+      "saturation": 1.5653671934786582,
+      "demand": 0.21731640326067092
+    },
+    {
+      "kind": 149,
+      "quality": null,
+      "averagePrice": 900,
+      "saturation": 0.1,
+      "demand": 0.95
+    },
+    {
+      "kind": 151,
+      "quality": null,
+      "averagePrice": 269.1334543254689,
+      "saturation": 0.7267935624808753,
+      "demand": 0.6366032187595623
+    },
+    {
+      "kind": 152,
+      "quality": null,
+      "averagePrice": 232.78012286689417,
+      "saturation": 1.2577505554108965,
+      "demand": 0.37112472229455173
+    },
+    {
+      "kind": 153,
+      "quality": null,
+      "averagePrice": 113.88799068425271,
+      "saturation": 0.29394307711925677,
+      "demand": 0.8530284614403716
+    },
+    {
+      "kind": 154,
+      "quality": null,
+      "averagePrice": 117.21359303558137,
+      "saturation": 0.44306600639310983,
+      "demand": 0.7784669968034451
+    },
+    {
+      "kind": 155,
+      "quality": null,
+      "averagePrice": 161.35936,
+      "saturation": 0.5127482366642965,
+      "demand": 0.7436258816678518
+    },
+    {
+      "kind": 150,
+      "quality": 0,
+      "averagePrice": 489.0738685344828,
+      "saturation": 1.2047667549036434,
+      "demand": 0.3976166225481783
+    },
+    {
+      "kind": 150,
+      "quality": 1,
+      "averagePrice": 736.1,
+      "saturation": 1.3746515257133103,
+      "demand": 0.31267423714334486
+    },
+    {
+      "kind": 150,
+      "quality": 2,
+      "averagePrice": 2111.4989811912224,
+      "saturation": 2.930869987796046,
+      "demand": -0.4654349938980229
+    },
+    {
+      "kind": 150,
+      "quality": 3,
+      "averagePrice": 3890.5662293694454,
+      "saturation": 1.6135213735467482,
+      "demand": 0.1932393132266259
+    },
+    {
+      "kind": 150,
+      "quality": 4,
+      "averagePrice": 5500,
+      "saturation": 1.786887992677424,
+      "demand": 0.10655600366128803
+    },
+    {
+      "kind": 150,
+      "quality": 5,
+      "averagePrice": 11815.31556802244,
+      "saturation": 2.438054570529272,
+      "demand": -0.219027285264636
+    },
+    {
+      "kind": 150,
+      "quality": 6,
+      "averagePrice": 26049.96213425129,
+      "saturation": 2.628271962746862,
+      "demand": -0.314135981373431
+    },
+    {
+      "kind": 150,
+      "quality": 7,
+      "averagePrice": 27273,
+      "saturation": 3.780722438465682,
+      "demand": -0.890361219232841
+    },
+    {
+      "kind": 150,
+      "quality": 8,
+      "averagePrice": 50000,
+      "saturation": 4.960365563465051,
+      "demand": -1.4801827817325255
+    },
+    {
+      "kind": 150,
+      "quality": 9,
+      "averagePrice": 233525.13151364765,
+      "saturation": 10.259870575157592,
+      "demand": -4.129935287578796
+    },
+    {
+      "kind": 150,
+      "quality": 10,
+      "averagePrice": 508179.08121827414,
+      "saturation": 2.6570848619714575,
+      "demand": -0.3285424309857288
+    },
+    {
+      "kind": 150,
+      "quality": 11,
+      "averagePrice": 642500,
+      "saturation": 1.5851103422389556,
+      "demand": 0.20744482888052218
+    },
+    {
+      "kind": 150,
+      "quality": 12,
+      "averagePrice": 1824823.9285714286,
+      "saturation": 2.6242053831177783,
+      "demand": -0.31210269155888914
+    }
+  ]
+}

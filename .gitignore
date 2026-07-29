@@ -1,0 +1,64 @@
+# Secrets and local credentials
+.creds
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Dependencies and editor metadata
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store
+*.swp
+*.tmp
+
+# Runtime locks and process state
+*.lock
+*.pid
+autopilot/.windows-sync-manifest
+
+# Continuously changing operational data
+*.log
+*.log.*
+*.jsonl
+autopilot/.chat-active/
+autopilot/.chat-shadow/
+autopilot/chat-diaries/
+autopilot/chat-logs/
+autopilot/diaries/
+shared/price-tracker/data/
+
+# Mutable autopilot memory and scheduling state
+autopilot/.exchange-sale-inspections.json
+autopilot/.exchange-sale-inspections.used.json
+autopilot/.inspection-rates.json
+autopilot/.last-wake.json
+autopilot/.state.json
+autopilot/CURRENT.json
+autopilot/JOURNAL.md
+autopilot/MASTER.md
+autopilot/next-wake.json
+autopilot/OWNER-DIRECTIVE.json
+autopilot/TODO-next-session.md
+/JOURNAL.md
+/TODO-next-session.md
+
+# Captured live-game and debugging artifacts
+/3
+/node
+/bundle-main.js
+/bcap_*.json
+/capture*.json
+/market-snapshots.jsonl
+/mkt*.json
+/pa-offers.jsonl
+/price-history.jsonl
+/realm.json
+/research.json
+/wh-capture.json
+/xp-ledger.jsonl
+/shots/

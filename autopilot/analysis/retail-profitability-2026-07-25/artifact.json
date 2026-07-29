@@ -1,0 +1,358 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "Current Retail Profitability",
+    "description": "Weather-adjusted Grocery retail profitability for the company's tested products.",
+    "generatedAt": "2026-07-26T03:26:06+00:00",
+    "cards": [
+      {
+        "id": "winner",
+        "description": "Best currently verified self-produced retail product.",
+        "dataset": "summary",
+        "sourceId": "summary_sql",
+        "metrics": [
+          {
+            "label": "Winner",
+            "field": "winner",
+            "format": "text"
+          }
+        ]
+      },
+      {
+        "id": "current_profit",
+        "description": "Estimated next-order profit at the current weather multiplier.",
+        "dataset": "summary",
+        "sourceId": "summary_sql",
+        "metrics": [
+          {
+            "label": "Current-weather profit per hour",
+            "field": "current_weather_profit_per_hour",
+            "format": "currency"
+          }
+        ]
+      },
+      {
+        "id": "base_profit",
+        "description": "Estimated profit at neutral 1.0x weather.",
+        "dataset": "summary",
+        "sourceId": "summary_sql",
+        "metrics": [
+          {
+            "label": "Weather-normalized profit per hour",
+            "field": "normalized_profit_per_hour",
+            "format": "currency"
+          }
+        ]
+      }
+    ],
+    "charts": [
+      {
+        "id": "retail_chart",
+        "title": "Measured retail profit by product",
+        "subtitle": "Executed UI quotes adjusted to the current 1.083x weather; Steak is historical and no longer self-produced.",
+        "type": "bar",
+        "dataset": "comparison",
+        "sourceId": "comparison_sql",
+        "valueFormat": "currency",
+        "encodings": {
+          "x": {
+            "field": "product",
+            "type": "nominal",
+            "label": "Product"
+          },
+          "y": {
+            "field": "current_weather_profit_per_hour",
+            "type": "quantitative",
+            "label": "Profit per hour",
+            "format": "currency"
+          }
+        },
+        "yAxisTitle": "Current-weather profit per hour",
+        "layout": "full"
+      }
+    ],
+    "tables": [
+      {
+        "id": "coverage_table",
+        "title": "Current self-produced retail coverage",
+        "subtitle": "Non-seasonal products from owned production buildings; missing quotes remain explicitly unranked.",
+        "dataset": "coverage",
+        "sourceId": "coverage_sql",
+        "columns": [
+          {
+            "field": "product",
+            "label": "Product",
+            "type": "text"
+          },
+          {
+            "field": "average_retail_price",
+            "label": "Retail average",
+            "format": "currency"
+          },
+          {
+            "field": "saturation",
+            "label": "Saturation",
+            "format": "number"
+          },
+          {
+            "field": "live_quote_covered",
+            "label": "Fresh quote",
+            "type": "text"
+          },
+          {
+            "field": "current_weather_profit_per_hour",
+            "label": "Current-weather profit/h",
+            "format": "currency"
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "notebook",
+        "label": "Retail profitability notebook",
+        "path": "autopilot/analysis/retail-profitability-2026-07-25/retail-profitability.ipynb"
+      },
+      {
+        "id": "summary_sql",
+        "label": "Retail winner summary query",
+        "path": "autopilot/analysis/retail-profitability-2026-07-25/retail-analysis.sqlite",
+        "query": {
+          "engine": "sqlite",
+          "sql": "SELECT * FROM summary",
+          "description": "Loads the verified retail winner and weather-adjusted metrics.",
+          "executed_at": "2026-07-26T03:24:34.782Z",
+          "tables_used": [
+            "summary"
+          ]
+        }
+      },
+      {
+        "id": "comparison_sql",
+        "label": "Measured retail comparison query",
+        "path": "autopilot/analysis/retail-profitability-2026-07-25/retail-analysis.sqlite",
+        "query": {
+          "engine": "sqlite",
+          "sql": "SELECT * FROM measured_comparison ORDER BY current_weather_profit_per_hour DESC",
+          "description": "Loads weather-adjusted executed retail quotes.",
+          "executed_at": "2026-07-26T03:24:34.782Z",
+          "tables_used": [
+            "measured_comparison"
+          ]
+        }
+      },
+      {
+        "id": "coverage_sql",
+        "label": "Current self-produced retail coverage query",
+        "path": "autopilot/analysis/retail-profitability-2026-07-25/retail-analysis.sqlite",
+        "query": {
+          "engine": "sqlite",
+          "sql": "SELECT * FROM coverage ORDER BY product",
+          "description": "Shows which current self-produced retail candidates have fresh quotes.",
+          "executed_at": "2026-07-26T03:24:34.782Z",
+          "tables_used": [
+            "coverage"
+          ]
+        }
+      }
+    ],
+    "blocks": [
+      {
+        "id": "title",
+        "type": "markdown",
+        "body": "# Current Retail Profitability"
+      },
+      {
+        "id": "executive_summary",
+        "type": "markdown",
+        "sourceId": "summary_sql",
+        "body": "## Executive Summary\n\n- **Coffee Powder 是当前已验证的自产零售第一名。** 最新 Grocery 订单打印 **$1,639/h**。\n- 该订单在 **1.563×** 好天气下锁定；按当前 **1.083×** 天气折算，下一单约 **$1,050/h**。\n- 中性天气下估计约 **$949/h**，仍明显高于现有可比实测。\n- Apples 和 Oranges 缺少相同运行阶段的最新 UI 报价，因此精确的四产品全榜仍需补两个只读探测。"
+      },
+      {
+        "id": "metrics",
+        "type": "metric-strip",
+        "cardIds": [
+          "winner",
+          "current_profit",
+          "base_profit"
+        ]
+      },
+      {
+        "id": "method",
+        "type": "markdown",
+        "sourceId": "notebook",
+        "body": "## 天气调整后的答案仍是 Coffee Powder\n\n游戏 UI 的 `Profit per hour` 是主证据。天气调整不是简单除以天气倍率：先把 Grocery 的固定工资加回去，只缩放销售贡献，再扣除同一份工资。这样不会在坏天气时低估固定工资的影响。"
+      },
+      {
+        "id": "chart",
+        "type": "chart",
+        "chartId": "retail_chart",
+        "layout": "full"
+      },
+      {
+        "id": "chart_note",
+        "type": "markdown",
+        "sourceId": "comparison_sql",
+        "body": "Coffee Powder 的领先幅度足够大：按当前天气约 $1.05k/h；历史 Steak 约 $341/h，但公司已没有 Slaughterhouse；Grapes 约 $124/h。价格、成本与天气会变，所以每个新订单仍应实时扫价，而不是固定 $40.30。"
+      },
+      {
+        "id": "coverage",
+        "type": "table",
+        "tableId": "coverage_table",
+        "layout": "full"
+      },
+      {
+        "id": "recommendation",
+        "type": "markdown",
+        "sourceId": "notebook",
+        "body": "## Recommended next steps\n\n1. Grocery 默认继续卖 Coffee Powder。\n2. 每轮订单继续实时试价，以 `Profit per hour` 最大化，而不是锁死价格。\n3. 等当前零售订单自然结束后，再补 Apples 和 Oranges 的只读价格扫描；不要中断当前 Coffee Powder 订单。\n4. 多余 Coffee Powder 才进入 Exchange，避免较低的 Exchange 收益挤占零售队列。"
+      },
+      {
+        "id": "caveats",
+        "type": "markdown",
+        "body": "## Caveats and assumptions\n\n结论是‘当前已验证自产零售产品中的第一名’，不是全游戏所有未来产业的永久排名。Apples/Oranges 当前报价缺失；Steak 仅作历史比较；Pumpkin 因季节性剔除。天气调整假设零售速度与游戏天气倍率成比例，并使用 Grocery L2 的固定工资。"
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-07-26T03:26:06+00:00",
+    "status": "ready",
+    "datasets": {
+      "summary": [
+        {
+          "winner": "Coffee Powder",
+          "observed_profit_per_hour": 1639,
+          "current_weather_profit_per_hour": 1050.5,
+          "normalized_profit_per_hour": 949.3,
+          "current_weather_multiplier": 1.0825628732220696,
+          "state_as_of_utc": "2026-07-26T03:24:34.782Z"
+        }
+      ],
+      "comparison": [
+        {
+          "rank": 1,
+          "product": "Coffee Powder",
+          "quantity": 405,
+          "profit_per_unit": 10.91,
+          "profit_per_hour": 1639,
+          "weather_multiplier": 1.562845839874621,
+          "current_weather_profit_per_hour": 1050.5,
+          "normalized_profit_per_hour": 949.3,
+          "source": "diary-2026-07-25-195818.md"
+        },
+        {
+          "rank": 2,
+          "product": "Steak",
+          "quantity": 155,
+          "profit_per_unit": 12.88,
+          "profit_per_hour": 659,
+          "weather_multiplier": 1.641013735523849,
+          "current_weather_profit_per_hour": 340.8,
+          "normalized_profit_per_hour": 293.8,
+          "source": "diary-2026-07-25-041817.md"
+        },
+        {
+          "rank": 3,
+          "product": "Grapes",
+          "quantity": 1488,
+          "profit_per_unit": 2.18,
+          "profit_per_hour": 289,
+          "weather_multiplier": 1.529987510719423,
+          "current_weather_profit_per_hour": 123.8,
+          "normalized_profit_per_hour": 93.3,
+          "source": "diary-2026-07-25-084217.md"
+        }
+      ],
+      "coverage": [
+        {
+          "kind": 3,
+          "product": "Apples",
+          "base_retail_units_per_hour": 110,
+          "average_retail_price": 5.32,
+          "saturation": 1.49,
+          "live_quote_covered": false,
+          "current_weather_profit_per_hour": null
+        },
+        {
+          "kind": 4,
+          "product": "Oranges",
+          "base_retail_units_per_hour": 90,
+          "average_retail_price": 6.12,
+          "saturation": 1.48,
+          "live_quote_covered": false,
+          "current_weather_profit_per_hour": null
+        },
+        {
+          "kind": 5,
+          "product": "Grapes",
+          "base_retail_units_per_hour": 80,
+          "average_retail_price": 7.2,
+          "saturation": 1.47,
+          "live_quote_covered": true,
+          "current_weather_profit_per_hour": 123.8
+        },
+        {
+          "kind": 119,
+          "product": "Coffee Powder",
+          "base_retail_units_per_hour": 100,
+          "average_retail_price": 46.38,
+          "saturation": 1.26,
+          "live_quote_covered": true,
+          "current_weather_profit_per_hour": 1050.5
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "notebook",
+      "label": "Retail profitability notebook",
+      "path": "autopilot/analysis/retail-profitability-2026-07-25/retail-profitability.ipynb"
+    },
+    {
+      "id": "summary_sql",
+      "label": "Retail winner summary query",
+      "path": "autopilot/analysis/retail-profitability-2026-07-25/retail-analysis.sqlite",
+      "query": {
+        "engine": "sqlite",
+        "sql": "SELECT * FROM summary",
+        "description": "Loads the verified retail winner and weather-adjusted metrics.",
+        "executed_at": "2026-07-26T03:24:34.782Z",
+        "tables_used": [
+          "summary"
+        ]
+      }
+    },
+    {
+      "id": "comparison_sql",
+      "label": "Measured retail comparison query",
+      "path": "autopilot/analysis/retail-profitability-2026-07-25/retail-analysis.sqlite",
+      "query": {
+        "engine": "sqlite",
+        "sql": "SELECT * FROM measured_comparison ORDER BY current_weather_profit_per_hour DESC",
+        "description": "Loads weather-adjusted executed retail quotes.",
+        "executed_at": "2026-07-26T03:24:34.782Z",
+        "tables_used": [
+          "measured_comparison"
+        ]
+      }
+    },
+    {
+      "id": "coverage_sql",
+      "label": "Current self-produced retail coverage query",
+      "path": "autopilot/analysis/retail-profitability-2026-07-25/retail-analysis.sqlite",
+      "query": {
+        "engine": "sqlite",
+        "sql": "SELECT * FROM coverage ORDER BY product",
+        "description": "Shows which current self-produced retail candidates have fresh quotes.",
+        "executed_at": "2026-07-26T03:24:34.782Z",
+        "tables_used": [
+          "coverage"
+        ]
+      }
+    }
+  ]
+}

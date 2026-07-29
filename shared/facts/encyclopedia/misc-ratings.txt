@@ -1,0 +1,47 @@
+# https://www.simcompanies.com/encyclopedia/0/ratings/
+
+0
+3x for 20:53:47
+The Great SimCity Space Race
+$9,229
+5
+Lv. 4 (2%)
+Invest into infrastructure
+ Build new farm
+MISCELLANEOUS
+RANKING
+LEVELS
+RATINGS
+EVENTS
+SEASONS
+CERTIFICATES
+COLLECTIBLES
+COLLECTORS
+SUPPORTERS
+COMPANY INVESTMENT RATING
+
+The ratings are assigned to each company by Sim Companies own rating agency which does not disclose the exact criteria. It takes into account if the company is managed daily, how much value is in the assets, bonds, current bond liabilities, and cashflow. It also looks at the current level, certificates the company got and if interest payments were paid in the past.
+
+The presented ratings are strictly an opinion of the agency. The agency is not responsible for any financial loss incurred due to making a bad investment based on the provided ratings.
+
+In case of default, a restructured percentage of the bond face value is recovered by the bond holder.
+
+Rating	Description		Restructured value
+AAA	Prime	Investment Grade	60%
+AA+	High Grade	Investment Grade	56%
+AA	High Grade	Investment Grade	52%
+AA-	High Grade	Investment Grade	48%
+A+	Upper Medium Grade	Investment Grade	44%
+A	Upper Medium Grade	Investment Grade	40%
+A-	Upper Medium Grade	Investment Grade	36%
+BBB+	Lower Medium Grade	Investment Grade	32%
+BBB	Lower Medium Grade	Investment Grade	28%
+BBB-	Lower Medium Grade	Investment Grade	24%
+BB+	Non-investment Speculative	Junk Bond	20%
+BB	Non-investment Speculative	Junk Bond	16%
+BB-	Non-investment Speculative	Junk Bond	12%
+B+	Highly Speculative	Junk Bond	4%
+B	Highly Speculative	Junk Bond	4%
+B-	Highly Speculative	Junk Bond	4%
+C	Substantial risk	Junk Bond	4%
+D	In default	Junk Bond	4%

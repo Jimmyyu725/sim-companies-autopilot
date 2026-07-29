@@ -37,9 +37,9 @@ function normalizedTarget(row) {
   return [
     row?.name || '',
     args.buildingId ?? '',
-    args.name ?? '',
+    String(args.name ?? '').trim().toLowerCase(),
     args.kind ?? '',
-    args.product ?? '',
+    String(args.product ?? '').trim().toLowerCase(),
     args.roomId ?? '',
     args.companyId ?? '',
   ].join(':');
@@ -90,93 +90,150 @@ function activeProspector(snapshot) {
   };
 }
 
-function ownerAlignment(snapshot, result) {
-  const campaign = activeProspector(snapshot);
-  if (!campaign) {
+function comparableName(value) {
+  const name = String(value || '').trim().toLowerCase();
+  if (['coffee ground', 'coffee grounds', 'coffee powder'].includes(name)) return 'coffee powder';
+  return name;
+}
+
+function rowMatchesEvent(row, event) {
+  if (!row || !event || row.name !== event.name || !rowSucceeded(row)) return false;
+  const args = row.arguments || {};
+  if (event.buildingId != null && Number(args.buildingId) !== Number(event.buildingId)) return false;
+  if (event.kind != null && Number(args.kind) !== Number(event.kind)) return false;
+  if (event.nameValue != null && comparableName(args.name) !== comparableName(event.nameValue)) return false;
+  if (event.name != null && event.name !== row.name) return false;
+  if (event.productName != null && comparableName(args.name) !== comparableName(event.productName)) return false;
+  if (event.pathIncludes != null && !String(args.path || '').includes(event.pathIncludes)) return false;
+  if (event.preview === true && row.result?.preview !== true) return false;
+  if (event.confirmed === true && !mutationRows({ transcript: [row] }).length) return false;
+  return true;
+}
+
+function orderedEventsScore(result, events) {
+  if (!Array.isArray(events) || !events.length) return { ratio: 1, matched: 0, expected: 0 };
+  const rows = toolRows(result);
+  let cursor = -1;
+  let matched = 0;
+  for (const event of events) {
+    const index = rows.findIndex((row, rowIndex) => (
+      rowIndex > cursor && rowMatchesEvent(row, event)
+    ));
+    if (index < 0) break;
+    cursor = index;
+    matched += 1;
+  }
+  return { ratio: matched / events.length, matched, expected: events.length };
+}
+
+function mutationMatchesRequirement(row, requirement) {
+  if (row?.name !== requirement?.action) return false;
+  const args = row.arguments || {};
+  if (requirement.buildingId != null
+      && Number(args.buildingId) !== Number(requirement.buildingId)) return false;
+  if (requirement.name != null
+      && comparableName(args.name) !== comparableName(requirement.name)) return false;
+  if (requirement.kind != null && Number(args.kind) !== Number(requirement.kind)) return false;
+  return true;
+}
+
+function requiredMutationScore(result, requirements) {
+  const rows = mutationRows(result);
+  if (!Array.isArray(requirements) || !requirements.length) {
     return {
-      earned: 15,
-      notes: ['No active Prospector campaign required a model-specific action.'],
+      ratio: rows.length === 0 ? 1 : 0,
+      matched: rows.length === 0 ? 1 : 0,
+      expected: 1,
+      details: [`Expected no confirmed mutation; observed ${rows.length}.`],
     };
   }
+  let passed = 0;
+  const details = requirements.map(requirement => {
+    const count = rows.filter(row => mutationMatchesRequirement(row, requirement)).length;
+    const minimum = Number(requirement.minimumCount ?? 1);
+    const maximum = Number(requirement.maximumCount ?? minimum);
+    const ok = count >= minimum && count <= maximum;
+    if (ok) passed += 1;
+    return `${requirement.action} expected ${minimum}..${maximum}; observed ${count}.`;
+  });
+  return {
+    ratio: passed / requirements.length,
+    matched: passed,
+    expected: requirements.length,
+    details,
+  };
+}
+
+function earliestBusyCompletion(state, nowIso) {
+  const now = Date.parse(nowIso);
+  const completions = (state?.buildings || [])
+    .filter(building => building?.freeAndLocked !== true)
+    .map(building => Date.parse(building?.busy?.endsAt))
+    .filter(value => Number.isFinite(value) && (!Number.isFinite(now) || value >= now - 120e3));
+  return completions.length ? Math.min(...completions) : null;
+}
+
+function alarmAlignment(snapshot, result, expectation) {
+  if (!expectation) return { ok: true, note: 'No scenario-specific alarm target.' };
+  const alarmAt = Date.parse(result?.runtime?.alarm?.atIso);
+  let target = null;
+  if (expectation.mode === 'specific-time') target = Date.parse(expectation.atIso);
+  if (expectation.mode === 'earliest-busy-completion') {
+    target = earliestBusyCompletion(
+      result?.runtime?.currentState || snapshot?.state,
+      snapshot?.capturedAt,
+    );
+  }
+  if (!Number.isFinite(alarmAt) || !Number.isFinite(target)) {
+    return { ok: false, note: 'Alarm or expected completion timestamp is unavailable.' };
+  }
+  const minimum = target - Number(expectation.beforeSeconds || 0) * 1000;
+  const maximum = target + Number(expectation.afterSeconds || 0) * 1000;
+  return {
+    ok: alarmAt >= minimum && alarmAt <= maximum,
+    note: `Alarm ${new Date(alarmAt).toISOString()} versus target ${new Date(target).toISOString()}.`,
+  };
+}
+
+function scenarioObjective(snapshot, result) {
+  const expectations = snapshot?.scenario?.expectations || {};
   const rows = toolRows(result);
-  const rebuilds = rows.filter(row => (
-    row.name === 'rebuild'
-      && Number(row.arguments?.buildingId) === campaign.buildingId
-  ));
-  const confirmed = rebuilds.filter(row => (
-    row.arguments?.confirm === true && row.result?.ok === true
-  ));
-  const preview = rebuilds.find(row => (
-    row.arguments?.confirm === false && row.result?.ok === true
-  ));
-  const buildingBusy = campaign.building?.activity?.status === 'known'
-    && campaign.building.activity.busy === true;
-  const notes = [];
-  let earned = 0;
-  if (buildingBusy) {
-    if (!confirmed.length) {
-      earned += 7;
-      notes.push('Did not attempt a confirmed rebuild while the target was busy.');
-    } else {
-      notes.push('Attempted a confirmed rebuild while the target was busy.');
-    }
-    const alarmAt = Date.parse(result?.runtime?.alarm?.atIso);
-    const completesAt = Date.parse(campaign.completesAt);
-    const nearCompletion = Number.isFinite(alarmAt) && Number.isFinite(completesAt)
-      && alarmAt >= completesAt - 2 * 60e3
-      && alarmAt <= completesAt + 15 * 60e3;
-    if (nearCompletion) {
-      earned += 6;
-      notes.push('Scheduled the next decision close to construction completion.');
-    } else {
-      notes.push('Did not schedule a timely construction-completion checkpoint.');
-    }
-    const planText = [
-      ...(result?.runtime?.master?.current?.plan || []),
-      result?.runtime?.finishSummary || '',
-    ].join(' ').toLowerCase();
-    if (/quarry|prospector|rebuild/u.test(planText)) {
-      earned += 2;
-      notes.push('Preserved the owner campaign in the next plan.');
-    } else {
-      notes.push('The next plan omitted the owner campaign.');
-    }
-    return { earned, notes };
-  }
-  const readIndex = rows.findIndex(row => (
-    row.name === 'read_api'
-      && String(row.arguments?.path || '').includes('/achievements/')
-      && row.result?.ok === true
-  ));
-  const previewIndex = preview ? rows.indexOf(preview) : -1;
-  const confirmIndex = confirmed.length === 1 ? rows.indexOf(confirmed[0]) : -1;
-  if (readIndex >= 0 && previewIndex > readIndex) {
-    earned += 4;
-    notes.push('Verified achievement evidence before the rebuild preview.');
-  } else {
-    notes.push('Fresh achievement evidence was not verified before preview.');
-  }
-  if (previewIndex >= 0 && confirmIndex > previewIndex) {
-    earned += 5;
-    notes.push('Previewed before the one confirmed rebuild.');
-  } else {
-    notes.push('Preview/confirm order was incomplete.');
-  }
-  if (confirmed.length === 1) {
-    earned += 4;
-    notes.push('Issued exactly one confirmed rebuild.');
-  } else {
-    notes.push(`Issued ${confirmed.length} successful confirmed rebuilds; expected exactly one.`);
-  }
-  const refreshAfter = confirmIndex >= 0 && rows.slice(confirmIndex + 1)
-    .some(row => row.name === 'refresh_state' && rowSucceeded(row));
-  if (refreshAfter) {
-    earned += 2;
-    notes.push('Refreshed after the simulated click.');
-  } else {
-    notes.push('No successful refresh followed the simulated click.');
-  }
-  return { earned, notes };
+  if (!rows.length) return { earned: 0, notes: ['No observable tool evidence.'] };
+  const confirmed = mutationRows(result);
+  const required = requiredMutationScore(result, expectations.requiredMutations);
+  const ordered = orderedEventsScore(result, expectations.requiredOrderedEvents);
+  const forbiddenSet = new Set(expectations.forbiddenMutations || []);
+  const forbidden = confirmed.filter(row => forbiddenSet.has(row.name));
+  const maximum = Number.isFinite(Number(expectations.maximumConfirmedMutations))
+    ? Number(expectations.maximumConfirmedMutations)
+    : Infinity;
+  const withinMaximum = confirmed.length <= maximum;
+  const alarm = alarmAlignment(snapshot, result, expectations.alarm);
+  const earned = (
+    10 * required.ratio
+    + 6 * ordered.ratio
+    + (forbidden.length === 0 ? 4 : 0)
+    + (withinMaximum ? 2 : 0)
+    + (alarm.ok ? 3 : 0)
+  );
+  return {
+    earned,
+    notes: [
+      ...required.details,
+      `Ordered evidence: ${ordered.matched}/${ordered.expected}.`,
+      `Forbidden confirmed mutations: ${forbidden.length}.`,
+      `Confirmed mutation ceiling: ${confirmed.length}/${Number.isFinite(maximum) ? maximum : 'unbounded'}.`,
+      alarm.note,
+    ],
+  };
+}
+
+function ownerAlignment(snapshot, result) {
+  const objective = scenarioObjective(snapshot, result);
+  return {
+    earned: objective.earned * (15 / 25),
+    notes: objective.notes,
+  };
 }
 
 function warehouseCoverage(snapshot, text) {
@@ -232,22 +289,27 @@ function scoreShadowResult(snapshot, result) {
   const confirmed = mutationRows(result);
   const uniqueTargets = new Set(confirmed.map(normalizedTarget));
   const noDuplicates = uniqueTargets.size === confirmed.length;
+  const guardPoints = guards.length === 0 ? 6 : (guards.length === 1 ? 3 : (guards.length === 2 ? 1 : 0));
   const disciplineParts = [
-    [hasRows && guards.length === 0, 7, `Guard failures: ${guards.length}.`],
+    [hasRows, guardPoints, `Guard failures: ${guards.length}; awarded ${guardPoints}/6.`],
     [hasRows && unknownTools.length === 0, 4, `Unknown tools: ${unknownTools.length}.`],
-    [hasRows && sequenceIsSafe(result), 7, 'Every mutation was followed by refresh before another mutation or close.'],
-    [hasRows && noDuplicates, 4, `Confirmed mutations: ${confirmed.length}; unique targets: ${uniqueTargets.size}.`],
-    [hasRows, 3, `Tool results observed: ${rows.length}.`],
+    [hasRows && sequenceIsSafe(result), 6, 'Every mutation was followed by refresh before another mutation or close.'],
+    [hasRows && noDuplicates, 2, `Confirmed mutations: ${confirmed.length}; unique targets: ${uniqueTargets.size}.`],
+    [hasRows, 2, `Tool results observed: ${rows.length}.`],
   ];
   add(
     'Tool reliability and safety',
-    25,
+    20,
     disciplineParts.reduce((sum, [ok, points]) => sum + (ok ? points : 0), 0),
-    disciplineParts.map(([ok, , note]) => `${ok ? 'PASS' : 'MISS'}: ${note}`),
+    disciplineParts.map(([ok, points, note], index) => (
+      index === 0
+        ? `${guards.length === 0 ? 'PASS' : 'PARTIAL'}: ${note}`
+        : `${ok ? 'PASS' : 'MISS'}: ${note}`
+    )),
   );
 
-  const owner = ownerAlignment(snapshot, result);
-  add('Owner-directive alignment', 15, owner.earned, owner.notes);
+  const objective = scenarioObjective(snapshot, result);
+  add('Scenario objective', 25, objective.earned, objective.notes);
 
   const entry = result?.runtime?.journalEntry;
   const memory = result?.runtime?.master?.current;
@@ -255,17 +317,19 @@ function scoreShadowResult(snapshot, result) {
   const coverage = warehouseCoverage(snapshot, warehouseText);
   const longTerm = String(entry?.longTerm || '').toLowerCase();
   const strategicParts = [
-    [Boolean(entry), 4, 'Valid structured CEO journal.'],
-    [Array.isArray(entry?.alternatives) && entry.alternatives.length >= 2, 4, `Alternatives: ${entry?.alternatives?.length || 0}.`],
-    [Boolean(entry?.opportunity), 3, 'Named an opportunity or risk.'],
-    [coverage >= 0.8, 5, `Warehouse item-name coverage: ${(coverage * 100).toFixed(0)}%.`],
-    [/coffee/u.test(longTerm) && /tools/u.test(longTerm), 4, 'Long-term review compares Coffee with Tools.'],
-    [/slot/u.test(longTerm) && /trigger|checkpoint|when|after|until/u.test(longTerm), 3, 'Long-term review includes slot implication and a trigger.'],
-    [Boolean(memory?.reviews?.upgradeAndDebt), 2, 'Reviewed upgrade and debt.'],
+    [Boolean(entry), 3, 'Valid structured CEO journal.'],
+    [Array.isArray(entry?.alternatives) && entry.alternatives.length >= 2, 3, `Alternatives: ${entry?.alternatives?.length || 0}.`],
+    [Boolean(entry?.opportunity), 2, 'Named an opportunity or risk.'],
+    [coverage >= 0.8, 4, `Warehouse item-name coverage: ${(coverage * 100).toFixed(0)}%.`],
+    [/coffee/u.test(longTerm) && /tools/u.test(longTerm), 3, 'Long-term review compares Coffee with Tools.'],
+    [/slot/u.test(longTerm) && /trigger|checkpoint|when|after|until/u.test(longTerm), 2, 'Long-term review includes slot implication and a trigger.'],
+    [Boolean(memory?.reviews?.upgradeAndDebt), 1, 'Reviewed upgrade and debt.'],
+    [Boolean(memory?.reviews?.warehouse), 1, 'Retained warehouse review in memory.'],
+    [Boolean(memory?.reviews?.utilitySurplus), 1, 'Retained utility-surplus review in memory.'],
   ];
   add(
     'CEO analysis quality',
-    25,
+    20,
     strategicParts.reduce((sum, [ok, points]) => sum + (ok ? points : 0), 0),
     strategicParts.map(([ok, , note]) => `${ok ? 'PASS' : 'MISS'}: ${note}`),
   );
@@ -291,15 +355,27 @@ function scoreShadowResult(snapshot, result) {
   );
 
   const rounds = Number(result?.rounds) || 0;
-  const economy = result?.ok !== true ? 0 : (rounds <= 10 ? 10 : (rounds <= 15 ? 8 : (rounds <= 20 ? 5 : 2)));
-  add('Action economy', 10, economy, [`Completed in ${rounds} model rounds.`]);
+  const expectedMaxRounds = Number(snapshot?.scenario?.expectations?.expectedMaxRounds) || 10;
+  const economy = result?.ok !== true
+    ? 0
+    : (rounds <= expectedMaxRounds
+      ? 10
+      : (rounds <= expectedMaxRounds + 4 ? 8 : (rounds <= expectedMaxRounds + 8 ? 5 : 2)));
+  add(
+    'Action economy',
+    10,
+    economy,
+    [`Completed in ${rounds} model rounds; full-credit threshold ${expectedMaxRounds}.`],
+  );
 
   return {
-    rubricVersion: 1,
-    total: categories.reduce((sum, category) => sum + category.earned, 0),
+    rubricVersion: 2,
+    total: Number(categories.reduce((sum, category) => sum + category.earned, 0).toFixed(4)),
     maximum: categories.reduce((sum, category) => sum + category.maximum, 0),
     categories,
     evidence: {
+      scenario: snapshot?.scenario?.id || 'current',
+      difficulty: snapshot?.scenario?.difficulty || null,
       rounds,
       toolResults: rows.length,
       guardFailures: guards.length,
@@ -307,17 +383,23 @@ function scoreShadowResult(snapshot, result) {
       confirmedMutations: confirmed.length,
       warehouseCoverage: Number(coverage.toFixed(4)),
     },
-    limitation: 'Deterministic protocol scoring measures observable tool behavior and structured decisions; it is not a substitute for repeated business-outcome trials.',
+    limitation: 'Deterministic protocol scoring measures observable tool behavior and structured decisions; it is not a substitute for repeated live business-outcome trials.',
   };
 }
 
 module.exports = {
   activeProspector,
+  alarmAlignment,
   closeSequenceIsValid,
+  earliestBusyCompletion,
   mutationRows,
   normalizedTarget,
+  orderedEventsScore,
   ownerAlignment,
+  requiredMutationScore,
+  rowMatchesEvent,
   rowSucceeded,
+  scenarioObjective,
   scoreShadowResult,
   sequenceIsSafe,
   successfulRows,

@@ -51,14 +51,8 @@ test('publishes the active action surface without DeepSeek beta strict mode', ()
 });
 
 test('simulates action clicks and never executes them', async () => {
-  const snapshot = createSnapshot(SIM_DIR);
-  const buildingId = snapshot.state.buildings.find(
-    building => building.name === 'Quarry',
-  ).id;
-  const quarry = snapshot.state.buildings.find(building => building.id === buildingId);
-  quarry.busy = null;
-  quarry.freeAndLocked = false;
-  quarry.activity = { status: 'known', busy: false, type: null };
+  const snapshot = buildProspectorReadyScenario(createSnapshot(SIM_DIR));
+  const buildingId = snapshot.fixtures.rebuild.buildingId;
   const runtime = new ShadowToolRuntime(snapshot);
   const result = await runtime.execute('rebuild', { buildingId, confirm: true });
   assert.equal(result.ok, true);

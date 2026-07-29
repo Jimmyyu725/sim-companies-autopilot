@@ -17,7 +17,7 @@ const {
 const { writeBenchmarkArtifacts, toolSurface } = require('./lib/artifacts.js');
 const { runOpenAIShadowWake, runShadowWake } = require('./lib/runner.js');
 const { scoreShadowResult } = require('./lib/scoring.js');
-const { applyScenario } = require('./lib/scenarios.js');
+const { applyScenario, SCENARIO_BUILDERS } = require('./lib/scenarios.js');
 const { createSnapshot, sha256 } = require('./lib/snapshot.js');
 const { buildDeepSeekTools, buildOpenAIResponsesTools } = require('./lib/tool-runtime.js');
 
@@ -54,8 +54,8 @@ function parseArguments(argv) {
   if (!Number.isSafeInteger(options.maxTokens) || options.maxTokens < 1024 || options.maxTokens > 32768) {
     throw new Error('--max-tokens must be an integer from 1024 to 32768');
   }
-  if (!['current', 'prospector-ready'].includes(options.scenario)) {
-    throw new Error('--scenario must be current or prospector-ready');
+  if (!['current', ...Object.keys(SCENARIO_BUILDERS)].includes(options.scenario)) {
+    throw new Error(`--scenario must be one of current, ${Object.keys(SCENARIO_BUILDERS).join(', ')}`);
   }
   return options;
 }
@@ -64,7 +64,7 @@ function usage() {
   return [
     'Usage:',
     '  node benchmark.js --check',
-    '  node benchmark.js --run [--scenario prospector-ready|current] [--max-rounds 30] [--max-tokens 32768]',
+    `  node benchmark.js --run [--scenario current|${Object.keys(SCENARIO_BUILDERS).join('|')}] [--max-rounds 30] [--max-tokens 32768]`,
     '',
     '--check performs an offline parity and isolation check.',
     '--run compares gpt-5.6-terra high and deepseek-v4-pro high concurrently.',
@@ -162,8 +162,9 @@ function parity(snapshot, environment = process.env) {
   };
 }
 
-async function runBenchmark(options) {
-  const baseSnapshot = createSnapshot(SIM_DIR, new Date(), { replayAtStateTime: true });
+async function runBenchmark(options, overrides = {}) {
+  const baseSnapshot = overrides.baseSnapshot
+    || createSnapshot(SIM_DIR, new Date(), { replayAtStateTime: true });
   const snapshot = applyScenario(baseSnapshot, options.scenario);
   const environment = { ...process.env };
   const toolParity = parity(snapshot, environment);
@@ -229,8 +230,8 @@ async function runBenchmark(options) {
     },
   };
   const artifacts = writeBenchmarkArtifacts(
-    RUNS_DIR,
-    runId(new Date(startedAt)),
+    overrides.runsDirectory || RUNS_DIR,
+    overrides.runId || runId(new Date(startedAt)),
     snapshot,
     models,
     startedAt,
@@ -276,6 +277,8 @@ if (require.main === module) {
 
 module.exports = {
   OPENAI_ENV_FILE,
+  RUNS_DIR,
+  SIM_DIR,
   emptyRuntime,
   eventLogger,
   parity,

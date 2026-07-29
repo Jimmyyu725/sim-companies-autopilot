@@ -10,6 +10,7 @@ const { currentMemorySchema, validateCurrentMemory } = require('../../../autopil
 const { journalToolSchema, prepareJournalEntry } = require('../../../autopilot/journal-entry.js');
 const { compareMillUpgradeCandidates } = require('../../../autopilot/mill-upgrade-policy.js');
 const { resolveChatMode } = require('../../../autopilot/chat/runtime-mode.js');
+const { sha256 } = require('./snapshot.js');
 
 const ACTION_SET = new Set(ACTION_NAMES);
 const READ_ONLY_ACTIONS = new Set([
@@ -273,6 +274,17 @@ function simulatedUnknown(name, reason) {
   };
 }
 
+function normalizedProduct(value) {
+  const name = String(value || '').trim().toLowerCase();
+  if (['coffee ground', 'coffee grounds', 'coffee powder'].includes(name)) return 'coffee powder';
+  return name;
+}
+
+function finitePositive(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
+
 class ShadowToolRuntime {
   constructor(snapshot) {
     this.snapshot = clone(snapshot);
@@ -286,14 +298,243 @@ class ShadowToolRuntime {
     this.finishSummary = null;
     this.dirtyAfterMutation = false;
     this.refreshCount = 0;
+    this.exchangeInspections = new Map();
   }
 
-  applyScenarioMutation(name, args) {
-    const fixture = this.snapshot.fixtures?.rebuild;
-    if (name !== 'rebuild' || args?.confirm !== true || !fixture
-        || Number(args.buildingId) !== Number(fixture.buildingId)) {
-      return null;
+  touchState(atIso) {
+    this.currentState.t = atIso;
+    for (const source of Object.values(this.currentState.sources || {})) {
+      if (source && typeof source === 'object' && Object.hasOwn(source, 'asOf')) {
+        source.asOf = atIso;
+      }
     }
+    if (this.currentState?.surplusPlan) this.currentState.surplusPlan.asOf = atIso;
+  }
+
+  nextMutationTime() {
+    const current = Date.parse(this.currentState?.t || this.snapshot.capturedAt);
+    const baseline = Date.parse(this.snapshot.capturedAt);
+    return new Date(Math.max(current, baseline) + 30e3).toISOString();
+  }
+
+  operationFixture(name, args) {
+    return (this.snapshot.fixtures?.operations || []).find(fixture => (
+      fixture?.action === name
+        && Number(fixture?.buildingId) === Number(args?.buildingId)
+    )) || null;
+  }
+
+  stockItem(kind) {
+    return (this.currentState?.stock || [])
+      .find(item => Number(item?.kind) === Number(kind)) || null;
+  }
+
+  validateOperation(name, args) {
+    const fixture = this.operationFixture(name, args);
+    if (!fixture) {
+      return {
+        ok: false,
+        reason: `the controlled scenario has no ${name} fixture for building ${Number(args?.buildingId)}`,
+      };
+    }
+    if (normalizedProduct(args?.name) !== normalizedProduct(fixture.name)) {
+      return {
+        ok: false,
+        reason: `${name} must use fixture product ${fixture.name}`,
+      };
+    }
+    const qty = finitePositive(args?.qty);
+    if (qty == null || qty > Number(fixture.maxQty) + 1e-6) {
+      return {
+        ok: false,
+        reason: `${name} quantity exceeds the controlled feasible maximum ${fixture.maxQty}`,
+      };
+    }
+    if (name === 'produce') {
+      const rate = finitePositive(fixture.ratePerHour);
+      const durationHours = rate == null ? null : qty / rate;
+      const targetHours = args?.targetHours == null ? null : Number(args.targetHours);
+      if (durationHours != null && targetHours != null && durationHours > targetHours + 1e-6) {
+        return {
+          ok: false,
+          reason: `production duration ${durationHours.toFixed(3)}h exceeds targetHours ${targetHours}`,
+        };
+      }
+      const input = this.stockItem(fixture.inputKind);
+      const needed = qty * Number(fixture.inputPerOutput);
+      const available = Number(input?.availableAmount ?? input?.amount);
+      if (!(available >= needed)) {
+        return {
+          ok: false,
+          reason: `production requires ${needed} ${fixture.inputName}; only ${available || 0} is available`,
+        };
+      }
+      const finishBefore = args?.finishBefore == null ? null : Date.parse(args.finishBefore);
+      if (finishBefore != null && durationHours != null) {
+        const startsAt = Date.parse(this.nextMutationTime());
+        if (startsAt + durationHours * 60 * 60e3 > finishBefore) {
+          return {
+            ok: false,
+            reason: 'the controlled production order would cross finishBefore',
+          };
+        }
+      }
+    }
+    if (name === 'sell') {
+      const item = this.stockItem(fixture.inventoryKind);
+      const available = Number(item?.availableAmount ?? item?.amount);
+      if (!(available >= qty)) {
+        return {
+          ok: false,
+          reason: `retail sale requires ${qty} ${fixture.name}; only ${available || 0} is available`,
+        };
+      }
+    }
+    return { ok: true, fixture, qty };
+  }
+
+  applyOperationMutation(name, args, validation) {
+    const { fixture, qty } = validation;
+    const building = (this.currentState.buildings || [])
+      .find(candidate => Number(candidate?.id) === Number(fixture.buildingId));
+    if (!building) return null;
+    const startedAt = this.nextMutationTime();
+    const durationHours = name === 'produce'
+      ? qty / Number(fixture.ratePerHour)
+      : qty / Number(fixture.unitsPerHour);
+    const endsAt = new Date(Date.parse(startedAt) + durationHours * 60 * 60e3).toISOString();
+    if (name === 'produce') {
+      const input = this.stockItem(fixture.inputKind);
+      const required = qty * Number(fixture.inputPerOutput);
+      input.amount = Number((Number(input.amount) - required).toFixed(6));
+      input.availableAmount = Number((Number(input.availableAmount) - required).toFixed(6));
+      building.busy = {
+        id: null,
+        type: 'production',
+        rawCategory: 'r',
+        makingKind: Number(fixture.outputKind),
+        makingName: fixture.name,
+        amount: qty,
+        remainingOrUncollectedAmount: qty,
+        amountSemantics: 'live-remaining-or-uncollected',
+        amountAvailableNow: 0,
+        remainingProfit: null,
+        profitAvailableNow: null,
+        price: null,
+        expanding: false,
+        canFetch: false,
+        startedAt,
+        endsAt,
+      };
+    } else {
+      const item = this.stockItem(fixture.inventoryKind);
+      item.amount = Number((Number(item.amount) - qty).toFixed(6));
+      item.availableAmount = Number((Number(item.availableAmount) - qty).toFixed(6));
+      building.busy = {
+        id: null,
+        type: 'sale',
+        rawCategory: 's',
+        makingKind: Number(fixture.inventoryKind),
+        makingName: fixture.name,
+        amount: qty,
+        remainingOrUncollectedAmount: null,
+        amountSemantics: 'sales-order-remaining',
+        amountAvailableNow: null,
+        remainingProfit: Number((qty * Number(fixture.profitPerUnit)).toFixed(2)),
+        profitAvailableNow: 0,
+        price: Number(fixture.optimizedPrice),
+        expanding: false,
+        canFetch: false,
+        startedAt,
+        endsAt,
+      };
+    }
+    building.activity = {
+      status: 'known',
+      busy: true,
+      type: name === 'produce' ? 'production' : 'sale',
+    };
+    this.touchState(startedAt);
+    return {
+      verified: true,
+      mutationAttempted: true,
+      buildingId: Number(fixture.buildingId),
+      product: fixture.name,
+      quantity: qty,
+      startedAt,
+      endsAt,
+      ...(name === 'sell' ? { optimizedPrice: Number(fixture.optimizedPrice) } : {}),
+    };
+  }
+
+  exchangeFixtureByName(name) {
+    const fixture = this.snapshot.fixtures?.exchange;
+    return fixture && normalizedProduct(fixture.name) === normalizedProduct(name) ? fixture : null;
+  }
+
+  validateExchangeAction(args) {
+    const fixture = this.exchangeFixtureByName(args?.name);
+    if (!fixture) return { ok: false, reason: 'the controlled scenario has no exchange fixture for this product' };
+    const inspection = this.exchangeInspections.get(normalizedProduct(fixture.name));
+    if (!inspection) {
+      return { ok: false, reason: 'inspect_exchange_sale must succeed before the exact preview or confirmation' };
+    }
+    const exact = Number(args?.qty) === Number(inspection.qty)
+      && Math.abs(Number(args?.price) - Number(inspection.price)) <= 1e-9;
+    if (!exact) {
+      return {
+        ok: false,
+        reason: `exchange action must exactly match inspected qty ${inspection.qty} and price ${inspection.price}`,
+      };
+    }
+    const plan = this.currentState?.surplusPlan?.items?.[String(fixture.kind)];
+    const item = this.stockItem(fixture.kind);
+    if (Number(plan?.sellable) < Number(args.qty)
+        || Number(item?.availableAmount ?? item?.amount) < Number(args.qty)) {
+      return { ok: false, reason: 'the current simulated reserve-safe quantity is no longer available' };
+    }
+    return { ok: true, fixture, inspection };
+  }
+
+  applyExchangeMutation(args, validation) {
+    const { fixture, inspection } = validation;
+    const item = this.stockItem(fixture.kind);
+    const plan = this.currentState?.surplusPlan?.items?.[String(fixture.kind)];
+    item.amount = Number((Number(item.amount) - Number(args.qty)).toFixed(6));
+    item.availableAmount = Number((Number(item.availableAmount) - Number(args.qty)).toFixed(6));
+    plan.stock = item.amount;
+    plan.totalStock = item.amount;
+    plan.surplus = Math.max(0, Number(plan.surplus) - Number(args.qty));
+    plan.sellable = Math.max(0, Number(plan.sellable) - Number(args.qty));
+    this.currentState.money = Number((
+      Number(this.currentState.money) + Number(inspection.netRevenue)
+    ).toFixed(2));
+    const recordedAt = this.nextMutationTime();
+    this.touchState(recordedAt);
+    this.exchangeInspections.delete(normalizedProduct(fixture.name));
+    return {
+      verified: true,
+      mutationAttempted: true,
+      inspectionId: inspection.inspectionId,
+      name: fixture.name,
+      quantity: Number(args.qty),
+      price: Number(args.price),
+      fee: inspection.fee,
+      netRevenue: inspection.netRevenue,
+      profit: inspection.profit,
+      transportUsed: 0,
+      recordedAt,
+    };
+  }
+
+  applyScenarioMutation(name, args, validation = null) {
+    const fixture = this.snapshot.fixtures?.rebuild;
+    if (name === 'produce' || name === 'sell') {
+      return this.applyOperationMutation(name, args, validation);
+    }
+    if (name === 'exchange_sell') return this.applyExchangeMutation(args, validation);
+    if (name !== 'rebuild' || args?.confirm !== true || !fixture
+        || Number(args.buildingId) !== Number(fixture.buildingId)) return null;
     const buildingIndex = (this.currentState.buildings || [])
       .findIndex(building => Number(building?.id) === Number(fixture.buildingId));
     if (buildingIndex < 0) return null;
@@ -322,12 +563,7 @@ class ShadowToolRuntime {
       },
       activity: { status: 'known', busy: true, type: 'construction' },
     };
-    this.currentState.t = fixture.startedAt;
-    for (const source of Object.values(this.currentState.sources || {})) {
-      if (source && typeof source === 'object' && Object.hasOwn(source, 'asOf')) {
-        source.asOf = fixture.startedAt;
-      }
-    }
+    this.touchState(fixture.startedAt);
     return {
       verified: true,
       commitClicked: true,
@@ -378,6 +614,7 @@ class ShadowToolRuntime {
         };
       }
     }
+    let scenarioValidation = null;
     if (name === 'produce' || name === 'sell') {
       const building = (this.currentState?.buildings || [])
         .find(candidate => Number(candidate?.id) === Number(args.buildingId));
@@ -392,6 +629,16 @@ class ShadowToolRuntime {
           simulation: true,
           executed: false,
           reason: `building ${Number(args.buildingId)} is not authoritatively idle in the frozen state`,
+        };
+      }
+      scenarioValidation = this.validateOperation(name, args);
+      if (!scenarioValidation.ok) {
+        return {
+          ok: false,
+          guard: true,
+          simulation: true,
+          executed: false,
+          reason: scenarioValidation.reason,
         };
       }
     }
@@ -416,20 +663,38 @@ class ShadowToolRuntime {
             : `building ${Number(args.buildingId)} is not an exact level-1 Quarry, Mine, or Oil rig`,
         };
       }
-    }
-    if (name === 'exchange_sell') {
-      const kindByName = Object.values(this.currentState?.surplusPlan?.items || {})
-        .find(item => String(item?.name || '').trim().toLowerCase()
-          === String(args.name || '').trim().toLowerCase());
-      if (!kindByName || Number(kindByName.sellable) < Number(args.qty)) {
+      const fixture = this.snapshot.fixtures?.rebuild;
+      if (!fixture || Number(args.buildingId) !== Number(fixture.buildingId)) {
         return {
           ok: false,
           guard: true,
           simulation: true,
           executed: false,
-          reason: 'the frozen reserve plan does not prove this quantity sellable',
+          reason: 'the controlled scenario has no rebuild fixture for this building',
         };
       }
+    }
+    if (name === 'exchange_sell') {
+      scenarioValidation = this.validateExchangeAction(args);
+      if (!scenarioValidation.ok) {
+        return {
+          ok: false,
+          guard: true,
+          simulation: true,
+          executed: false,
+          reason: scenarioValidation.reason,
+        };
+      }
+    }
+    const fixtureBacked = ['produce', 'sell', 'rebuild', 'exchange_sell'].includes(name);
+    if (!preview && !fixtureBacked) {
+      return {
+        ok: false,
+        guard: true,
+        simulation: true,
+        executed: false,
+        reason: `the controlled scenario has no confirmed ${name} mutation fixture`,
+      };
     }
     const record = {
       sequence: this.actions.length + 1,
@@ -441,7 +706,7 @@ class ShadowToolRuntime {
     };
     this.actions.push(record);
     if (!preview) this.dirtyAfterMutation = true;
-    const scenarioOutcome = this.applyScenarioMutation(name, args);
+    const scenarioOutcome = preview ? null : this.applyScenarioMutation(name, args, scenarioValidation);
     return {
       ok: true,
       simulation: true,
@@ -489,6 +754,88 @@ class ShadowToolRuntime {
     const kind = Number(args?.kind);
     const reserve = this.currentState?.surplusPlan?.items?.[String(kind)] || null;
     if (!reserve) return simulatedUnknown('inspect_exchange_sale', `kind ${kind} has no frozen reserve record`);
+    const fixture = this.snapshot.fixtures?.exchange;
+    if (fixture && Number(fixture.kind) === kind) {
+      const requested = args?.qty == null ? Number(fixture.recommendedQty) : Number(args.qty);
+      if (!Number.isSafeInteger(requested) || requested < 1 || requested > Number(fixture.maxQty)
+          || requested > Number(reserve.sellable)) {
+        return {
+          ok: false,
+          simulation: true,
+          executed: false,
+          readOnly: true,
+          failClosed: true,
+          reserve: clone(reserve),
+          requestedQty: args?.qty ?? null,
+          reason: `requested quantity must be an integer from 1 to ${Math.min(Number(fixture.maxQty), Number(reserve.sellable))}`,
+        };
+      }
+      const grossRevenue = Number((requested * Number(fixture.price)).toFixed(6));
+      const fee = Number((grossRevenue * Number(fixture.feePct)).toFixed(6));
+      const netRevenue = Number((grossRevenue - fee).toFixed(6));
+      const accountingCost = Number((requested * Number(fixture.unitAccountingCost)).toFixed(6));
+      const profit = Number((netRevenue - accountingCost).toFixed(6));
+      const inspectedAt = this.currentState.t || this.snapshot.capturedAt;
+      const inspectionId = `shadow-${sha256([
+        this.snapshot.scenario?.id,
+        kind,
+        requested,
+        fixture.price,
+        inspectedAt,
+      ].join(':')).slice(0, 20)}`;
+      const inspection = {
+        inspectionId,
+        inspectedAt,
+        expiresAt: new Date(
+          Date.parse(inspectedAt) + Number(fixture.inspectionTtlSeconds) * 1000,
+        ).toISOString(),
+        kind,
+        name: fixture.name,
+        qty: requested,
+        price: Number(fixture.price),
+        grossRevenue,
+        fee,
+        netRevenue,
+        accountingCost,
+        profit,
+      };
+      this.exchangeInspections.set(normalizedProduct(fixture.name), inspection);
+      return {
+        ok: true,
+        simulation: true,
+        executed: false,
+        readOnly: true,
+        source: 'controlled frozen exchange fixture',
+        reserve: clone(reserve),
+        inspectionId,
+        inspectedAt,
+        expiresAt: inspection.expiresAt,
+        book: {
+          live: { status: 'ok', asOf: inspectedAt },
+          availableDepth: Number(fixture.availableDepth),
+          exactPrice: Number(fixture.price),
+        },
+        uiQuote: {
+          ok: true,
+          mutationAttempted: false,
+          name: fixture.name,
+          qty: requested,
+          price: Number(fixture.price),
+          grossRevenue,
+          fee,
+          netRevenue,
+          accountingCost,
+          profit,
+          transportRequired: 0,
+        },
+        exactAction: {
+          name: fixture.name,
+          qty: requested,
+          price: Number(fixture.price),
+          confirm: false,
+        },
+      };
+    }
     return {
       ok: false,
       simulation: true,
@@ -621,7 +968,7 @@ class ShadowToolRuntime {
           frozenAt: this.snapshot.capturedAt,
           refreshCount: this.refreshCount,
           recordedActions: clone(this.actions),
-          note: 'Core state is intentionally frozen; recorded simulated receipts count as successful outcomes for this evaluation.',
+          note: 'The source snapshot is frozen; deterministic fixture outcomes are reflected in this isolated in-memory state and never touch the browser or game.',
         },
       };
     }

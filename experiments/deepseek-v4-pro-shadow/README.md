@@ -4,7 +4,7 @@ This experiment compares `gpt-5.6-terra` High and `deepseek-v4-pro` High on one 
 Sim Companies wake. It does not change `autopilot/run-brain.sh`, the production model, the browser,
 or the game.
 
-The default benchmark derives a controlled `prospector-ready-v1` replay from the latest captured
+The default single-scenario benchmark derives a controlled `prospector-ready-v1` replay from the latest captured
 state: it advances only the recorded Quarry construction to its known completion, marks that exact
 replacement authoritatively idle, and provides deterministic authenticated-counter and simulated
 rebuild receipts. The scenario is labeled synthetic in every artifact and exercises the real
@@ -58,9 +58,29 @@ under ignored `runs/benchmark-*/` directories:
 - `report.md`: compact human-readable comparison.
 
 The deterministic 100-point rubric is provider-neutral. It scores observable completion, close
-protocol, tool safety, owner-directive alignment, CEO analysis, state fidelity, and action economy.
+protocol, tool safety, scenario objectives, CEO analysis, state fidelity, and action economy.
 It deliberately does not score hidden chain-of-thought. One paired wake is a preliminary
 operational test; repeated representative wakes are needed for a stable model ranking.
+
+## Multi-scenario suite
+
+The suite uses one immutable base snapshot and five paired controlled scenarios:
+
+- `all-busy-v1` — simple restraint and checkpoint selection;
+- `idle-mill-v1` — simple idle-production recovery;
+- `utility-surplus-v1` — medium reserve-safe exchange monetization;
+- `prospector-ready-v1` — medium owner-priority structural execution;
+- `multi-pressure-v1` — complex owner priority, two idle buildings, market sale, and repeated refreshes.
+
+Run all five with one hidden DeepSeek credential entry:
+
+```bash
+experiments/deepseek-v4-pro-shadow/run-suite-interactive.sh
+```
+
+Provider pairs run concurrently, while scenarios run sequentially to bound rate pressure. All
+scenario outcomes remain deterministic in-memory fixtures with `executed:false`; the suite never
+opens Chrome or mutates the game.
 
 Provider/API failures are also saved without inventing token or cost values. An unavailable account,
 quota, balance, or model is reported as an infrastructure failure and must not be interpreted as a

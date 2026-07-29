@@ -37,11 +37,13 @@ function normalizedTarget(row) {
   return [
     row?.name || '',
     args.buildingId ?? '',
+    String(args.building ?? '').trim().toLowerCase(),
     String(args.name ?? '').trim().toLowerCase(),
     args.kind ?? '',
     String(args.product ?? '').trim().toLowerCase(),
-    args.roomId ?? '',
-    args.companyId ?? '',
+    String(args.room ?? args.roomId ?? '').trim().toLowerCase(),
+    String(args.company ?? args.companyId ?? '').trim().toLowerCase(),
+    args.sourceMessageId ?? '',
   ].join(':');
 }
 
@@ -101,6 +103,10 @@ function rowMatchesEvent(row, event) {
   const args = row.arguments || {};
   if (event.buildingId != null && Number(args.buildingId) !== Number(event.buildingId)) return false;
   if (event.kind != null && Number(args.kind) !== Number(event.kind)) return false;
+  if (event.building != null
+      && comparableName(args.building) !== comparableName(event.building)) return false;
+  if (event.room != null && String(args.room) !== String(event.room)) return false;
+  if (event.company != null && String(args.company) !== String(event.company)) return false;
   if (event.nameValue != null && comparableName(args.name) !== comparableName(event.nameValue)) return false;
   if (event.name != null && event.name !== row.name) return false;
   if (event.productName != null && comparableName(args.name) !== comparableName(event.productName)) return false;
@@ -134,6 +140,8 @@ function mutationMatchesRequirement(row, requirement) {
   if (requirement.name != null
       && comparableName(args.name) !== comparableName(requirement.name)) return false;
   if (requirement.kind != null && Number(args.kind) !== Number(requirement.kind)) return false;
+  if (requirement.building != null
+      && comparableName(args.building) !== comparableName(requirement.building)) return false;
   return true;
 }
 

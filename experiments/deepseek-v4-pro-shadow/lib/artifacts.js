@@ -127,7 +127,7 @@ function buildComparison(snapshot, models, startedAt, finishedAt) {
       productionModelChanged: false,
       liveBrowserOpened: false,
       liveGameMutations: 0,
-      scorer: 'provider-neutral deterministic rubric v1',
+      scorer: 'provider-neutral deterministic rubric v2',
     },
     rows,
     leaders: {
@@ -137,7 +137,7 @@ function buildComparison(snapshot, models, startedAt, finishedAt) {
         ? leader(rows, row => row.usage.estimatedUsd, true)
         : null,
     },
-    limitation: 'One paired frozen wake is a preliminary operational benchmark, not a statistically stable model ranking.',
+    limitation: 'One paired frozen wake is a preliminary operational result; use the multi-scenario suite for broader coverage, and do not treat either as a statistically general model ranking.',
   };
 }
 

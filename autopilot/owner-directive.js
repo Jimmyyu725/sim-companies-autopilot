@@ -6,6 +6,7 @@ const MAX_COMPLETION_STATE_AGE_MS = 5 * 60e3;
 const PROSPECTOR_OVERVIEW_PATH = '/api/v2/companies/me/achievements/';
 const PROSPECTOR_CAMPAIGN_MODE = 'repeat-until-achievement-complete';
 const PROSPECTOR_TERMINAL_STATUSES = new Set(['completed', 'cancelled', 'abandoned']);
+const PROSPECTOR_BUILDING_NAMES = new Set(['quarry', 'mine', 'oil rig']);
 const OWNER_SUBTASK_ACTION = 'complete-owner-subtasks';
 const NORMAL_COMPLETED_PROGRAM_ACTIVITIES = new Set(['production', 'sale']);
 
@@ -284,6 +285,86 @@ function validProspectorCampaignProgress(progress) {
     ));
 }
 
+function canonicalProspectorBuildingName(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function validProspectorEvidenceRecord(evidence, nowMs = null, maxAgeMs = null) {
+  const observedAtMs = Date.parse(evidence?.observedAt);
+  const timeIsValid = nowMs == null || (
+    Number.isFinite(Number(nowMs)) && Number.isFinite(observedAtMs) &&
+    observedAtMs <= Number(nowMs) + 60e3 &&
+    (maxAgeMs == null || Number(nowMs) - observedAtMs <= Number(maxAgeMs))
+  );
+  return evidence?.path === PROSPECTOR_OVERVIEW_PATH && Number(evidence?.status) === 200 &&
+    evidence?.complete !== true &&
+    Number.isSafeInteger(Number(evidence?.current)) && Number(evidence.current) >= 0 &&
+    Number.isSafeInteger(Number(evidence?.target)) &&
+    Number(evidence.target) > Number(evidence.current) &&
+    Number.isSafeInteger(Number(evidence?.stars)) && Number(evidence.stars) >= 0 &&
+    Number.isSafeInteger(Number(evidence?.starsMax)) &&
+    Number(evidence.starsMax) > Number(evidence.stars) &&
+    timeIsValid;
+}
+
+function ownerProspectorCampaignCanRecover(directive, nowMs = Date.now()) {
+  const experiment = directive?.prospectorExperiment;
+  const storedBuildingId = Number(experiment?.buildingId);
+  const completionMs = Date.parse(experiment?.completesAt);
+  const expectedName = canonicalProspectorBuildingName(experiment?.building);
+  const activeAttempt = ['claimed', 'awaiting-counter'].includes(
+    experiment?.rebuildAttempt?.status,
+  );
+  return directive?.schemaVersion === 1 && directive?.status === 'pending' &&
+    directive?.priority === 'owner' && directive?.program?.status === 'completed' &&
+    isProspectorCampaign(experiment) && experiment?.campaign?.status === 'active' &&
+    experiment?.status === 'counter-mismatch' && !activeAttempt &&
+    Number(experiment?.expectedIncrement) === 1 && Number(experiment?.level) === 1 &&
+    Number.isSafeInteger(storedBuildingId) && storedBuildingId > 0 &&
+    PROSPECTOR_BUILDING_NAMES.has(expectedName) &&
+    Number.isFinite(Number(nowMs)) && Number.isFinite(completionMs) &&
+    Number(nowMs) >= completionMs &&
+    validProspectorEvidenceRecord(experiment?.lastProgressEvidence);
+}
+
+function findOwnerProspectorRecoveryCandidate(state, directive, now = Date.now()) {
+  const nowMs = Number(now);
+  if (!ownerProspectorCampaignCanRecover(directive, nowMs)) return null;
+  const stateAtMs = Date.parse(state?.t);
+  const buildingSource = state?.sources?.buildings;
+  const sourceAtMs = Date.parse(buildingSource?.asOf);
+  const stateIsFresh = Number.isFinite(stateAtMs) && Number.isFinite(sourceAtMs) &&
+    stateAtMs <= nowMs + 60e3 && sourceAtMs <= nowMs + 60e3 &&
+    nowMs - stateAtMs <= MAX_COMPLETION_STATE_AGE_MS &&
+    nowMs - sourceAtMs <= MAX_COMPLETION_STATE_AGE_MS;
+  if (buildingSource?.status !== 'ok' || !stateIsFresh || !Array.isArray(state?.buildings)) {
+    return null;
+  }
+
+  const experiment = directive.prospectorExperiment;
+  const storedBuildingId = Number(experiment.buildingId);
+  const expectedName = canonicalProspectorBuildingName(experiment.building);
+  if (state.buildings.some(building => Number(building?.id) === storedBuildingId)) return null;
+  const matches = state.buildings.filter(building =>
+    canonicalProspectorBuildingName(building?.name) === expectedName &&
+    Number(building?.size) === 1 && building?.freeAndLocked !== true);
+  if (matches.length !== 1) return null;
+  const building = matches[0];
+  const buildingId = Number(building?.id);
+  if (!Number.isSafeInteger(buildingId) || buildingId <= 0 ||
+      building?.busy != null ||
+      (building?.activity?.status === 'known' && building?.activity?.busy === true)) {
+    return null;
+  }
+  return {
+    buildingId,
+    building: building.name,
+    level: 1,
+    previousBuildingId: storedBuildingId,
+    status: 'requires-fresh-page-and-achievement-validation',
+  };
+}
+
 function classifyProspectorCampaignTransition(baseline, progress, expectedIncrement) {
   if (!validProspectorCampaignProgress(progress) ||
       !Number.isSafeInteger(Number(baseline?.current)) ||
@@ -538,6 +619,138 @@ function authorizeOwnerProspectorRebuild(directive, buildingId, now = Date.now()
     : { ok: false, reason: 'fresh exact owner authorization for this Prospector REBUILD is unavailable' };
 }
 
+function validateProspectorRecoveryTarget(directive, buildingId, targetEvidence, now = Date.now()) {
+  const nowMs = Number(now);
+  if (!ownerProspectorCampaignCanRecover(directive, nowMs)) {
+    return { ok: false, reason: 'owner Prospector campaign is not eligible for target recovery' };
+  }
+  const capturedAtMs = Date.parse(targetEvidence?.capturedAt);
+  if (targetEvidence?.source !== 'authoritative-buildings-capture' ||
+      !Number.isFinite(capturedAtMs) || capturedAtMs > nowMs + 10e3 ||
+      nowMs - capturedAtMs > 60e3 || !Array.isArray(targetEvidence?.buildings)) {
+    return { ok: false, reason: 'fresh authoritative building capture is unavailable' };
+  }
+
+  const experiment = directive.prospectorExperiment;
+  const expectedName = canonicalProspectorBuildingName(experiment.building);
+  const storedBuildingId = Number(experiment.buildingId);
+  const id = Number(buildingId);
+  if (!Number.isSafeInteger(id) || id <= 0 || id === storedBuildingId ||
+      targetEvidence.buildings.some(building => Number(building?.id) === storedBuildingId)) {
+    return { ok: false, reason: 'the stale campaign building is still present or the replacement ID is invalid' };
+  }
+  const matches = targetEvidence.buildings.filter(building =>
+    canonicalProspectorBuildingName(building?.name) === expectedName &&
+    Number(building?.size) === 1 && building?.freeAndLocked !== true);
+  if (matches.length !== 1 || Number(matches[0]?.id) !== id) {
+    return { ok: false, reason: 'the current level-1 campaign replacement is missing or ambiguous' };
+  }
+  const building = matches[0];
+  if (building?.busy != null ||
+      (building?.activity?.status === 'known' && building?.activity?.busy === true)) {
+    return { ok: false, reason: 'the campaign replacement has a known active operation' };
+  }
+
+  const idle = targetEvidence?.idleEvidence;
+  const idleAtMs = Date.parse(idle?.observedAt);
+  if (idle?.status !== 'validated' || Number(idle?.buildingId) !== id ||
+      canonicalProspectorBuildingName(idle?.buildingName) !== expectedName ||
+      Number(idle?.level) !== 1 || !Number.isFinite(idleAtMs) ||
+      idleAtMs > nowMs + 10e3 || nowMs - idleAtMs > 60e3) {
+    return { ok: false, reason: 'fresh validated idle evidence is not bound to the replacement' };
+  }
+  if (idle.source === 'authoritative-api') {
+    if (!Object.prototype.hasOwnProperty.call(building, 'busy') || building.busy !== null) {
+      return { ok: false, reason: 'authoritative idle evidence disagrees with the building row' };
+    }
+  } else if (idle.source === 'page-derived') {
+    if ((Object.prototype.hasOwnProperty.call(building, 'busy') && building.busy !== undefined) ||
+        idle.path !== `/b/${id}/` || idle.construction !== false ||
+        idle.orderBusy !== false || idle.collectible !== false ||
+        idle.orderAvailable !== true || idle.rebuildOpenerCount !== 1 ||
+        idle.rebuildOpenerEnabled !== true) {
+      return { ok: false, reason: 'page-derived idle evidence is incomplete or contradictory' };
+    }
+  } else {
+    return { ok: false, reason: 'replacement idle evidence does not use a trusted source' };
+  }
+  if (!validProspectorEvidenceRecord(
+    experiment.lastProgressEvidence,
+    nowMs,
+    MAX_COMPLETION_STATE_AGE_MS,
+  )) {
+    return { ok: false, reason: 'fresh authenticated Prospector progress is unavailable' };
+  }
+  return { ok: true, building };
+}
+
+function reconcileOwnerProspectorRecoveryTarget(
+  directiveFile,
+  buildingId,
+  targetEvidence,
+  now = Date.now(),
+) {
+  const directive = readJson(directiveFile);
+  const validation = validateProspectorRecoveryTarget(
+    directive,
+    buildingId,
+    targetEvidence,
+    now,
+  );
+  if (!validation.ok) return validation;
+  const nowMs = Number(now);
+  const experiment = directive.prospectorExperiment;
+  const evidence = experiment.lastProgressEvidence;
+  const previousBuildingId = Number(experiment.buildingId);
+  const nextExperiment = {
+    ...experiment,
+    status: 'baseline-verified',
+    buildingId: Number(buildingId),
+    completesAt: new Date(nowMs).toISOString(),
+    expectedBaseline: Number(evidence.current),
+    expectedTarget: Number(evidence.target),
+    baselineProgress: evidence,
+    lastProgressEvidence: evidence,
+    instruction: 'For the active owner Prospector campaign, rebuild the exact current replacement level-1 extraction building through the rendered UI whenever it is authoritatively idle. Refresh and verify the authenticated achievement immediately before every one-use claim, bind the verified replacement building ID after every click, and stop only when stars equals starsMax.',
+    recoveryEvidence: {
+      status: 'verified',
+      recoveredAt: new Date(nowMs).toISOString(),
+      previousBuildingId,
+      buildingId: Number(buildingId),
+      building: validation.building.name,
+      level: 1,
+      progress: {
+        current: Number(evidence.current),
+        target: Number(evidence.target),
+        stars: Number(evidence.stars),
+        starsMax: Number(evidence.starsMax),
+        observedAt: evidence.observedAt,
+      },
+    },
+    campaign: {
+      ...experiment.campaign,
+      status: 'active',
+      currentStars: Number(evidence.stars),
+      starsMax: Number(evidence.starsMax),
+      lastRecoveredAt: new Date(nowMs).toISOString(),
+    },
+  };
+  delete nextExperiment.verificationError;
+  delete nextExperiment.verificationEvidence;
+  delete nextExperiment.verifiedAt;
+  writeJsonAtomic(directiveFile, {
+    ...directive,
+    prospectorExperiment: nextExperiment,
+  });
+  return {
+    ok: true,
+    previousBuildingId,
+    buildingId: Number(buildingId),
+    baselineCurrent: Number(evidence.current),
+    baselineTarget: Number(evidence.target),
+  };
+}
+
 function claimOwnerProspectorRebuildAttempt(directiveFile, buildingId, now = Date.now()) {
   const directive = readJson(directiveFile);
   const authorization = authorizeOwnerProspectorRebuild(directive, buildingId, now);
@@ -565,12 +778,31 @@ function refreshAndClaimOwnerProspectorRebuildAttempt(
   buildingId,
   observation,
   now = Date.now(),
+  targetEvidence = null,
 ) {
-  const evidence = recordOwnerProspectorOverview(directiveFile, observation, now);
+  let evidence = recordOwnerProspectorOverview(directiveFile, observation, now);
+  let recovery = null;
+  if (evidence?.recorded && evidence.experimentStatus === 'counter-mismatch' &&
+      targetEvidence) {
+    recovery = reconcileOwnerProspectorRecoveryTarget(
+      directiveFile,
+      buildingId,
+      targetEvidence,
+      now,
+    );
+    if (recovery.ok) {
+      evidence = {
+        ...evidence,
+        experimentStatus: 'baseline-verified',
+        recoveredTarget: recovery,
+      };
+    }
+  }
   if (!evidence?.recorded || evidence.experimentStatus !== 'baseline-verified') {
     return {
       ok: false,
-      reason: 'fresh authenticated Prospector baseline is unavailable for this REBUILD',
+      reason: recovery?.reason ||
+        'fresh authenticated Prospector baseline is unavailable for this REBUILD',
       ownerDirectiveEvidence: evidence || null,
     };
   }
@@ -587,7 +819,8 @@ function recordOwnerProspectorRebuildOutcome(directiveFile, attemptId, result, n
   const rebuiltBuildingId = Number(result?.rebuiltBuildingId);
   const completesAtMs = Date.parse(result?.rebuildCompletesAt);
   const verifiedReplacement = result?.verified === true &&
-    Number.isSafeInteger(rebuiltBuildingId) && rebuiltBuildingId > 0 &&
+    Number.isSafeInteger(rebuiltBuildingId) && rebuiltBuildingId > 0;
+  const verifiedCompletion = verifiedReplacement &&
     Number.isFinite(completesAtMs) && completesAtMs > Number(now);
   const nextAttempt = {
     ...attempt,
@@ -597,6 +830,8 @@ function recordOwnerProspectorRebuildOutcome(directiveFile, attemptId, result, n
     verified: result?.verified === true,
     ...(verifiedReplacement ? {
       rebuiltBuildingId,
+    } : {}),
+    ...(verifiedCompletion ? {
       rebuildCompletesAt: new Date(completesAtMs).toISOString(),
     } : {}),
   };
@@ -608,8 +843,71 @@ function recordOwnerProspectorRebuildOutcome(directiveFile, attemptId, result, n
       ...(isProspectorCampaign(experiment) && verifiedReplacement ? {
         buildingId: rebuiltBuildingId,
         builtAt: new Date(Number(now)).toISOString(),
-        completesAt: new Date(completesAtMs).toISOString(),
+        completesAt: verifiedCompletion ? new Date(completesAtMs).toISOString() : null,
       } : {}),
+      rebuildAttempt: nextAttempt,
+    },
+  });
+  return true;
+}
+
+function synchronizeOwnerProspectorConstruction(directiveFile, state, now = Date.now()) {
+  const directive = readJson(directiveFile);
+  const experiment = directive?.prospectorExperiment;
+  const nowMs = Number(now);
+  const stateAtMs = Date.parse(state?.t);
+  const source = state?.sources?.buildings;
+  const sourceAtMs = Date.parse(source?.asOf);
+  const buildingId = Number(experiment?.buildingId);
+  const expectedName = canonicalProspectorBuildingName(experiment?.building);
+  const stateIsFresh = Number.isFinite(nowMs) && Number.isFinite(stateAtMs) &&
+    Number.isFinite(sourceAtMs) && stateAtMs <= nowMs + 60e3 &&
+    sourceAtMs <= nowMs + 60e3 && nowMs - stateAtMs <= MAX_COMPLETION_STATE_AGE_MS &&
+    nowMs - sourceAtMs <= MAX_COMPLETION_STATE_AGE_MS;
+  if (directive?.schemaVersion !== 1 || directive?.status !== 'pending' ||
+      directive?.priority !== 'owner' || directive?.program?.status !== 'completed' ||
+      !isProspectorCampaign(experiment) || experiment?.campaign?.status !== 'active' ||
+      !Number.isSafeInteger(buildingId) || buildingId <= 0 ||
+      !PROSPECTOR_BUILDING_NAMES.has(expectedName) ||
+      source?.status !== 'ok' || !stateIsFresh || !Array.isArray(state?.buildings)) {
+    return false;
+  }
+  const matches = state.buildings.filter(building => Number(building?.id) === buildingId);
+  if (matches.length !== 1) return false;
+  const building = matches[0];
+  const busyType = canonicalProspectorBuildingName(
+    building?.busy?.type || building?.busy?.rawCategory,
+  );
+  const endsAtMs = Date.parse(building?.busy?.endsAt);
+  if (canonicalProspectorBuildingName(building?.name) !== expectedName ||
+      Number(building?.size) !== 1 ||
+      !['construction', 'b'].includes(busyType) ||
+      building?.busy?.expanding !== true ||
+      !Number.isFinite(endsAtMs) || endsAtMs <= nowMs) {
+    return false;
+  }
+  const completesAt = new Date(endsAtMs).toISOString();
+  if (experiment.completesAt === completesAt) return true;
+  const nextAttempt = experiment.rebuildAttempt?.rebuiltBuildingId === buildingId
+    ? {
+        ...experiment.rebuildAttempt,
+        rebuildCompletesAt: completesAt,
+      }
+    : experiment.rebuildAttempt;
+  writeJsonAtomic(directiveFile, {
+    ...directive,
+    prospectorExperiment: {
+      ...experiment,
+      completesAt,
+      constructionEvidence: {
+        status: 'verified',
+        buildingId,
+        building: building.name,
+        level: Number(building.size),
+        stateAsOf: state.t,
+        completesAt,
+        recordedAt: new Date(nowMs).toISOString(),
+      },
       rebuildAttempt: nextAttempt,
     },
   });
@@ -620,9 +918,9 @@ function readPendingOwnerDirective(directiveFile, stateFile, now = Date.now()) {
   let directive = readJson(directiveFile);
   if (directive?.schemaVersion !== 1 || directive?.status !== 'pending' ||
       directive?.priority !== 'owner' || !directive.id || !directive.action) return null;
+  const state = readJson(stateFile);
 
   if (directive.action === 'fund-and-upgrade-building') {
-    const state = readJson(stateFile);
     const nowMs = Number(now);
     const nowIsRepresentable = Number.isFinite(new Date(nowMs).getTime());
     const definition = ownerUpgradeProgramDefinition(directive);
@@ -680,7 +978,17 @@ function readPendingOwnerDirective(directiveFile, stateFile, now = Date.now()) {
       return null;
     }
   }
-  return decoratePendingDirective(directive);
+  const recoveryCandidate = findOwnerProspectorRecoveryCandidate(state, directive, now);
+  const decorated = decoratePendingDirective(directive);
+  if (!recoveryCandidate || !decorated?.prospectorExperiment) return decorated;
+  return {
+    ...decorated,
+    activeInstruction: `${decorated.activeInstruction || ''} The fresh authoritative building state contains exactly one safe Prospector recovery candidate: ${recoveryCandidate.building} ${recoveryCandidate.buildingId}, level 1. Preview and confirm that exact candidate; the action gate will require fresh page-derived idle evidence and authenticated achievement evidence before atomically rebinding it.`.trim(),
+    prospectorExperiment: {
+      ...decorated.prospectorExperiment,
+      recoveryCandidate,
+    },
+  };
 }
 
 function markOwnerBridgeStarted(directiveFile, directiveId, evidence) {
@@ -734,6 +1042,7 @@ module.exports = {
   completedProgramActivity,
   authorizeOwnerProspectorRebuild,
   claimOwnerProspectorRebuildAttempt,
+  findOwnerProspectorRecoveryCandidate,
   markOwnerBridgeStarted,
   parseProspectorOverview,
   pendingOwnerSubtasks,
@@ -742,4 +1051,5 @@ module.exports = {
   recordOwnerProspectorRebuildOutcome,
   recordOwnerProspectorOverview,
   refreshAndClaimOwnerProspectorRebuildAttempt,
+  synchronizeOwnerProspectorConstruction,
 };

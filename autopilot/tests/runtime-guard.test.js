@@ -358,6 +358,74 @@ completedCampaignDirective.prospectorExperiment.campaign.status = 'completed';
 assert.equal(isOwnerAuthorizedProspectorRebuild(
   campaignState, { buildingId: 55282591 }, completedCampaignDirective, prospectorNow), false);
 
+const recoveredCampaignState = clone(prospectorState);
+recoveredCampaignState.buildings[0] = {
+  id: 55389445,
+  name: 'Quarry',
+  size: 1,
+  activity: { status: 'unknown', busy: null },
+  freeAndLocked: false,
+};
+const recoveredCampaignDirective = clone(campaignDirective);
+recoveredCampaignDirective.prospectorExperiment = {
+  ...recoveredCampaignDirective.prospectorExperiment,
+  status: 'counter-mismatch',
+  buildingId: 55282591,
+  expectedBaseline: 3,
+  expectedTarget: 10,
+  baselineProgress: {
+    path: '/api/v2/companies/me/achievements/', status: 200,
+    current: 3, target: 10, stars: 0, starsMax: 7,
+  },
+  lastProgressEvidence: {
+    path: '/api/v2/companies/me/achievements/', status: 200,
+    current: 12, target: 50, stars: 1, starsMax: 7,
+  },
+  rebuildAttempt: { status: 'verified' },
+};
+assert.equal(isOwnerAuthorizedProspectorRebuild(
+  recoveredCampaignState,
+  { buildingId: 55389445 },
+  recoveredCampaignDirective,
+  prospectorNow,
+), true);
+assert.equal(councilRequiredForStructuralAction(
+  'rebuild',
+  { buildingId: 55389445 },
+  recoveredCampaignState,
+  recoveredCampaignDirective,
+  prospectorNow,
+), false);
+for (const unsafeState of [
+  {
+    ...clone(recoveredCampaignState),
+    buildings: recoveredCampaignState.buildings.concat({
+      id: 55389446, name: 'Quarry', size: 1, busy: null, freeAndLocked: false,
+    }),
+  },
+  {
+    ...clone(recoveredCampaignState),
+    buildings: recoveredCampaignState.buildings.concat({
+      id: 55282591, name: 'Quarry', size: 1, busy: null, freeAndLocked: false,
+    }),
+  },
+]) {
+  assert.equal(isOwnerAuthorizedProspectorRebuild(
+    unsafeState,
+    { buildingId: 55389445 },
+    recoveredCampaignDirective,
+    prospectorNow,
+  ), false);
+}
+const activeRecoveryDirective = clone(recoveredCampaignDirective);
+activeRecoveryDirective.prospectorExperiment.rebuildAttempt = { status: 'awaiting-counter' };
+assert.equal(isOwnerAuthorizedProspectorRebuild(
+  recoveredCampaignState,
+  { buildingId: 55389445 },
+  activeRecoveryDirective,
+  prospectorNow,
+), false);
+
 const ownerProspectorGuard = new WakeRuntimeGuard();
 ownerProspectorGuard.afterAction('rebuild', { buildingId: 55258164, confirm: false },
   { ok: true, preview: true });

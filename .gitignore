@@ -30,6 +30,7 @@ autopilot/.chat-shadow/
 autopilot/chat-diaries/
 autopilot/chat-logs/
 autopilot/diaries/
+experiments/deepseek-v4-pro-shadow/runs/
 shared/price-tracker/data/
 
 # Mutable autopilot memory and scheduling state

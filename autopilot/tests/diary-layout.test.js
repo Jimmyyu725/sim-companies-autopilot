@@ -42,7 +42,7 @@ test('a diary is initialized before state capture and failure still gets summari
   const diaryInitialization = runner.indexOf('export DIARY_FILE=');
   const stateCapture = runner.indexOf('node "$AUTOPILOT/state.js"');
   const failureStart = runner.indexOf('state capture FAILED');
-  const brainStart = runner.indexOf('timeout 900 node');
+  const brainStart = runner.indexOf('node "${BRAIN_JS:-autopilot/brain.js}"');
   const failureBranch = runner.slice(failureStart, brainStart);
 
   assert.ok(diaryInitialization >= 0 && diaryInitialization < stateCapture);
@@ -56,7 +56,7 @@ test('a diary is initialized before state capture and failure still gets summari
 
 test('the closing company-value record uses a final locked state capture before Windows sync', () => {
   const runner = read('autopilot/run-brain.sh');
-  const brainStart = runner.indexOf('timeout 900 node');
+  const brainStart = runner.indexOf('node "${BRAIN_JS:-autopilot/brain.js}"');
   const finalCapture = runner.indexOf('final company-value state capture');
   const recorder = runner.lastIndexOf('record_company_value');
   const windowsSync = runner.lastIndexOf('sync-windows-logs.sh');

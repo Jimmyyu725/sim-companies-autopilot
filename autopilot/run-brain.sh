@@ -158,7 +158,9 @@ if ! timeout 160 flock -w 90 .tick.lock env SIM_PA_SCAN=1 node "$AUTOPILOT/state
   "$AUTOPILOT/sync-windows-logs.sh" >>"$LOG" 2>&1 || true
   exit 1
 fi
-timeout 900 node "${BRAIN_JS:-autopilot/brain.js}" >> "$LOG" 2>&1
+# Council deliberation intentionally has no client-side or whole-wake elapsed-time limit.
+# The full-wake lock still prevents overlapping brains while a slow provider is thinking.
+node "${BRAIN_JS:-autopilot/brain.js}" >> "$LOG" 2>&1
 rc=$?
 node "$AUTOPILOT/brain-provider.js" record "$BRAIN_PROVIDER" "$rc" >> "$LOG" 2>&1 || true
 # The brain may finish after its last refresh or after an ambiguous failure. Capture once more so

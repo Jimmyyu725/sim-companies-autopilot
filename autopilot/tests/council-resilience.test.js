@@ -59,7 +59,6 @@ function responseFor(vote, overrides = {}) {
 
 function dependencies(overrides = {}) {
   return {
-    makeSignal: timeoutMs => ({ timeoutMs }),
     writeUsage: () => {},
     writeAudit: () => {},
     ...overrides,
@@ -204,28 +203,23 @@ test('an initial timeout retries once and preserves the successful role vote and
   assert.equal(audit.validationError, null);
 });
 
-test('two timeouts stop after the bounded retry and consume no more than the hard total budget', async () => {
+test('provider-reported timeouts retry once without a client-side request deadline', async () => {
   let calls = 0;
-  let elapsedMs = 0;
-  const requestedTimeouts = [];
+  const requestSignals = [];
   let audit;
   const vote = await reviewCouncilRole(ROLE_ARGS, dependencies({
-    fetch: async () => {
+    fetch: async (_url, request) => {
       calls += 1;
-      elapsedMs += 45_000;
+      requestSignals.push(Object.prototype.hasOwnProperty.call(request, 'signal')
+        ? request.signal
+        : 'absent');
       throw timeoutFailure();
-    },
-    now: () => elapsedMs,
-    makeSignal: timeoutMs => {
-      requestedTimeouts.push(timeoutMs);
-      return { timeoutMs };
     },
     writeAudit: (_brainDir, _role, _vote, details) => { audit = details; },
   }));
 
   assert.equal(calls, 2);
-  assert.deepEqual(requestedTimeouts, [45_000, 45_000]);
-  assert.equal(requestedTimeouts.reduce((sum, value) => sum + value, 0), 90_000);
+  assert.deepEqual(requestSignals, ['absent', 'absent']);
   assert.equal(vote.status, 'API_ERROR');
   assert.equal(vote.verdict, 'UNKNOWN');
   assert.deepEqual(audit, {
@@ -234,24 +228,6 @@ test('two timeouts stop after the bounded retry and consume no more than the har
     repairAttempted: false,
     validationError: null,
   });
-});
-
-test('a request that ignores AbortSignal still stops after two hard-bounded attempts', async () => {
-  let calls = 0;
-  const startedAt = Date.now();
-  const vote = await reviewCouncilRole(ROLE_ARGS, dependencies({
-    fetch: async () => {
-      calls += 1;
-      return new Promise(() => {});
-    },
-    attemptTimeoutMs: 10,
-    totalTimeoutMs: 25,
-  }));
-
-  assert.equal(calls, 2);
-  assert.equal(vote.status, 'API_ERROR');
-  assert.equal(vote.verdict, 'UNKNOWN');
-  assert.ok(Date.now() - startedAt < 1000);
 });
 
 test('a deterministic validation failure gets one feedback-bound repair attempt', async () => {

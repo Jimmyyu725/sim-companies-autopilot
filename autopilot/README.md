@@ -7,14 +7,13 @@ This is the canonical active runtime for the Sim Companies operator.
 - `BRAIN.md` — stable owner policy and operating protocol read every wake.
 - `CURRENT.json` — authoritative structured current checkpoint, replaced atomically each wake.
 - `OWNER-DIRECTIVE.json` and `owner-directive.js` — one durable highest-priority owner instruction.
-  A targeted upgrade may reserve a building from normal production, while an explicitly sized
-  bridge batch can use the interval before the execution wake. Completion requires fresh idle
-  evidence at the requested target level.
+  Completed programs and repeated-attempt history stay out of the model-facing view; only the active
+  subtask, current evidence binding, and stop condition are injected.
 - `MASTER.md` — append-only terse audit history; not injected as current truth.
 - `JOURNAL.md` and `diaries/diary-*.md` — detailed historical wake records. Per-wake diaries live
   in the dedicated `diaries/` directory, never in the `autopilot/` root.
-- `brain56.js` — active OpenAI Responses API engine.
-- `brain.js` — chat-completions fallback engine.
+- `brain.js` — active DeepSeek V4 Pro Chat Completions engine.
+- `brain56.js` — retained OpenAI Terra Responses API rollback engine.
 - `state.js` and `state-helpers.js` — deterministic live-state capture and normalization.
 - `company-value.js` and `company-value-recorder.js` — per-wake estimated company value using the
   game's balance-sheet equation, live assets/liabilities, and the prior UTC day's tracked VWAP at
@@ -58,8 +57,7 @@ Each `diaries/diary-*.md` ends with an automatically generated token and estimat
 summary includes main-brain and council calls and is appended before Windows synchronization. A
 closing browser snapshot also appends that wake's real-time company-value estimate, official daily
 comparison, confidence, inventory coverage, and limitations to the same diary.
-The active runner explicitly uses `BRAIN_EFFORT=high` and `BRAIN_VERBOSITY=low`: deeper internal
-reasoning with concise visible narration.
+The active runner uses DeepSeek `max` or retained OpenAI `high`, both with low visible verbosity.
 
 ## Safety
 
@@ -72,8 +70,10 @@ reasoning with concise visible narration.
   sufficient quality lot, reserve/Transport-safe quantity, and positive game-form estimated profit.
   The authorization holds the maximum projected reserve through its expiry and is consumed before
   the click, including when the post-submit result is ambiguous.
-- A pending owner directive is injected ahead of `CURRENT.json` on every wake. It remains pending
+- A compact pending-owner view is injected ahead of `CURRENT.json` on every wake. It remains pending
   across asynchronous financing or construction and closes only when live state proves completion.
+- `JOURNAL.md` remains audit history and is not re-injected. `CURRENT.json` is the sole routine
+  cross-wake operating memory, preventing stale diary narratives from overriding fresh state.
 
 ## Chat rollout
 

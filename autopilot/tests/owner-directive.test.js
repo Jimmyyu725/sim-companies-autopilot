@@ -13,6 +13,7 @@ const {
   markOwnerBridgeStarted,
   parseProspectorOverview,
   readPendingOwnerDirective,
+  readPendingOwnerDirectiveForPrompt,
   recordOwnerProspectorRebuildOutcome,
   recordOwnerProspectorOverview,
   refreshAndClaimOwnerProspectorRebuildAttempt,
@@ -223,6 +224,63 @@ test('a completed Mill program remains a pending root only for Prospector', t =>
   assert.equal(persisted.program.completionEvidence.status, 'verified');
 });
 
+test('a compact Prospector-only root remains authorized and omits historical prompt baggage', t => {
+  const files = fixture();
+  t.after(() => fs.rmSync(files.directory, { recursive: true, force: true }));
+  const observedAt = '2026-07-30T04:38:55.580Z';
+  const directive = {
+    schemaVersion: 1,
+    id: 'prospector-only',
+    createdAt: '2026-07-27T06:10:31.564Z',
+    status: 'pending',
+    priority: 'owner',
+    action: OWNER_SUBTASK_ACTION,
+    program: { status: 'completed', obsolete: 'do not inject' },
+    financing: { obsolete: 'do not inject' },
+    prospectorExperiment: {
+      status: 'waiting-construction',
+      building: 'Quarry',
+      buildingId: 99,
+      level: 1,
+      completesAt: '2026-07-30T07:38:12.998Z',
+      expectedBaseline: 16,
+      expectedTarget: 50,
+      expectedIncrement: 1,
+      campaign: {
+        mode: 'repeat-until-achievement-complete',
+        status: 'active',
+        currentStars: 1,
+        starsMax: 7,
+        verifiedRebuilds: 7,
+      },
+      baselineProgress: {
+        path: PROSPECTOR_OVERVIEW_PATH, status: 200, observedAt,
+        current: 16, target: 50, stars: 1, starsMax: 7,
+      },
+      lastProgressEvidence: {
+        path: PROSPECTOR_OVERVIEW_PATH, status: 200, observedAt,
+        current: 16, target: 50, stars: 1, starsMax: 7,
+      },
+      completedAttempts: [{ attemptId: 'old-attempt' }],
+      recoveryEvidence: { status: 'verified' },
+    },
+  };
+  fs.writeFileSync(files.directiveFile, JSON.stringify(directive));
+  const pending = readPendingOwnerDirectiveForPrompt(
+    files.directiveFile,
+    files.stateFile,
+    Date.parse('2026-07-30T04:39:00.000Z'),
+  );
+  assert.equal(pending.action, OWNER_SUBTASK_ACTION);
+  assert.equal(pending.prospectorExperiment.buildingId, 99);
+  assert.equal(pending.prospectorExperiment.expectedBaseline, 16);
+  assert.equal(pending.program, undefined);
+  assert.equal(pending.financing, undefined);
+  assert.equal(pending.prospectorExperiment.completedAttempts, undefined);
+  assert.equal(pending.prospectorExperiment.recoveryEvidence, undefined);
+  assert.match(pending.activeInstruction, /Prospector REBUILD campaign/i);
+});
+
 test('Prospector overview parser uses the exact total-progress response shape', () => {
   assert.deepEqual(parseProspectorOverview(prospectorOverview(1)), {
     label: 'Prospector',
@@ -413,7 +471,8 @@ test('verified replacement binds immediately and later state supplies a missing 
   const now = Date.parse('2026-07-29T19:26:55.000Z');
   const observedAt = new Date(now - 1000).toISOString();
   const directive = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
-  directive.program = { status: 'completed' };
+  directive.action = OWNER_SUBTASK_ACTION;
+  delete directive.program;
   directive.prospectorExperiment = {
     status: 'baseline-verified',
     building: 'Quarry',
@@ -479,7 +538,7 @@ test('verified replacement binds immediately and later state supplies a missing 
   ), true);
   persisted = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
   assert.equal(persisted.prospectorExperiment.completesAt, completesAt);
-  assert.equal(persisted.prospectorExperiment.constructionEvidence.buildingId, 100);
+  assert.equal(persisted.prospectorExperiment.constructionEvidence, undefined);
   assert.equal(
     persisted.prospectorExperiment.rebuildAttempt.rebuildCompletesAt,
     completesAt,
@@ -565,6 +624,8 @@ test('continuous Prospector campaign stops only when the authenticated achieveme
   const now = Date.parse('2026-07-27T18:40:00.000Z');
   const baselineAt = new Date(now - 60e3).toISOString();
   const directive = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
+  directive.action = OWNER_SUBTASK_ACTION;
+  delete directive.program;
   directive.prospectorExperiment = {
     status: 'awaiting-counter', building: 'Quarry', buildingId: 100, level: 1,
     completesAt: new Date(now + 3 * 60 * 60e3).toISOString(),
@@ -590,7 +651,10 @@ test('continuous Prospector campaign stops only when the authenticated achieveme
   freshState.sources.buildings.asOf = freshState.t;
   fs.writeFileSync(files.stateFile, JSON.stringify(freshState));
   assert.equal(readPendingOwnerDirective(files.directiveFile, files.stateFile, now), null);
-  assert.equal(JSON.parse(fs.readFileSync(files.directiveFile, 'utf8')).status, 'completed');
+  const completed = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
+  assert.equal(completed.status, 'completed');
+  assert.equal(completed.program, undefined);
+  assert.equal(completed.prospectorExperiment.completedAttempts, undefined);
 });
 
 test('Prospector REBUILD claim is exact, fresh, and one-use while a click may be pending', t => {

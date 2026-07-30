@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // brain56.js — the SAME brain, but on OpenAI's Responses API (/v1/responses), which the gpt-5.6
 // family requires for tool use (chat/completions rejects tools+reasoning on 5.6 — measured
-// 2026-07-24). Kept as a PARALLEL engine so the proven chat-completions brain.js (gpt-5.5) keeps
-// running; switch engines via BRAIN_JS/BRAIN_MODEL in run-brain.sh. Chains turns with
+// 2026-07-24). Retained as the Terra rollback engine while brain.js runs the DeepSeek trial;
+// switch engines via BRAIN_JS/BRAIN_MODEL in run-brain.sh. Chains turns with
 // previous_response_id (server-kept history = simpler + cache-friendly).
 const fs = require('fs'), path = require('path');
 const { execFileSync } = require('child_process');
@@ -29,7 +29,10 @@ const {
 const { currentMemorySchema, readCurrentMemory, validateCurrentMemory, writeCurrentMemory } = require(path.join(BRAIN, 'current-memory.js'));
 const { formatWakeSnapshot, journalToolSchema, prepareJournalEntry } = require(path.join(BRAIN, 'journal-entry.js'));
 const { buildingUtilizationJournalGate } = require(path.join(BRAIN, 'building-utilization-policy.js'));
-const { readPendingOwnerDirective } = require(path.join(BRAIN, 'owner-directive.js'));
+const {
+  readPendingOwnerDirective,
+  readPendingOwnerDirectiveForPrompt,
+} = require(path.join(BRAIN, 'owner-directive.js'));
 const { formatToolOutput, previewJson } = require(path.join(BRAIN, 'tool-output.js'));
 const {
   authorizeChatAction,
@@ -530,9 +533,8 @@ async function main() {
   const system = fs.readFileSync(path.join(BRAIN, 'BRAIN.md'), 'utf8');
   const stateObject = JSON.parse(fs.readFileSync(path.join(BRAIN, '.state.json'), 'utf8'));
   const state = JSON.stringify(stateObject);
-  let memory = ''; try { const j = fs.readFileSync(path.join(BRAIN, 'JOURNAL.md'), 'utf8'); memory = j.split(/\n(?=## )/).filter(s => s.startsWith('## ') && s.includes('BRAIN wake')).slice(-1).join('\n').slice(-1800); } catch (e) {}
   const current = readCurrentMemory(path.join(BRAIN, 'CURRENT.json'));
-  const ownerDirective = readPendingOwnerDirective(
+  const ownerDirective = readPendingOwnerDirectiveForPrompt(
     path.join(BRAIN, 'OWNER-DIRECTIVE.json'),
     path.join(BRAIN, '.state.json'),
   );
@@ -558,7 +560,7 @@ async function main() {
   let finished = false;
   try {
     let r = await respond({ model: MODEL, instructions: system, tools: TOOLS, tool_choice: 'auto',
-      input: [{ role: 'user', content: `WAKE ${new Date().toISOString()}${DRY ? ' (DRY RUN)' : ''}.\nYOU WERE WOKEN BECAUSE: ${wakeReason||"(scheduled check)"}\nPENDING OWNER DIRECTIVE (highest priority; execute safely and keep pending until verified complete):\n${ownerDirective ? JSON.stringify(ownerDirective) : '(none)'}\nCURRENT MEMORY (authoritative cross-wake plan; current state still wins if newer):\n${current ? JSON.stringify(current) : '(missing — create it with master this wake)'}\n\nRECENT JOURNAL (last wake; historical context only, never override CURRENT or current state):\n${memory || '(first wake)'}\n\nCurrent state:\n${state}` }] });
+      input: [{ role: 'user', content: `WAKE ${new Date().toISOString()}${DRY ? ' (DRY RUN)' : ''}.\nYOU WERE WOKEN BECAUSE: ${wakeReason||"(scheduled check)"}\nPENDING OWNER DIRECTIVE (highest priority; execute safely and keep pending until verified complete):\n${ownerDirective ? JSON.stringify(ownerDirective) : '(none)'}\nCURRENT MEMORY (authoritative cross-wake plan; current state still wins if newer):\n${current ? JSON.stringify(current) : '(missing — create it with master this wake)'}\n\nCurrent state:\n${state}` }] });
     for (let i = 0; i < 30; i++) {
     const calls = (r.output || []).filter(o => o.type === 'function_call');
     for (const o of (r.output || [])) if (o.type === 'message') { const t = (o.content || []).map(c => c.text).join(''); if (t.trim()) { log('THINK:', t.slice(0, 300)); DIARY.push(`🧠 ${t.trim()}`); } }

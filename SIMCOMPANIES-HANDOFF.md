@@ -364,6 +364,10 @@ function. Runtime validation repeats the schema checks before CDP starts.
   `fund-and-upgrade-building` directive can reserve its target from ordinary production, authorize
   deadline-bound bridge batches while funding/evidence remains unresolved, and remains pending
   until fresh state shows the idle target level.
+- Completed owner programs are compacted out of active storage. For a continuing Prospector
+  campaign, the model-facing view contains only the current replacement, authenticated baseline,
+  one active attempt when present, and the terminal condition. Prior attempts remain in ordinary
+  wake diaries/audit history and are not re-injected.
 - `REBUILD` normally requires API `busy:null`. The only exception is an API-omitted activity for an
   exact level-1 Quarry/Mine/Oil rig: the same locked action must re-read the exact building page and
   prove no construction, busy order, or collectible output plus enabled production and a unique
@@ -512,8 +516,8 @@ Do not invoke the full brain manually merely to test paths; observe the next sch
 
 The long-term mission is maximum sustainable net profit and self-funded growth. The active CEO
 prompt treats plans as evidence-backed hypotheses, compares materially different alternatives, and
-prefers bounded measurable experiments before scaling. The current operating baseline and committed
-near-term milestone remain full self-produced Coffee and exactly three Mills at L3:
+prefers bounded measurable experiments before scaling. Full self-produced Coffee is the current
+operating baseline; the former three-Mill-to-L3 program is complete:
 
 ```text
 power → water → seeds → coffee beans → coffee powder

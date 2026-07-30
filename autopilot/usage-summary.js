@@ -2,12 +2,14 @@
 
 const fs = require('fs');
 
-const PRICING_AS_OF = '2026-07-26';
+const PRICING_AS_OF = '2026-07-29';
 const PRICING_SOURCE = 'https://developers.openai.com/api/docs/models/compare';
+const DEEPSEEK_PRICING_SOURCE = 'https://api-docs.deepseek.com/quick_start/pricing/';
 const PRICING_SOURCES = Object.freeze([
   PRICING_SOURCE,
   'https://developers.openai.com/api/docs/guides/latest-model',
   'https://openai.com/api-priority-processing/',
+  DEEPSEEK_PRICING_SOURCE,
 ]);
 const PRICES_PER_MILLION = Object.freeze({
   default: Object.freeze({
@@ -17,6 +19,14 @@ const PRICES_PER_MILLION = Object.freeze({
   priority: Object.freeze({
     'gpt-5.6-terra': Object.freeze({ input: 5, cached: 0.5, cacheWrite: 6.25, output: 30 }),
     'gpt-5.6-luna': Object.freeze({ input: 2, cached: 0.2, cacheWrite: 2.5, output: 12 }),
+  }),
+  deepseek: Object.freeze({
+    'deepseek-v4-pro': Object.freeze({
+      input: 0.435,
+      cached: 0.003625,
+      cacheWrite: 0.435,
+      output: 0.87,
+    }),
   }),
 });
 
@@ -35,10 +45,16 @@ function firstPresent(sources) {
 
 function normalizeModel(model) {
   const value = String(model || '');
-  for (const known of ['gpt-5.6-terra', 'gpt-5.6-luna']) {
+  for (const known of ['gpt-5.6-terra', 'gpt-5.6-luna', 'deepseek-v4-pro']) {
     if (value === known || value.startsWith(`${known}-`)) return known;
   }
   return null;
+}
+
+function normalizeProvider(provider, model) {
+  const value = String(provider || '').trim().toLowerCase();
+  if (value === 'openai' || value === 'deepseek') return value;
+  return String(model || '').startsWith('deepseek-') ? 'deepseek' : 'openai';
 }
 
 function normalizeTier(tier) {
@@ -73,6 +89,7 @@ function normalizeUsageRow(row) {
     issues.push('cached-plus-write-exceeds-input');
   }
 
+  const model = String(row?.billing_model || (row?.model === 'council' ? '' : row?.model) || '');
   return {
     row,
     input,
@@ -80,7 +97,8 @@ function normalizeUsageRow(row) {
     cached: cachedField.present && cached !== null ? cached : null,
     cacheWrite: writeField.present && cacheWrite !== null ? cacheWrite : null,
     total: totalField.present && total !== null ? total : null,
-    model: String(row?.billing_model || (row?.model === 'council' ? '' : row?.model) || ''),
+    model,
+    provider: normalizeProvider(row?.billing_provider, model),
     role: row?.role ? String(row.role) : null,
     tier: normalizeTier(row?.service_tier),
     issues,
@@ -102,11 +120,13 @@ function tokenBounds(call) {
 function costBounds(call) {
   const bounds = tokenBounds(call);
   const model = normalizeModel(call.model);
-  const prices = PRICES_PER_MILLION[call.tier]?.[model];
+  const prices = call.provider === 'deepseek'
+    ? PRICES_PER_MILLION.deepseek?.[model]
+    : PRICES_PER_MILLION[call.tier]?.[model];
   if (!bounds || !prices) return null;
   // Above 272K input, GPT-5.6 has a separate long-context surcharge. Refuse to guess how it
   // allocates to cache reads/writes; routine Sim calls are far below this threshold.
-  if (call.input > 272000) return null;
+  if (call.provider === 'openai' && call.input > 272000) return null;
 
   const candidates = [];
   if (call.cached !== null && call.cacheWrite !== null) {
@@ -276,7 +296,7 @@ function formatDiarySummary(summary) {
     '## Token usage and estimated API list-price cost',
     `- Calls: ${summary.calls.total} (brain ${summary.calls.brain}, council ${summary.calls.council}; invalid ${summary.calls.invalid}; foreign ${summary.calls.foreign}).`,
     `- ${tokenLabel}: input ${formatInteger(summary.tokens.input)}; cached ${formatRange(summary.tokens.cached)} (${cacheNote}); cache-write ${formatRange(summary.tokens.cache_write)} (${writeNote}); output ${formatInteger(summary.tokens.output)}; total ${formatInteger(summary.tokens.total)}.`,
-    `- Estimated list-price cost: ${formatCost(summary.cost_usd)} using published OpenAI rates as of ${summary.cost_usd.pricing_as_of}. A range means the API did not fully report cache-write/read allocation.`,
+    `- Estimated list-price cost: ${formatCost(summary.cost_usd)} using published provider rates as of ${summary.cost_usd.pricing_as_of}. A range means the API did not fully report cache-write/read allocation.`,
   ].join('\n');
 }
 
@@ -365,10 +385,12 @@ if (require.main === module) {
 }
 
 module.exports = {
+  DEEPSEEK_PRICING_SOURCE,
   PRICES_PER_MILLION,
   appendSummary,
   costBounds,
   formatDiarySummary,
+  normalizeProvider,
   normalizeUsageRow,
   partitionWakeRows,
   readUsageSlice,

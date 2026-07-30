@@ -19,6 +19,8 @@ __pycache__/
 # Runtime locks and process state
 *.lock
 *.pid
+autopilot/.active-brain-provider
+autopilot/.brain-provider-health.json
 autopilot/.windows-sync-manifest
 
 # Continuously changing operational data

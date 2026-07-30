@@ -1,5 +1,6 @@
 #!/bin/bash
-# One brain wake: gather fresh state -> run the OpenAI brain loop -> ensure the next alarm exists.
+# One brain wake: preflight the selected provider -> gather fresh state -> run its brain loop ->
+# ensure the next alarm exists.
 # Fired by autopilot/gate.js when next-wake.json is due (or manually). Lock prevents overlapping wakes.
 set -uo pipefail
 cd /srv/appdata/chrome-automation/sim
@@ -36,8 +37,76 @@ WAKE_STARTED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 USAGE_FILE="$AUTOPILOT/usage.jsonl"
 USAGE_OFFSET="$(stat -c%s "$USAGE_FILE" 2>/dev/null || echo 0)"
 
-# OpenAI key ONLY (never printed; do not export the rest of ledgerwall's env). LESSONS: never echo.
-export OPENAI_API_KEY="$(sed -n 's/^OPENAI_API_KEY=//p' /srv/appdata/ledgerwall/.env 2>/dev/null | tr -d '"' | head -1)"
+fail_before_state() {
+  local reason="$1"
+  echo "$(date '+%F %T %Z') provider preflight FAILED — $reason" >> "$LOG"
+  node -e 'const fs=require("fs"),now=Date.now(),at=now+3e5;fs.writeFileSync("autopilot/next-wake.json",JSON.stringify({at,atIso:new Date(at).toISOString(),reason:"provider preflight failed, retry",set:new Date(now).toISOString()}))'
+  {
+    printf '\n════ WAKE %s (provider preflight) ════\n' "$WAKE_STARTED_AT"
+    printf '⚠ PROVIDER PREFLIGHT FAILED\n'
+    printf -- '- Safety result: no browser read, model call, or game action was attempted.\n'
+    printf -- '- Recovery: retry scheduled in five minutes; see `brain.log` for the non-secret reason.\n'
+  } >> "$DIARY_FILE"
+  local usage_end_offset
+  usage_end_offset="$(stat -c%s "$USAGE_FILE" 2>/dev/null || echo 0)"
+  node "$AUTOPILOT/usage-summary.js" \
+    "--usage=$USAGE_FILE" \
+    "--offset=$USAGE_OFFSET" \
+    "--end-offset=$usage_end_offset" \
+    "--diary=$DIARY_FILE" \
+    "--wake-log=$AUTOPILOT/wake-usage.jsonl" \
+    "--wake-id=$WAKE_ID" \
+    "--started-at=$WAKE_STARTED_AT" \
+    "--brain-rc=1" >> "$LOG" 2>&1 || true
+  "$AUTOPILOT/sync-windows-logs.sh" >>"$LOG" 2>&1 || true
+  exit 1
+}
+
+ACTIVE_PROVIDER="$(node "$AUTOPILOT/brain-provider.js" current 2>>"$LOG")" ||
+  fail_before_state "active provider configuration is invalid"
+if ! node "$AUTOPILOT/brain-provider.js" check "$ACTIVE_PROVIDER" >>"$LOG" 2>&1; then
+  if [ "$ACTIVE_PROVIDER" = "deepseek" ] &&
+      node "$AUTOPILOT/brain-provider.js" switch openai --confirm >>"$LOG" 2>&1; then
+    echo "$(date '+%F %T %Z') DeepSeek credential preflight failed; using retained OpenAI provider before any action" >> "$LOG"
+    ACTIVE_PROVIDER=openai
+  else
+    fail_before_state "$ACTIVE_PROVIDER credential is unavailable"
+  fi
+fi
+
+unset OPENAI_API_KEY DEEPSEEK_API_KEY
+case "$ACTIVE_PROVIDER" in
+  deepseek)
+    export BRAIN_PROVIDER=deepseek
+    export BRAIN_MODEL=deepseek-v4-pro
+    export BRAIN_JS="$AUTOPILOT/brain.js"
+    export BRAIN_EFFORT=max
+    export BRAIN_MAX_TOKENS=32768
+    export BRAIN_MAX_ROUNDS=40
+    export BRAIN_REQUEST_TIMEOUT_MS=180000
+    export COUNCIL_PROVIDER=deepseek
+    export COUNCIL_MODEL=deepseek-v4-pro
+    export COUNCIL_EFFORT=max
+    export COUNCIL_MAX_TOKENS=16384
+    export DEEPSEEK_API_KEY="$(tr -d '\r\n' < /home/jimmy/.config/sim-benchmark/deepseek-v4-pro.txt)"
+    ;;
+  openai)
+    export BRAIN_PROVIDER=openai
+    export BRAIN_MODEL=gpt-5.6-terra
+    export BRAIN_JS="$AUTOPILOT/brain56.js"
+    export BRAIN_EFFORT=high
+    export COUNCIL_PROVIDER=openai
+    export COUNCIL_MODEL=gpt-5.6-luna
+    export COUNCIL_EFFORT=high
+    # Load only the key entry; never source or print the rest of the environment file.
+    export OPENAI_API_KEY="$(sed -n 's/^OPENAI_API_KEY=//p' /srv/appdata/ledgerwall/.env 2>/dev/null | tr -d '"' | head -1)"
+    ;;
+  *)
+    fail_before_state "unsupported provider"
+    ;;
+esac
+export BRAIN_VERBOSITY=low
+echo "$(date '+%F %T %Z') provider=$BRAIN_PROVIDER model=$BRAIN_MODEL effort=$BRAIN_EFFORT engine=$BRAIN_JS" >> "$LOG"
 
 # Fresh state (timeout-bounded browser read, LESSONS B2).
 if ! timeout 160 flock -w 90 .tick.lock node "$AUTOPILOT/state.js" >> "$LOG" 2>&1; then
@@ -67,12 +136,9 @@ if ! timeout 160 flock -w 90 .tick.lock node "$AUTOPILOT/state.js" >> "$LOG" 2>&
   "$AUTOPILOT/sync-windows-logs.sh" >>"$LOG" 2>&1 || true
   exit 1
 fi
-export BRAIN_MODEL=gpt-5.6-terra
-export BRAIN_JS="$AUTOPILOT/brain56.js"
-export BRAIN_EFFORT=high
-export BRAIN_VERBOSITY=low
 timeout 900 node "${BRAIN_JS:-autopilot/brain.js}" >> "$LOG" 2>&1
 rc=$?
+node "$AUTOPILOT/brain-provider.js" record "$BRAIN_PROVIDER" "$rc" >> "$LOG" 2>&1 || true
 USAGE_END_OFFSET="$(stat -c%s "$USAGE_FILE" 2>/dev/null || echo 0)"
 # Safety: an alarm must ALWAYS exist or the brain never wakes again. Five minutes is the maximum
 # safe delay here: the process may have exited immediately after an ambiguous click and before its

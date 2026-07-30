@@ -14,9 +14,12 @@ values. Verify live evidence before asserting or changing state.
 
 ## 1. Runtime ownership
 
-Since 2026-07-24, the sole company operator is the OpenAI gpt-5.6 LLM autopilot in `autopilot/`.
-The former fast-loop, strategist, and board layers are preserved under `legacy/` as history only.
-They are inactive and their old data is not current business evidence.
+Since 2026-07-29, the sole company operator is the provider-routed LLM autopilot in `autopilot/`.
+The production trial uses DeepSeek V4 Pro at Max reasoning for the main brain and CFO/COO/CMO.
+The prior OpenAI Terra/Luna path remains intact as a one-command rollback and is activated
+automatically after two consecutive failed DeepSeek wakes. The former fast-loop, strategist, and
+board layers are preserved under `legacy/` as history only. They are inactive and their old data is
+not current business evidence.
 
 - Sim root: `/srv/appdata/chrome-automation/sim/`
 - Company ID: `5714348`
@@ -60,11 +63,13 @@ artifacts. They are not part of either the active autopilot or the archived thre
 | `autopilot/BRAIN.md` | Goal-driven CEO mandate: sustainable-profit objective, current Coffee baseline, opportunity discovery, alternative comparison, bounded experiments, evidence/safety boundaries, capital protocol, and alarm discipline. Read every wake. |
 | `autopilot/CURRENT.json` | Authoritative structured current checkpoint: state-tied cash/debt, verified work, blockers, plan, and next decision time. Replaced atomically each wake. |
 | `autopilot/MASTER.md` | Append-only terse audit history. It is not injected as current truth and cannot override CURRENT or fresh state. |
-| `autopilot/brain56.js` | Active OpenAI Responses API engine (`gpt-5.6-terra`). |
-| `autopilot/brain.js` | Chat-completions fallback engine. |
+| `autopilot/brain.js` | Provider-aware Chat Completions engine and active DeepSeek V4 Pro Max production path. It rejects an entire multi-tool response before executing any call. |
+| `autopilot/brain56.js` | Retained OpenAI Responses API rollback engine (`gpt-5.6-terra`, High). |
+| `autopilot/brain-provider.js` | Owner-only runtime provider selector, credential preflight, health counter, and automatic DeepSeek-to-OpenAI fallback after two consecutive failed wakes. |
+| `autopilot/deepseek-execution-prompt.js` | Small DeepSeek-specific protocol adapter. It adds no business authority and makes one-tool, refresh, evidence, retry, and close sequencing explicit. |
 | `autopilot/action-contracts.js` | Strict per-action schemas plus matching runtime validation. Do not rely on a hard-coded schema count; chat and other guarded capabilities evolve independently. |
 | `autopilot/failure-budget.js` | Per-target two-failure circuit breaker for one wake. |
-| `autopilot/runtime-guard.js` | Enforces refresh between mutations and blocks finish until refresh, journal, CURRENT checkpoint, and alarm requirements pass. If the model reaches the 30-round boundary after every enforced close gate has already passed, the engines now record a deterministic successful finish instead of overwriting the valid alarm with a five-minute failure retry; an incomplete close still fails safely. |
+| `autopilot/runtime-guard.js` | Enforces refresh between mutations and blocks finish until refresh, journal, CURRENT checkpoint, and alarm requirements pass. If the model reaches its configured round boundary after every enforced close gate has already passed, the engines record a deterministic successful finish instead of overwriting the valid alarm with a five-minute failure retry; an incomplete close still fails safely. |
 | `autopilot/building-utilization-policy.js` | Journal hard gate: fresh state may not contain an idle standard production/sales building, an unresolved standard sales building, or a completed-but-uncollected job; seasonal/free-and-locked buildings are excluded. Waiting for an upgrade, financing, or evidence is not an idle exception. |
 | `autopilot/building-page-activity.js` | Shared exact-page classifier for construction, active retail sale, enabled production/retail idle forms, and UNKNOWN generic busy text. Evidence is bound to the exact building ID, level, route, and freshness window. |
 | `autopilot/production-policy.js` | Duration limits, Mill micro-batch protection, deadline-bound `finishBefore` sizing, and a pre-browser guard that prevents non-Coffee bridges from consuming verified Power/Water Coffee reserves. |
@@ -84,7 +89,7 @@ artifacts. They are not part of either the active autopilot or the archived thre
 | `autopilot/exchange-sale-safety.js` | Final execution-layer guard for fresh state/plan, available stock, Transport, exact five-minute inspection match, and positive game-form profit. |
 | `autopilot/mill-upgrade-policy.js` | Pure deterministic Pareto comparison of evidence-backed Mill upgrade candidates; ranks merit without using current cash. |
 | `autopilot/council-evidence.js` | Shared read-only collector that gives CFO/COO/CMO separate live finance, operations/P1, and retail/order-book evidence packs before deliberation. |
-| `autopilot/council.js` | Runs the three council roles independently against automatic evidence. Each role has bounded timeout/retry, API/JSON failures remain `UNKNOWN`, one invalid vote may receive one validation-feedback repair and must pass the same strict validator, and a non-sensitive per-role audit is written to `council-audit.jsonl`. |
+| `autopilot/council.js` | Runs the three council roles independently against automatic evidence. It follows the active main-brain provider: DeepSeek V4 Pro Max during the trial and OpenAI Luna High after rollback. Each role has bounded timeout/retry, API/JSON failures remain `UNKNOWN`, one invalid vote may receive one validation-feedback repair and must pass the same strict validator, and a non-sensitive per-role audit is written to `council-audit.jsonl`. |
 | `autopilot/council-verdict.js` | Validates structured council citations against exact evidence values and rejects unsupported claims. |
 | `autopilot/api-result.js` | Adds source/status/time plus explicit pagination and truncation metadata to generic API reads. |
 | `autopilot/tool-output.js` | Bounds large tool results by whole fields and marks every omission explicitly; no raw JSON clipping. |
@@ -93,13 +98,16 @@ artifacts. They are not part of either the active autopilot or the archived thre
 | `autopilot/state.js` | Captures and normalizes fresh live state into `autopilot/.state.json`. |
 | `autopilot/state-helpers.js` | Deterministic parsing for busy jobs, slots, inventory lots, rolling volume, and bonds. |
 | `autopilot/gate.js` | Zero-LLM alarm gate, run every minute. |
-| `autopilot/run-brain.sh` | Consumes the alarm, captures state, runs the engine, guarantees a future alarm, checks it, and writes/pushes logs. |
+| `autopilot/run-brain.sh` | Preflights the selected provider before browser access, consumes the alarm, captures state, runs the matching main/council engines, records provider health, guarantees a future alarm, checks it, and writes/pushes logs. |
 | `autopilot/check-alarm.js` | Prevents sleeping more than three minutes past the earliest known completion. |
 | `autopilot/usage-summary.js` | Aggregates all main-brain and council calls for one wake, appends token/cost ranges to its diary, and writes `wake-usage.jsonl`. |
 | `autopilot/tests/` | Unit coverage for state semantics, schemas, validation, and the failure breaker. |
 
 Runtime files:
 
+- `autopilot/.active-brain-provider` — owner-only `deepseek` or `openai` selector. It is intentionally
+  ignored by Git; a missing file safely defaults to retained OpenAI.
+- `autopilot/.brain-provider-health.json` — owner-only consecutive-failure state and fallback audit.
 - `autopilot/next-wake.json` — pending future alarm.
 - `autopilot/.last-wake.json` — consumed alarm and wake reason.
 - `autopilot/.state.json` — last normalized state.
@@ -428,11 +436,28 @@ use `cd` to the Sim root, and use `.tick.lock` where it navigates the shared tab
 Read-only monitoring:
 
 ```bash
+node autopilot/brain-provider.js current
+node autopilot/brain-provider.js check
 cat autopilot/next-wake.json
 tail -n 100 autopilot/brain.log
 tail -n 100 autopilot/gate.log
 tail -n 30 autopilot/MASTER.md
 ```
+
+Provider switching is explicit, credential-preflighted, and does not restart or invoke the brain:
+
+```bash
+# Start or resume the DeepSeek V4 Pro Max trial.
+node autopilot/brain-provider.js switch deepseek --confirm
+
+# One-command manual rollback to Terra High + Luna High.
+node autopilot/brain-provider.js switch openai --confirm
+```
+
+Two consecutive non-zero DeepSeek brain exits switch the next wake to OpenAI automatically. A
+successful DeepSeek wake resets the counter. A missing or malformed DeepSeek credential falls back
+to OpenAI before any browser read, model call, or game action. Provider configuration and health
+files are mode `0600`; logs include provider/model/effort but never credential values.
 
 Deterministic validation:
 
@@ -440,7 +465,8 @@ Deterministic validation:
 node --test autopilot/tests/*.test.js
 for f in \
   autopilot/act.js autopilot/action-contracts.js autopilot/api.js \
-  autopilot/brain.js autopilot/brain56.js autopilot/check-alarm.js \
+  autopilot/brain.js autopilot/brain56.js autopilot/brain-provider.js \
+  autopilot/deepseek-execution-prompt.js autopilot/check-alarm.js \
   autopilot/journal-entry.js \
   autopilot/council-evidence.js autopilot/council-evidence-helpers.js \
   autopilot/council.js autopilot/failure-budget.js autopilot/gate.js autopilot/inspect-building.js \
@@ -492,6 +518,8 @@ an exit criterion; paper profit alone cannot authorize it.
 ## 11. Secrets and remote access
 
 - OpenAI key location: `/srv/appdata/ledgerwall/.env` — never print it.
+- DeepSeek trial key location: `/home/jimmy/.config/sim-benchmark/deepseek-v4-pro.txt`, mode `0600`
+  — never print it.
 - Game credentials location: `/srv/appdata/chrome-automation/sim/.creds` — never print it.
 - Windows push key: `~/.ssh/win_key` — never print it.
 - Full NAS reference: `/srv/appdata/jimmynas-handoff.md`.

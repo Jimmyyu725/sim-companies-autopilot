@@ -294,6 +294,24 @@ assert.equal(councilRequiredForStructuralAction(
   'rebuild', { buildingId: 55258164 }, prospectorState, prospectorDirective, prospectorNow), false);
 assert.equal(councilRequiredForStructuralAction(
   'rebuild', { buildingId: 55258164 }, prospectorState, null, prospectorNow), true);
+const compactCampaignDirective = clone(prospectorDirective);
+delete compactCampaignDirective.program;
+compactCampaignDirective.action = 'complete-owner-subtasks';
+compactCampaignDirective.prospectorExperiment.campaign = {
+  mode: 'repeat-until-achievement-complete',
+  status: 'active',
+};
+for (const evidence of [
+  compactCampaignDirective.prospectorExperiment.baselineProgress,
+  compactCampaignDirective.prospectorExperiment.lastProgressEvidence,
+]) {
+  evidence.stars = 1;
+  evidence.starsMax = 7;
+}
+assert.equal(isOwnerAuthorizedProspectorRebuild(
+  prospectorState, { buildingId: 55258164 }, compactCampaignDirective, prospectorNow), true);
+assert.equal(councilRequiredForStructuralAction(
+  'rebuild', { buildingId: 55258164 }, prospectorState, compactCampaignDirective, prospectorNow), false);
 assert.equal(isOwnerAuthorizedProspectorRebuild(
   prospectorState, { buildingId: 99 }, prospectorDirective, prospectorNow), false);
 

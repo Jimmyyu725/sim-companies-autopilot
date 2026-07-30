@@ -61,6 +61,7 @@ const MAX_ALARM_DELAY_MS = 4 * 60 * 60 * 1000;
 const OWNER_DIRECTIVE_MAX_STATE_AGE_MS = 5 * 60 * 1000;
 const PROSPECTOR_OVERVIEW_PATH = '/api/v2/companies/me/achievements/';
 const PROSPECTOR_CAMPAIGN_MODE = 'repeat-until-achievement-complete';
+const OWNER_SUBTASK_ACTION = 'complete-owner-subtasks';
 
 function buildWakeAlarm(args = {}, nowMs = Date.now(), retryKinds = []) {
   const now = Number(nowMs);
@@ -424,12 +425,14 @@ function isOwnerAuthorizedProspectorRebuild(state, params = {}, directive, now =
     expectedBaseline === 1 && expectedTarget === 10 && expectedIncrement === 1 &&
     Number(baseline?.current) === 1 && Number(baseline?.target) === 10 &&
     Number(latest?.current) === 1 && Number(latest?.target) === 10;
+  const rootAuthorizationValid = directive?.program?.status === 'completed' ||
+    (campaign && directive?.action === OWNER_SUBTASK_ACTION);
   const stateIsFresh = Number.isFinite(nowMs) && Number.isFinite(stateAtMs) &&
     Number.isFinite(buildingSourceAtMs) && stateAtMs <= nowMs + 60e3 &&
     buildingSourceAtMs <= nowMs + 60e3 && nowMs - stateAtMs <= OWNER_DIRECTIVE_MAX_STATE_AGE_MS &&
     nowMs - buildingSourceAtMs <= OWNER_DIRECTIVE_MAX_STATE_AGE_MS;
   return directive?.schemaVersion === 1 && directive?.status === 'pending' &&
-    directive?.priority === 'owner' && directive?.program?.status === 'completed' &&
+    directive?.priority === 'owner' && rootAuthorizationValid &&
     (campaignProgressValid || boundedProgressValid) && !activeAttempt &&
     Number.isSafeInteger(buildingId) && buildingId > 0 &&
     Number(experiment?.buildingId) === buildingId && Number(experiment?.level) === 1 &&

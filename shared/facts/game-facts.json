@@ -1,6 +1,6 @@
 {
- "generated": "2026-07-29T13:20:01.767Z",
- "source": "encyclopedia/ (scraped in-game) + defs.json (public bundle) — all MEASURED",
+ "generated": "2026-07-30T06:33:23.950Z",
+ "source": "encyclopedia/ (scraped in-game) + defs.json (public bundle) + official Research guide",
  "buildingCount": 48,
  "resourceCount": 151,
  "mechanics": {
@@ -24,6 +24,21 @@
    50000,
    50000
   ],
+  "patent_value_by_research_kind": {
+   "29": 1368,
+   "30": 2160,
+   "31": 2160,
+   "32": 2592,
+   "33": 1584,
+   "34": 1296,
+   "35": 1260,
+   "58": 1440,
+   "59": 720,
+   "100": 2440.8,
+   "113": 1800,
+   "145": 1728
+  },
+  "patent_value_source": "https://simcompanies.atlassian.net/wiki/spaces/GUIDES/pages/4620296/Research+guide",
   "realm_phase": 8,
   "realm_research_limit": 12,
   "acceleration_ladder": "x3 → x2(24h) → x1 (read live from auth-data)",
@@ -43,7 +58,7 @@
    "25": 12,
    "30": 14
   },
-  "_note": "All MEASURED from the game bundle/encyclopedia. Cite these; do not re-assume."
+  "_note": "Mechanics are measured from the game bundle/encyclopedia; fixed patent values come from the official Research guide."
  },
  "buildings": {
   "0": {

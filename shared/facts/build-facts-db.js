@@ -81,11 +81,26 @@ const mechanics = {
   build_uses_warehouse_first: true,    // BUY MISSING only for the shortfall
   patent_base_probability: 0.0625,     // n5
   patents_needed_per_quality: [12, 50, 500, 2000, 5000, 10000, 10000, 10000, 10000, 10000, 50000, 50000],
+  patent_value_by_research_kind: {
+    29: 1368,
+    30: 2160,
+    31: 2160,
+    32: 2592,
+    33: 1584,
+    34: 1296,
+    35: 1260,
+    58: 1440,
+    59: 720,
+    100: 2440.80,
+    113: 1800,
+    145: 1728,
+  },
+  patent_value_source: 'https://simcompanies.atlassian.net/wiki/spaces/GUIDES/pages/4620296/Research+guide',
   realm_phase: 8, realm_research_limit: 12,
   acceleration_ladder: 'x3 → x2(24h) → x1 (read live from auth-data)',
   level_unlocks: { contracts: 5, research: 10, bonds: 10, executives: 15, buyOrders: 25 },
   building_slots: { 0: 4, 5: 5, 10: 6, 15: 8, 20: 10, 25: 12, 30: 14 },
-  _note: 'All MEASURED from the game bundle/encyclopedia. Cite these; do not re-assume.',
+  _note: 'Mechanics are measured from the game bundle/encyclopedia; fixed patent values come from the official Research guide.',
 };
 
 // cross-check: building letters in defs vs encyclopedia
@@ -98,7 +113,7 @@ for (const r of Object.values(resources)) {
 
 const db = {
   generated: new Date().toISOString(),
-  source: 'encyclopedia/ (scraped in-game) + defs.json (public bundle) — all MEASURED',
+  source: 'encyclopedia/ (scraped in-game) + defs.json (public bundle) + official Research guide',
   buildingCount: Object.keys(buildings).length,
   resourceCount: Object.keys(resources).length,
   mechanics, buildings, resources,

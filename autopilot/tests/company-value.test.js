@@ -6,11 +6,22 @@ const { aggregateVolumeRecords } = require('../../shared/price-tracker/data-qual
 const {
   calculateBuildingAssets,
   calculateCompanyValue,
+  calculatePatentAssets,
   collectInventoryLots,
   derivePreviousDayReferencePrices,
   summarizeOfficialBalanceSheet,
   valueInventoryLots,
 } = require('../company-value.js');
+
+const PATENT_REQUIREMENTS = [12, 50, 500, 2000, 5000, 10000, 10000, 10000, 10000, 10000, 50000, 50000];
+const PATENT_VALUES = {
+  29: 1368,
+  145: 1728,
+};
+const RESEARCH_DEFINITIONS = {
+  29: { isResearch: true, improvesQualityOf: [118] },
+  145: { isResearch: true, improvesQualityOf: [119] },
+};
 
 function latestBalance() {
   return {
@@ -131,7 +142,25 @@ test('collects every inventory location and values production WIP as recipe inpu
   assert.equal(valuation.byLocation.retail, 4250);
 });
 
-test('calculates a live estimate while preserving separately labeled daily fields', () => {
+test('reconstructs live patent value from cumulative quality thresholds and current progress', () => {
+  const result = calculatePatentAssets([
+    { quality: 2, kind: 119, patents: 1, patentsNeeded: 500 },
+    { quality: 2, kind: 118, patents: 18, patentsNeeded: 500 },
+  ], {
+    resourceDefinitions: RESEARCH_DEFINITIONS,
+    patentRequirements: PATENT_REQUIREMENTS,
+    patentValuesByResearchKind: PATENT_VALUES,
+  });
+  assert.equal(result.status, 'ok');
+  assert.equal(result.patentCount, 143);
+  assert.equal(result.byProduct[119].cumulativePatentCount, 63);
+  assert.equal(result.byProduct[119].value, 108864);
+  assert.equal(result.byProduct[118].cumulativePatentCount, 80);
+  assert.equal(result.byProduct[118].value, 109440);
+  assert.equal(result.total, 218304);
+});
+
+test('calculates a live estimate using current patents instead of the daily patent field', () => {
   const balance = {
     date: '2026-07-30T01:00:00Z',
     cash: 100,
@@ -172,7 +201,12 @@ test('calculates a live estimate while preserving separately labeled daily field
     warehouse: [{ kind: 1, quality: 0, amount: 100 }],
     marketOrders: [],
     outgoingContracts: [],
-    resourceDefinitions: {},
+    resourceDefinitions: {
+      29: { isResearch: true, improvesQualityOf: [1] },
+    },
+    researchProgress: [{ quality: 0, kind: 1, patents: 2, patentsNeeded: 12 }],
+    patentRequirements: [12, 50],
+    patentValuesByResearchKind: { 29: 100 },
     referencePriceResult: {
       prices: { 1: { liquidationUnitValue: 0.1 } },
       window: { startIso: '2026-07-29T00:00:00Z', endIso: '2026-07-30T00:00:00Z' },
@@ -180,11 +214,13 @@ test('calculates a live estimate while preserving separately labeled daily field
     tickerPrices: {},
   });
   assert.equal(result.official.total, 150);
-  assert.equal(result.realtimeEstimate.total, 260);
-  assert.equal(result.realtimeEstimate.deltaFromOfficial, 110);
+  assert.equal(result.realtimeEstimate.total, 450);
+  assert.equal(result.realtimeEstimate.deltaFromOfficial, 300);
   assert.equal(result.realtimeEstimate.components.inventory, 10);
   assert.equal(result.realtimeEstimate.components.accountsReceivable, 20);
-  assert.match(result.realtimeEstimate.limitations.join(' '), /Patent value is carried/);
+  assert.equal(result.realtimeEstimate.components.patents, 200);
+  assert.equal(result.realtimeEstimate.patents.patentCount, 2);
+  assert.ok(!result.realtimeEstimate.methodology.carriedDailyFields.includes('patents'));
 });
 
 test('refuses a total when a live asset source or inventory price is missing', () => {
@@ -197,7 +233,10 @@ test('refuses a total when a live asset source or inventory price is missing', (
     warehouse: [],
     marketOrders: [],
     outgoingContracts: [],
-    resourceDefinitions: {},
+    resourceDefinitions: RESEARCH_DEFINITIONS,
+    researchProgress: [],
+    patentRequirements: PATENT_REQUIREMENTS,
+    patentValuesByResearchKind: PATENT_VALUES,
     referencePriceResult: { prices: {}, window: null },
     tickerPrices: {},
   };
@@ -205,6 +244,11 @@ test('refuses a total when a live asset source or inventory price is missing', (
   assert.equal(missingOrders.realtimeEstimate.status, 'unavailable');
   assert.equal(missingOrders.realtimeEstimate.total, null);
   assert.match(missingOrders.realtimeEstimate.limitations.join(' '), /market-order source/);
+
+  const missingResearch = calculateCompanyValue({ ...completeInputs, researchProgress: null });
+  assert.equal(missingResearch.realtimeEstimate.status, 'unavailable');
+  assert.equal(missingResearch.realtimeEstimate.total, null);
+  assert.match(missingResearch.realtimeEstimate.limitations.join(' '), /research-progress source/);
 
   const missingPrice = calculateCompanyValue({
     ...completeInputs,

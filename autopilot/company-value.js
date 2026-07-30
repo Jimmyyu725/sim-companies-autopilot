@@ -19,6 +19,11 @@ function positiveInteger(value) {
   return Number.isSafeInteger(number) && number > 0 ? number : null;
 }
 
+function nonNegativeInteger(value) {
+  const number = finiteNumber(value);
+  return Number.isSafeInteger(number) && number >= 0 ? number : null;
+}
+
 function roundMoney(value) {
   return Math.round(Number(value) * 100) / 100;
 }
@@ -347,6 +352,146 @@ function calculateBuildingAssets(buildings) {
   };
 }
 
+function calculatePatentAssets(researchProgress, {
+  resourceDefinitions,
+  patentRequirements,
+  patentValuesByResearchKind,
+} = {}) {
+  const issues = [];
+  if (!hasRowsShape(researchProgress, ['research', 'data', 'results'])) {
+    return {
+      status: 'unavailable',
+      total: null,
+      patentCount: null,
+      byProduct: {},
+      byResearchKind: {},
+      issues: ['The live research-progress source is unavailable.'],
+    };
+  }
+
+  const requirements = Array.isArray(patentRequirements)
+    ? patentRequirements.map(positiveInteger)
+    : [];
+  if (!requirements.length || requirements.some(value => value == null)) {
+    issues.push('Patent requirements are unavailable or malformed.');
+  }
+
+  const values = {};
+  if (patentValuesByResearchKind && typeof patentValuesByResearchKind === 'object'
+      && !Array.isArray(patentValuesByResearchKind)) {
+    for (const [kindText, valueRaw] of Object.entries(patentValuesByResearchKind)) {
+      const kind = positiveInteger(kindText);
+      const value = nonNegativeNumber(valueRaw);
+      if (kind != null && value != null && value > 0) values[kind] = value;
+    }
+  }
+  if (!Object.keys(values).length) {
+    issues.push('Fixed patent values are unavailable or malformed.');
+  }
+
+  const researchKindByProduct = {};
+  if (resourceDefinitions && typeof resourceDefinitions === 'object'
+      && !Array.isArray(resourceDefinitions)) {
+    for (const [researchKindText, definition] of Object.entries(resourceDefinitions)) {
+      const researchKind = positiveInteger(researchKindText);
+      if (researchKind == null || definition?.isResearch !== true
+          || !Array.isArray(definition?.improvesQualityOf)) continue;
+      for (const productKindRaw of definition.improvesQualityOf) {
+        const productKind = positiveInteger(productKindRaw);
+        if (productKind == null) continue;
+        if (researchKindByProduct[productKind] != null
+            && researchKindByProduct[productKind] !== researchKind) {
+          issues.push(`Product kind ${productKind} maps to multiple research kinds.`);
+          continue;
+        }
+        researchKindByProduct[productKind] = researchKind;
+      }
+    }
+  }
+
+  const byProduct = {};
+  const byResearchKind = {};
+  let total = 0;
+  let patentCount = 0;
+  const seenProducts = new Set();
+  for (const row of rowsFrom(researchProgress, ['research', 'data', 'results'])) {
+    const productKind = positiveInteger(row?.kind);
+    const quality = nonNegativeInteger(row?.quality);
+    const currentPatents = nonNegativeInteger(row?.patents);
+    if (productKind == null || quality == null || currentPatents == null) {
+      issues.push('Ignored malformed live research row.');
+      continue;
+    }
+    if (seenProducts.has(productKind)) {
+      issues.push(`Duplicate live research row for product kind ${productKind}.`);
+      continue;
+    }
+    seenProducts.add(productKind);
+    if (quality > requirements.length) {
+      issues.push(`Product kind ${productKind} has unsupported quality ${quality}.`);
+      continue;
+    }
+
+    const nextRequirement = quality < requirements.length ? requirements[quality] : null;
+    const reportedRequirement = row?.patentsNeeded == null
+      ? null
+      : nonNegativeInteger(row.patentsNeeded);
+    if (nextRequirement != null
+        && (reportedRequirement !== nextRequirement || currentPatents >= nextRequirement)) {
+      issues.push(`Product kind ${productKind} has inconsistent patent progress.`);
+      continue;
+    }
+    if (nextRequirement == null && (currentPatents !== 0
+        || (reportedRequirement != null && reportedRequirement !== 0))) {
+      issues.push(`Max-quality product kind ${productKind} has unexpected patent progress.`);
+      continue;
+    }
+
+    const researchKind = researchKindByProduct[productKind];
+    const unitValue = researchKind != null ? values[researchKind] : null;
+    if (researchKind == null || unitValue == null) {
+      issues.push(`No fixed patent value mapping exists for product kind ${productKind}.`);
+      continue;
+    }
+
+    const completedPatents = sum(requirements.slice(0, quality));
+    const productPatentCount = completedPatents + currentPatents;
+    const productValue = productPatentCount * unitValue;
+    patentCount += productPatentCount;
+    total += productValue;
+    byProduct[productKind] = {
+      researchKind,
+      quality,
+      currentPatents,
+      nextRequirement,
+      cumulativePatentCount: productPatentCount,
+      unitValue: roundMoney(unitValue),
+      value: roundMoney(productValue),
+    };
+    if (!byResearchKind[researchKind]) {
+      byResearchKind[researchKind] = {
+        patentCount: 0,
+        unitValue: roundMoney(unitValue),
+        value: 0,
+      };
+    }
+    byResearchKind[researchKind].patentCount += productPatentCount;
+    byResearchKind[researchKind].value += productValue;
+  }
+
+  for (const entry of Object.values(byResearchKind)) {
+    entry.value = roundMoney(entry.value);
+  }
+  return {
+    status: issues.length ? 'unavailable' : 'ok',
+    total: issues.length ? null : roundMoney(total),
+    patentCount: issues.length ? null : patentCount,
+    byProduct,
+    byResearchKind,
+    issues,
+  };
+}
+
 function valueInventoryLots(lots, {
   referencePrices = {},
   tickerPrices = {},
@@ -421,6 +566,9 @@ function calculateCompanyValue({
   marketOrders,
   outgoingContracts,
   resourceDefinitions,
+  researchProgress,
+  patentRequirements,
+  patentValuesByResearchKind,
   referencePriceResult,
   tickerPrices,
 }) {
@@ -437,10 +585,16 @@ function calculateCompanyValue({
     tickerPrices,
   });
   const buildingAssets = calculateBuildingAssets(buildings);
+  const patentAssets = calculatePatentAssets(researchProgress, {
+    resourceDefinitions,
+    patentRequirements,
+    patentValuesByResearchKind,
+  });
   const limitations = [
     ...inventory.issues,
     ...inventoryValue.issues,
     ...buildingAssets.issues,
+    ...patentAssets.issues,
   ];
   const sourceGaps = [];
   if (!hasRowsShape(warehouse, ['resources', 'data', 'results'])) {
@@ -455,10 +609,13 @@ function calculateCompanyValue({
   if (!hasRowsShape(buildings, ['buildings', 'data', 'results'])) {
     sourceGaps.push('The building source is unavailable.');
   }
+  if (!hasRowsShape(researchProgress, ['research', 'data', 'results'])) {
+    sourceGaps.push('The live research-progress source is unavailable.');
+  }
 
   if (official.status !== 'ok') {
     return {
-      methodVersion: 1,
+      methodVersion: 2,
       capturedAt,
       official,
       realtimeEstimate: {
@@ -474,7 +631,7 @@ function calculateCompanyValue({
   const liabilities = nonNegativeNumber(liveBondsPayable);
   if (cash == null || liabilities == null) {
     return {
-      methodVersion: 1,
+      methodVersion: 2,
       capturedAt,
       official,
       realtimeEstimate: {
@@ -486,13 +643,13 @@ function calculateCompanyValue({
     };
   }
   if (sourceGaps.length || inventory.issues.length || buildingAssets.issues.length
-      || inventoryValue.unknownAmount > 0) {
+      || patentAssets.status !== 'ok' || inventoryValue.unknownAmount > 0) {
     const gaps = [...sourceGaps, ...limitations];
     if (inventoryValue.unknownAmount > 0) {
       gaps.push(`${inventoryValue.unknownAmount} inventory units lack valuation evidence.`);
     }
     return {
-      methodVersion: 1,
+      methodVersion: 2,
       capturedAt,
       official,
       realtimeEstimate: {
@@ -509,16 +666,12 @@ function calculateCompanyValue({
     cashReservedForOrders: official.components.cashReservedForOrders,
     deposits: official.components.deposits,
     investmentInBonds: official.components.investmentInBonds,
-    patents: official.components.patents,
   };
   if (carried.cashReservedForOrders > 0) {
     limitations.push('Cash reserved for buy orders is carried from the daily statement.');
   }
   if (carried.deposits > 0 || carried.investmentInBonds > 0) {
     limitations.push('Deposits or bond investments are carried from the daily statement.');
-  }
-  if (carried.patents > 0) {
-    limitations.push('Patent value is carried from the daily statement; intraday patent changes are not priced.');
   }
   if (inventoryValue.qualityLots > 0) {
     limitations.push('Tracked VWAP blends qualities, so quality-specific inventory values are approximate.');
@@ -535,14 +688,14 @@ function calculateCompanyValue({
     carried.investmentInBonds,
     buildingAssets.buildings,
     buildingAssets.constructionInProgress,
-    carried.patents,
+    patentAssets.total,
   ]);
   const total = currentAssets + nonCurrentAssets - liabilities;
   const confidence = inventoryValue.coveragePct < 90 || buildingAssets.issues.length
     ? 'low'
     : 'medium';
   return {
-    methodVersion: 1,
+    methodVersion: 2,
     capturedAt,
     official,
     realtimeEstimate: {
@@ -563,8 +716,14 @@ function calculateCompanyValue({
         constructionInProgress: buildingAssets.constructionInProgress,
         deposits: roundMoney(carried.deposits),
         investmentInBonds: roundMoney(carried.investmentInBonds),
-        patents: roundMoney(carried.patents),
+        patents: patentAssets.total,
         bondsPayable: roundMoney(liabilities),
+      },
+      patents: {
+        total: patentAssets.total,
+        patentCount: patentAssets.patentCount,
+        byProduct: patentAssets.byProduct,
+        byResearchKind: patentAssets.byResearchKind,
       },
       inventory: {
         total: inventoryValue.total,
@@ -579,6 +738,7 @@ function calculateCompanyValue({
         equation: 'current assets + non-current assets - liabilities',
         inventory: 'Previous-day tracked VWAP × 85%, with current ticker and recorded cost fallbacks.',
         buildings: 'Base reference value × completed levels; one base level moves to construction in progress while building.',
+        patents: 'Cumulative completed-quality requirements plus current live progress, multiplied by the official fixed value for each research category.',
         carriedDailyFields: Object.keys(carried),
         referencePriceWindow: referencePriceResult?.window || null,
       },
@@ -590,6 +750,7 @@ module.exports = {
   INVENTORY_LIQUIDATION_FACTOR,
   calculateBuildingAssets,
   calculateCompanyValue,
+  calculatePatentAssets,
   collectInventoryLots,
   derivePreviousDayReferencePrices,
   previousUtcDayWindow,

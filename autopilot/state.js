@@ -195,16 +195,18 @@ const PRINTED_RATE_FRESH_SECONDS = 6 * 3600;
     balance: null,
     marketOrders: null,
     outgoingContracts: null,
+    research: null,
     status: {},
   };
   try {
     const bondData = await cdp.evaluate(`
-      const [sold, recent, balance, marketOrders, outgoingContracts] = await Promise.all([
+      const [sold, recent, balance, marketOrders, outgoingContracts, research] = await Promise.all([
         api('/api/v2/companies/me/bonds/sold/'),
         api('/api/v2/companies/me/cashflow/recent/'),
         api('/api/v2/companies/me/balance-sheet/'),
         api('/api/v2/companies/me/market-orders/'),
         api('/api/v3/contracts-outgoing/me/'),
+        api('/api/v3/players/research/'),
       ]);
       return {
         sold: sold.status === 200 ? sold.json : null,
@@ -212,12 +214,14 @@ const PRINTED_RATE_FRESH_SECONDS = 6 * 3600;
         balance: balance.status === 200 ? balance.json : null,
         marketOrders: marketOrders.status === 200 ? marketOrders.json : null,
         outgoingContracts: outgoingContracts.status === 200 ? outgoingContracts.json : null,
+        research: research.status === 200 ? research.json : null,
         status: {
           sold: sold.status,
           recent: recent.status,
           balance: balance.status,
           marketOrders: marketOrders.status,
           outgoingContracts: outgoingContracts.status,
+          research: research.status,
         },
       };
     `);
@@ -266,6 +270,7 @@ const PRINTED_RATE_FRESH_SECONDS = 6 * 3600;
       path.join(SHARED, 'price-tracker', 'data', 'volume.jsonl'),
       'utf8',
     );
+    const facts = JSON.parse(fs.readFileSync(FACTS, 'utf8'));
     const definitions = JSON.parse(fs.readFileSync(DEFS, 'utf8')).resources;
     const referencePrices = derivePreviousDayReferencePrices(
       volumeText,
@@ -282,12 +287,15 @@ const PRINTED_RATE_FRESH_SECONDS = 6 * 3600;
       marketOrders: supplementalData.marketOrders,
       outgoingContracts: supplementalData.outgoingContracts,
       resourceDefinitions: definitions,
+      researchProgress: supplementalData.research,
+      patentRequirements: facts.mechanics?.patents_needed_per_quality,
+      patentValuesByResearchKind: facts.mechanics?.patent_value_by_research_kind,
       referencePriceResult: referencePrices,
       tickerPrices: P,
     });
   } catch (error) {
     companyValue = {
-      methodVersion: 1,
+      methodVersion: 2,
       capturedAt,
       official: {
         status: 'unavailable',
@@ -320,10 +328,15 @@ const PRINTED_RATE_FRESH_SECONDS = 6 * 3600;
     volume1h: { status: volume1hMeta?.status || 'unknown', asOf: volume1hMeta?.to || null, source: 'shared/price-tracker/data/volume.jsonl' },
     weather: { status: weather ? 'ok' : 'unknown', asOf: weather ? capturedAt : null, source: '/api/v2/weather/0/' },
     bonds: { status: bonds.status || 'unknown', asOf: capturedAt, source: 'sold bonds + balance sheet' },
+    research: {
+      status: Array.isArray(supplementalData.research) ? 'ok' : 'unknown',
+      asOf: Array.isArray(supplementalData.research) ? capturedAt : null,
+      source: '/api/v3/players/research/',
+    },
     companyValue: {
       status: companyValue.realtimeEstimate?.status || 'unavailable',
       asOf: companyValue.realtimeEstimate?.asOf || null,
-      source: 'live assets + official balance baseline + previous-day local VWAP',
+      source: 'live assets + live research portfolio + official balance baseline + previous-day local VWAP',
       officialAsOf: companyValue.official?.asOf || null,
       supplementalStatus: supplementalData.status,
     },

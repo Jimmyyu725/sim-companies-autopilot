@@ -312,7 +312,11 @@ The normalized state is authoritative only for the capture time shown in `state.
 - `state.companyValue.official` reproduces the game's daily equation from the complete balance-sheet
   API: current assets plus non-current assets minus liabilities. `realtimeEstimate` recalculates at
   each closing wake from live cash, receivables, warehouse/exchange/contract/production/retail
-  inventory, completed buildings, construction in progress, and reconciled debt. Inventory follows
+  inventory, completed buildings, construction in progress, live research progress, and reconciled
+  debt. Patent value is reconstructed from `/api/v3/players/research/`: cumulative completed-quality
+  requirements plus current progress multiplied by the official fixed value for that product's
+  research category. Missing or inconsistent research evidence makes the estimate unavailable
+  instead of carrying the stale daily patent value. Inventory follows
   the documented 85% prior-day VWAP policy using the local tracker; because tracker volume blends
   qualities, the result is explicitly an estimate with coverage/confidence/limitations rather than
   an official rank update.

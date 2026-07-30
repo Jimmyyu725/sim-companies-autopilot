@@ -47,7 +47,7 @@ function compactRefreshState(state, totalBytes, maxBytes) {
   // Collapse verbose nested fields before considering those two authoritative collections optional.
   const finalOmitted = [...new Set(omitted
     .filter(field => field !== 'retail[6:]')
-    .concat(['retail', 'weather', 'paUnread', 'modifiers']))];
+    .concat(['retail', 'weather', 'modifiers']))];
   const compactBusy = building => {
     if (!Object.prototype.hasOwnProperty.call(building || {}, 'busy') || building.busy === undefined) return 'UNKNOWN';
     if (building.busy === null) return null;
@@ -74,6 +74,8 @@ function compactRefreshState(state, totalBytes, maxBytes) {
     }])),
     money: state.money,
     level: state.level,
+    pa: state.pa,
+    paUnread: state.paUnread,
     baseSlotCapacity: state.baseSlotCapacity,
     extraBuildingSlots: state.extraBuildingSlots,
     slotCapacity: state.slotCapacity,

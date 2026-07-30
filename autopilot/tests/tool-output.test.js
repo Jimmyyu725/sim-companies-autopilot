@@ -85,6 +85,30 @@ test('large refresh output preserves the compact company-value KPI', () => {
   assert.deepEqual(result.companyValue, companyValue);
 });
 
+test('large refresh output preserves pending PA state', () => {
+  const pa = {
+    status: 'pending',
+    unread: 0,
+    fingerprint: 'a'.repeat(64),
+    offerPreview: 'Forklift Olympics',
+    optionCount: 3,
+  };
+  const result = JSON.parse(formatToolOutput('refresh_state', {
+    t: '2026-07-30T04:00:00Z',
+    sources: {},
+    pa,
+    paUnread: 0,
+    warehouse: { complete: true, allPositiveProductsIncluded: true },
+    stock: [],
+    buildings: [],
+    recipes: Array.from({ length: 100 }, () => 'x'.repeat(100)),
+    retail: Array.from({ length: 100 }, () => ({ noise: 'x'.repeat(100) })),
+  }, 900));
+  assert.deepEqual(result.pa, pa);
+  assert.equal(result.paUnread, 0);
+  assert.equal(result._transport.omitted.includes('paUnread'), false);
+});
+
 test('generic summaries disclose fields omitted after the scalar scan limit', () => {
   const large = Object.fromEntries(Array.from({ length: 25 }, (_, index) => [`field${index}`, index]));
   large.padding = 'x'.repeat(1000);

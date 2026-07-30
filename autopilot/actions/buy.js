@@ -1,12 +1,12 @@
 // Buy a resource on the exchange, bounded by maxSpend. Must already be ON the resource's
 // market page (/market/resource/<kind>/) — the caller navigates there first, because a
 // navigate inside the same CDP eval races the page teardown.
-// Params: window.__buy = { kind, maxSpend, ask? }.
+// Params: window.__buy = { kind, quantity?, maxSpend, ask? }.
 //
 // Verified interaction (grapes + water, 2026-07-22): the BUY button is labelled just "BUY";
 // a plain .click() is sometimes swallowed on a freshly-rendered SPA page, so dispatch a
 // real MouseEvent. Confirm the fill via the resources API, never by reading text.
-const { kind, maxSpend, ask: askHint, minCashAfter } = window.__buy;
+const { kind, quantity: exactQuantity, maxSpend, ask: askHint, minCashAfter } = window.__buy;
 
 const qtyInputs = all('input').filter(i => i.offsetParent !== null
   && /quantity/i.test(i.placeholder || ''));
@@ -22,10 +22,18 @@ if (market.status !== 200 || !Array.isArray(market.json)) {
   return { ok: false, reason: 'could not read the authoritative current market book',
            marketStatus: market.status };
 }
-if (typeof window.__planMarketPurchase !== 'function') {
+if (typeof window.__planMarketPurchase !== 'function'
+    || typeof window.__planExactMarketPurchase !== 'function') {
   return { ok: false, guard: true, reason: 'budget-safe market planner is unavailable' };
 }
-const plan = window.__planMarketPurchase(market.json, maxSpend, askHint == null ? null : askHint);
+const plan = exactQuantity == null
+  ? window.__planMarketPurchase(market.json, maxSpend, askHint == null ? null : askHint)
+  : window.__planExactMarketPurchase(
+    market.json,
+    exactQuantity,
+    maxSpend,
+    askHint == null ? null : askHint,
+  );
 if (!plan.ok) return { ok: false, guard: true, ...plan };
 
 const qty = plan.quantity;

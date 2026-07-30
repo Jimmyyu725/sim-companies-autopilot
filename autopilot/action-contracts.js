@@ -65,14 +65,24 @@ const ACTION_CONTRACTS = Object.freeze({
     required: ['buildingId', 'name', 'qty', 'targetHours', 'finishBefore'],
   },
   buy: {
-    description: 'Buy an input from the authoritative exchange book within a hard cash budget and the configured operating-cash reserve.',
+    description: 'Buy an input through the rendered Exchange UI within a hard cash budget and the configured operating-cash reserve. Set quantity to an exact integer after inspect_exchange_buy, or null for budget-sized ordinary replenishment.',
     properties: {
       kind: { type: 'integer', minimum: 1 },
+      quantity: { type: ['integer', 'null'], minimum: 1 },
       maxSpend: { type: 'number', exclusiveMinimum: 0 },
       ask: { type: ['number', 'null'], exclusiveMinimum: 0 },
       minCashAfter: { type: ['number', 'null'], minimum: 500, llm: false },
     },
     required: ['kind', 'maxSpend'],
+  },
+  inspect_exchange_buy: {
+    description: 'Read the authoritative Exchange asks and quote one exact quantity without submitting. Returns exact book cost, highest fill price, current stock, cash after purchase, and the buyer-side fee/Transport treatment. Use before buying missing PA goods.',
+    properties: {
+      kind: { type: 'integer', minimum: 1 },
+      quantity: { type: 'integer', minimum: 1 },
+      maxUnitPrice: { type: ['number', 'null'], exclusiveMinimum: 0 },
+    },
+    required: ['kind', 'quantity', 'maxUnitPrice'],
   },
   sell: {
     description: 'Scan the Grocery price curve and start the sale at the highest positive printed profit/hour.',
@@ -145,16 +155,27 @@ const ACTION_CONTRACTS = Object.freeze({
     required: ['name', 'qty', 'price', 'confirm'],
   },
   pa_read: {
-    description: 'Read the Personal Assistant message when state.paUnread is positive.',
+    description: 'Read and persist the exact Personal Assistant offer and choices when state.pa is unread or pending. This deliberately returns no guide: independently assess the displayed choices first.',
     properties: {},
     required: [],
   },
-  pa_reply: {
-    description: 'Reply to the open Personal Assistant offer using a unique option substring.',
+  pa_consult_guide: {
+    description: 'Only after independently assessing the current PA offer, consult matching local/community guidance. The preliminary choice and concise rationale are persisted before any guide text is returned.',
     properties: {
-      choice: { type: 'string', minLength: 1 },
+      offerFingerprint: { type: 'string', pattern: '^[a-f0-9]{64}$' },
+      preliminaryChoice: { type: 'string', minLength: 1, maxLength: 1000 },
+      rationale: { type: 'string', minLength: 10, maxLength: 1000 },
     },
-    required: ['choice'],
+    required: ['offerFingerprint', 'preliminaryChoice', 'rationale'],
+  },
+  pa_reply: {
+    description: 'Reply once to the exact reviewed PA offer. Requires the persisted offer fingerprint, a unique option, and a concise comparison of the independent assessment with the consulted guide.',
+    properties: {
+      offerFingerprint: { type: 'string', pattern: '^[a-f0-9]{64}$' },
+      choice: { type: 'string', minLength: 1, maxLength: 1000 },
+      comparison: { type: 'string', minLength: 10, maxLength: 1000 },
+    },
+    required: ['offerFingerprint', 'choice', 'comparison'],
   },
   chat_scan: {
     description: 'Read selected public chat rooms, or all rooms when rooms is null.',
@@ -593,6 +614,7 @@ function actionTargetKey(action, params = {}) {
     produce: params.buildingId,
     sell: params.buildingId,
     buy: params.kind,
+    inspect_exchange_buy: params.kind,
     build: params.building,
     upgrade: params.buildingId,
     scrap: params.buildingId,
@@ -600,6 +622,7 @@ function actionTargetKey(action, params = {}) {
     bonds: 'hq',
     exchange_sell: params.name,
     pa_read: 'pa',
+    pa_consult_guide: 'pa',
     pa_reply: 'pa',
     chat_scan: 'chat',
     chat_post: params.room,

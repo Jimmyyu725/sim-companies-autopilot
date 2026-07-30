@@ -35,6 +35,13 @@ const {
 } = require(path.join(BRAIN, 'owner-directive.js'));
 const { formatToolOutput, previewJson } = require(path.join(BRAIN, 'tool-output.js'));
 const {
+  readPaReview,
+  readPendingPa,
+} = require(path.join(BRAIN, 'pa-state.js'));
+const {
+  personalAssistantJournalGate,
+} = require(path.join(BRAIN, 'pa-policy.js'));
+const {
   authorizeChatAction,
   resolveChatMode,
 } = require(path.join(BRAIN, 'chat', 'runtime-mode.js'));
@@ -486,6 +493,12 @@ async function runTool(name, args) {   // identical behavior to brain.js
       if (sequencingBlock) return sequencingBlock;
       const state = JSON.parse(fs.readFileSync(path.join(BRAIN, '.state.json'), 'utf8'));
       let alarm = null; try { alarm = JSON.parse(fs.readFileSync(path.join(BRAIN, 'next-wake.json'), 'utf8')); } catch (e) {}
+      const pendingPa = readPendingPa(path.join(BRAIN, '.pa-pending.json'));
+      const paBlock = personalAssistantJournalGate(state, {
+        pending: pendingPa,
+        review: readPaReview(path.join(BRAIN, '.pa-review.json'), pendingPa),
+      });
+      if (paBlock) return paBlock;
       const utilizationBlock = buildingUtilizationJournalGate(state);
       if (utilizationBlock) return utilizationBlock;
       const utilityBlock = utilityJournalGate(state, utilityExchangeReviews, alarm);

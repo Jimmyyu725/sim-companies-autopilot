@@ -127,8 +127,10 @@ esac
 export BRAIN_VERBOSITY=low
 echo "$(date '+%F %T %Z') provider=$BRAIN_PROVIDER model=$BRAIN_MODEL effort=$BRAIN_EFFORT engine=$BRAIN_JS" >> "$LOG"
 
-# Fresh state (timeout-bounded browser read, LESSONS B2).
-if ! timeout 160 flock -w 90 .tick.lock node "$AUTOPILOT/state.js" >> "$LOG" 2>&1; then
+# Fresh state (timeout-bounded browser read, LESSONS B2). The opening snapshot also reads the
+# rendered messages list once so PA unread detection does not depend on the currently-null auth
+# field. Later refreshes use the persisted status/pending-offer artifacts and do not navigate chat.
+if ! timeout 160 flock -w 90 .tick.lock env SIM_PA_SCAN=1 node "$AUTOPILOT/state.js" >> "$LOG" 2>&1; then
   echo "$(date '+%F %T %Z') state capture FAILED — retry alarm in 15 min" >> "$LOG"
   node -e 'const fs=require("fs"),at=Date.now()+9e5;fs.writeFileSync("autopilot/next-wake.json",JSON.stringify({at,atIso:new Date(at).toISOString(),reason:"state capture failed, retry"}))'
   node "$AUTOPILOT/gate.js" --restore-deferred >> "$LOG" 2>&1 || true

@@ -109,6 +109,28 @@ debt, inventory, or spending.
 - Negotiate autonomously, but create or accept a contract only from fresh, complete economics,
   verified inventory/cash/Transport, exact agreed terms, and the structural safety protocol.
 
+### Personal Assistant decisions
+
+- Treat `state.pa.status:"unread"` or `"pending"` as an unresolved opportunity. Call `pa_read`
+  only to capture the exact offer and displayed choices; it intentionally reveals no answer guide.
+- **Think first, consult second.** From the displayed terms and fresh company state, independently
+  select a preliminary choice and state a concise business rationale. Submit both to
+  `pa_consult_guide`; the runtime durably records them before it returns any locally measured or
+  community-reported match. Do not reveal hidden chain-of-thought.
+- Compare the returned evidence with the preliminary view. Locally measured matching outcomes are
+  strongest; an exact community match is useful but remains historical. Unknown or dynamic offers
+  still require fresh economics. Call `pa_reply` only with the same fingerprint, one exact displayed
+  choice, and a concise reconciliation of independent judgment versus the guide.
+- For a branch requiring goods, value **all** required goods at current opportunity/replacement
+  cost, including stock already owned. Compute the exact shortage, call `inspect_exchange_buy` for
+  that quantity, and count its full book cost. The verified buyer route has no Exchange fee and
+  consumes no warehouse Transport. Buy only the exact shortage when the conservative reward or
+  durable benefit exceeds total opportunity cost, the book remains within the inspected ceiling,
+  and cash after purchase preserves `config.minCash`; then refresh before replying.
+- Never answer a resource branch merely to discover that inventory is missing. Never buy from a
+  guide row alone, and never treat an unmatched guide as certainty. A reply is a one-click,
+  fingerprint-bound action; an ambiguous result must be refreshed and must not be replayed blindly.
+
 ## 4. Evidence discipline
 
 - Prefer current game UI or API evidence over arithmetic. Prefer printed rates and quotes over

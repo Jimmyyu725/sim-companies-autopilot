@@ -12,9 +12,8 @@ if (!want) return { ok: false, reason: 'no __paChoice given' };
 
 const paLink = all('a').filter(a => /personal assistant/i.test(norm(a.innerText)) && a.offsetParent !== null);
 paLink.sort((a, b) => a.innerText.length - b.innerText.length);
-if (paLink.length) { paLink[0].click(); await sleep(3000); }
-
 const replies = () => all('a.pa-reply').filter(a => a.offsetParent !== null);
+if (!replies().length && paLink.length) { paLink[0].click(); await sleep(3000); }
 const before = replies().map(a => norm(a.innerText));
 const hits = replies().filter(a => norm(a.innerText).toLowerCase().includes(want));
 if (!hits.length) return { ok: false, reason: 'no pa-reply matches choice', before };
@@ -27,6 +26,7 @@ hits[0].click();
 await sleep(3500);
 const after = replies().map(a => norm(a.innerText));
 const verified = after.length === 0;
+const resultTail = norm(document.body.innerText).slice(-2200);
 // Never dispatch the same choice twice. The first click may have reached the server while React is
 // still rendering the old options; a second event could answer a newly rendered offer or duplicate
 // a non-idempotent reward/cost. An unresolved UI is UNKNOWN and must be refreshed, not replayed.
@@ -36,6 +36,7 @@ return {
   chosen,
   before,
   after,
+  resultTail,
   mutationAttempted: true,
   doNotRetry: !verified,
   outcome: verified ? 'VERIFIED_RESOLVED' : 'UNKNOWN_AFTER_SINGLE_CLICK',

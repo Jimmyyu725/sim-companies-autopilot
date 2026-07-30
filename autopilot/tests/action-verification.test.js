@@ -13,6 +13,7 @@ const {
   evaluateSpendGuard,
   explicitFiniteNumber,
   parseExplicitCurrency,
+  planExactMarketPurchase,
   planMarketPurchase,
   quoteFixedMarketPurchase,
   validateRebuildIdleEvidence,
@@ -86,6 +87,27 @@ test('market planner defaults to the current best ask and remains within budget'
   assert.equal(result.quantity, 3571);
   assert.equal(result.highestFillPrice, 0.28);
   assert.ok(result.estimatedCost <= 1000);
+});
+
+test('exact market planner fills only the requested quantity across book levels', () => {
+  assert.deepEqual(planExactMarketPurchase([
+    { price: 10, quantity: 3 },
+    { price: 11, quantity: 10 },
+  ], 5, 100, null), {
+    ok: true,
+    quantity: 5,
+    estimatedCost: 52,
+    topAsk: 10,
+    priceCeiling: 11,
+    highestFillPrice: 11,
+    averageFillPrice: 10.4,
+  });
+  assert.equal(planExactMarketPurchase([
+    { price: 10, quantity: 3 },
+    { price: 11, quantity: 10 },
+  ], 5, 100, 10).ok, false);
+  assert.equal(planExactMarketPurchase([{ price: 10, quantity: 5 }], 5, 49, null).ok, false);
+  assert.equal(planExactMarketPurchase([{ price: 10, quantity: 4 }], 5, 100, null).ok, false);
 });
 
 test('fixed-quantity submit quote fails closed when price or depth moves', () => {

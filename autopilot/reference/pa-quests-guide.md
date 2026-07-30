@@ -1,6 +1,7 @@
 # Personal Assistant quest reference
 
-This file is loaded only by `pa_read`, not on every wake. It is a compact community reference, not
+This file is loaded only by `pa_consult_guide`, after a preliminary choice and rationale have been
+persisted; it is not loaded by `pa_read` or on every wake. It is a compact community reference, not
 current game evidence or authority to spend. Match the exact offer text, consult
 `pa-quests.md` for locally measured outcomes, and price every cash/goods branch from fresh state.
 Never buy, produce, or answer merely because a row appears here. A response that lacked goods kept

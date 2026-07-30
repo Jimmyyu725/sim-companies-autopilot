@@ -1,9 +1,10 @@
 # Personal Assistant quests — locally measured outcomes
 
-This file is loaded only by `pa_read`. It records historical observations, not current inventory,
-prices, cash, offer status, or standing permission to transact. Match the exact offer text and use
-fresh state for every decision. Community claims belong in `pa-quests-guide.md` and remain
-unverified until the game shows the result.
+This file is loaded only by `pa_consult_guide`, after the independent preliminary assessment has
+been persisted. It records historical observations, not current inventory, prices, cash, offer
+status, or standing permission to transact. Match the exact offer text and use fresh state for
+every decision. Community claims belong in `pa-quests-guide.md` and remain unverified until the
+game shows the result.
 
 ## Measured observations
 

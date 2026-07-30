@@ -41,6 +41,9 @@ autopilot/.exchange-sale-inspections.json
 autopilot/.exchange-sale-inspections.used.json
 autopilot/.inspection-rates.json
 autopilot/.last-wake.json
+autopilot/.pa-pending.json
+autopilot/.pa-review.json
+autopilot/.pa-status.json
 autopilot/.state.json
 autopilot/CURRENT.json
 autopilot/JOURNAL.md

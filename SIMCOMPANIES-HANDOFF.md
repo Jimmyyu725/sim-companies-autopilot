@@ -75,7 +75,10 @@ artifacts. They are not part of either the active autopilot or the archived thre
 | `autopilot/production-policy.js` | Duration limits, Mill micro-batch protection, deadline-bound `finishBefore` sizing, and a pre-browser guard that prevents non-Coffee bridges from consuming verified Power/Water Coffee reserves. |
 | `autopilot/production-card-binding.js` | Browser-safe exact production-card binder using the resolved resource kind plus unique image slug; supports hashed assets and abundance layouts while rejecting parent/multi-card ambiguity. |
 | `autopilot/journal-entry.js` | Validates the concise CEO decision brief, including the best opportunity/risk, 2–4 material alternatives, and an operating role for every positive warehouse item; deterministically includes exact cash/debt/slots and every captured product in NAS/Windows diaries. |
-| `autopilot/act.js` | Guarded dispatcher. Grocery sales optimize the live UI curve; confirmed exchange sales must match a fresh reserve-safe inspection exactly. |
+| `autopilot/act.js` | Guarded dispatcher. Grocery sales optimize the live UI curve; confirmed exchange sales must match a fresh reserve-safe inspection exactly. PA offers use a fingerprint-bound think-first/guide-second/reply-last protocol, and exact missing-goods purchases use a fresh read-only quote before the normal UI BUY path. |
+| `autopilot/pa-state.js` | Secure pending-offer, unread-status, and independent-review artifacts for PA quests. Opening a PA message cannot make the unresolved offer disappear from later state. |
+| `autopilot/pa-guide.js` | Pure bounded matcher for locally measured and community PA tables. Guide rows are returned only after the preliminary choice and rationale are persisted. |
+| `autopilot/pa-policy.js` | Journal gate that prevents an unread, unreviewed, or reviewed-but-unanswered PA offer from being silently deferred. |
 | `autopilot/chat/` | Chat trust boundary, NAS-local persistence, identity-neutral output policy, public/private UI plans, contact/subscription/message helpers, lead extraction, negotiation, and contract gating. |
 | `autopilot/chat/llm-decision-provider.js` | Optional bounded Responses API planner for chat. It has no browser/tools/action dispatcher, returns drafts or a non-mutating contract candidate only, and fail-closes on missing evidence. |
 | `autopilot/chat-shadow.js` | Unscheduled read-only/shadow observer entry point. It has completed bounded live reads, acquires `.brain.lock` before `.tick.lock`, stays away from an imminent brain wake, and exposes no send or contract action. |
@@ -112,6 +115,9 @@ Runtime files:
 - `autopilot/.last-wake.json` — consumed alarm and wake reason.
 - `autopilot/.state.json` — last normalized state.
 - `autopilot/.inspection-rates.json` — short-lived level-tied building-rate evidence.
+- `autopilot/.pa-status.json`, `.pa-pending.json`, and `.pa-review.json` — ignored owner-only PA
+  unread, unresolved-offer, and think-before-guide records. Verified replies clear the pending
+  artifacts; `pa-history.jsonl` keeps the non-secret result audit.
 - `autopilot/.exchange-sale-inspections.json` — per-resource latest read-only exchange preflights.
   A failure invalidates only the same resource kind; confirming a sale consumes only that kind's
   exact `inspectionId`, so one product cannot erase or replay another product's approval.
@@ -347,6 +353,17 @@ function. Runtime validation repeats the schema checks before CDP starts.
 - Runtime blocks a second state-changing action until `refresh_state` succeeds, enforces the closing
   order `refresh_state → set_alarm → journal → master`, and blocks `finish` until all four succeed
   after the latest mutation.
+- The opening state capture reads the rendered `/messages/` list once because the current auth PA
+  unread field is null. `pa_read` persists the exact unresolved offer but returns no guide.
+  `pa_consult_guide` requires and stores a preliminary displayed choice plus concise rationale
+  before returning only matched rows. `pa_reply` requires the same fingerprint and a reconciliation,
+  re-reads the live offer immediately before one click, and cannot reuse a stale review. Journal
+  close is blocked until every detected PA stage is resolved.
+- PA goods branches value the full requested amount, including owned inventory opportunity cost.
+  `inspect_exchange_buy` quotes an exact missing quantity, depth, cash-after-reserve, and highest
+  fill price without submitting. A subsequent `buy` may purchase exactly that quantity through the
+  rendered Exchange UI and re-quotes the fixed amount immediately before its single BUY click.
+  Buyer-side Exchange fee and warehouse Transport consumption are both zero in this route.
 - A successful journal additionally requires fresh authoritative state with every standard
   production/sales building busy and no completed job awaiting collection. If an upgrade or its
   financing cannot start in the current wake, the CEO must attempt that upgrade first and obtain a

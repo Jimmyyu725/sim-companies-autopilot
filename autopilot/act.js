@@ -97,6 +97,7 @@ const {
   evaluateSpendGuard,
   explicitFiniteNumber,
   parseExplicitCurrency,
+  planExactMarketPurchase,
   planMarketPurchase,
   quoteFixedMarketPurchase,
   validateRebuildIdleEvidence,
@@ -106,8 +107,28 @@ const {
   verifyCollectionResult,
   verifyNewBuildingStarted,
 } = require(path.join(AUTOPILOT, 'action-verification.js'));
+const {
+  buildPaReview,
+  buildPendingPa,
+  clearPaReview,
+  clearPendingPa,
+  matchUniqueOption,
+  normalizeText,
+  readPaReview,
+  readPendingPa,
+  writePaReview,
+  writePaStatus,
+  writePendingPa,
+} = require(path.join(AUTOPILOT, 'pa-state.js'));
+const {
+  consultPaGuides,
+} = require(path.join(AUTOPILOT, 'pa-guide.js'));
 const page = (f) => fs.readFileSync(path.join(ACTIONS, f), 'utf8');
 const B = (id) => `https://www.simcompanies.com/b/${id}/`;
+const PA_PENDING_FILE = path.join(AUTOPILOT, '.pa-pending.json');
+const PA_REVIEW_FILE = path.join(AUTOPILOT, '.pa-review.json');
+const PA_STATUS_FILE = path.join(AUTOPILOT, '.pa-status.json');
+const PA_HISTORY_FILE = path.join(AUTOPILOT, 'pa-history.jsonl');
 
 function phaseAttemptId(attemptId, phase) {
   const digest = crypto.createHash('sha256')
@@ -679,12 +700,36 @@ if (action === 'buy') {
     } catch (e) {}
     if (typeof p.kind !== 'number') refuse('buy kind must be the NUMERIC resource kind (seeds=66, water=2, cow=115, pig=116)', { got: p.kind });
   }
+  if (p.quantity == null) p.quantity = null;
+  else {
+    p.quantity = Number(p.quantity);
+    if (!Number.isSafeInteger(p.quantity) || p.quantity <= 0) {
+      refuse('buy quantity must be a positive integer or null', { got: p.quantity });
+    }
+  }
   p.maxSpend = Number(p.maxSpend);
   if (!Number.isFinite(p.maxSpend) || p.maxSpend <= 0) refuse('buy maxSpend must be a positive number', { got: p.maxSpend });
   // buy.js computes `ask = askHint || cheapest-book-price`; a non-numeric truthy ask (live
   // wake 1 sent ask:true) becomes a $1 unit price -> qty = maxSpend UNITS. Drop bad asks.
   if (p.ask != null && (!Number.isFinite(Number(p.ask)) || Number(p.ask) <= 0)) delete p.ask;
   else if (p.ask != null) p.ask = Number(p.ask);
+}
+if (action === 'inspect_exchange_buy') {
+  p.kind = Number(p.kind);
+  p.quantity = Number(p.quantity);
+  if (!Number.isSafeInteger(p.kind) || p.kind <= 0
+      || !Number.isSafeInteger(p.quantity) || p.quantity <= 0) {
+    refuse('inspect_exchange_buy needs positive integer kind and quantity', { got: p });
+  }
+  if (p.maxUnitPrice == null) p.maxUnitPrice = null;
+  else {
+    p.maxUnitPrice = Number(p.maxUnitPrice);
+    if (!Number.isFinite(p.maxUnitPrice) || p.maxUnitPrice <= 0) {
+      refuse('inspect_exchange_buy maxUnitPrice must be a positive number or null', {
+        got: p.maxUnitPrice,
+      });
+    }
+  }
 }
 if (action === 'exchange_sell') {
   p.name = String(p.name || '').trim().toLowerCase().replace(/ /g, '-');
@@ -882,6 +927,74 @@ if (action === 'chat_scan' && p.rooms != null &&
     (!Array.isArray(p.rooms) || !p.rooms.every(r => CHAT_ROOMS.includes(r))))
   refuse('chat_scan rooms must be an array among: ' + CHAT_ROOMS.join(' | ') + ' (or omit for all)', { got: p.rooms });
 
+if (action === 'pa_consult_guide') {
+  const pending = readPendingPa(PA_PENDING_FILE);
+  if (!pending) {
+    refuse('no valid persisted Personal Assistant offer exists; call pa_read first');
+  }
+  if (p.offerFingerprint !== pending.fingerprint) {
+    refuse('offerFingerprint does not match the persisted Personal Assistant offer', {
+      expectedFingerprint: pending.fingerprint,
+    });
+  }
+  const preliminary = matchUniqueOption(pending.options, p.preliminaryChoice);
+  if (!preliminary.ok) refuse(preliminary.reason, { options: pending.options });
+  const existingReview = readPaReview(PA_REVIEW_FILE, pending);
+  if (existingReview
+      && (existingReview.preliminaryChoice !== preliminary.choice
+        || existingReview.rationale !== normalizeText(p.rationale))) {
+    refuse('the first independent PA assessment is immutable for this offer', {
+      recordedPreliminaryChoice: existingReview.preliminaryChoice,
+      recordedRationale: existingReview.rationale,
+    });
+  }
+  let communityGuide = '';
+  let measuredGuide = '';
+  try {
+    communityGuide = fs.readFileSync(path.join(REFERENCE, 'pa-quests-guide.md'), 'utf8');
+    measuredGuide = fs.readFileSync(path.join(REFERENCE, 'pa-quests.md'), 'utf8');
+  } catch (error) {
+    refuse('Personal Assistant guide files are unavailable', {
+      guideError: String(error.message || error).slice(0, 180),
+    });
+  }
+  const consulted = consultPaGuides({
+    offerText: pending.offerText,
+    communityGuide,
+    measuredGuide,
+  });
+  let review;
+  try {
+    review = buildPaReview({
+      pending,
+      preliminaryChoice: preliminary.choice,
+      rationale: p.rationale,
+      guideDigest: consulted.digest,
+      matchCount: consulted.matchCount,
+    });
+    writePaReview(PA_REVIEW_FILE, review);
+  } catch (error) {
+    refuse(`could not persist the independent PA assessment: ${String(error.message || error)}`);
+  }
+  console.log(JSON.stringify({
+    ok: true,
+    offerFingerprint: pending.fingerprint,
+    independentAssessment: {
+      preliminaryChoice: review.preliminaryChoice,
+      rationale: review.rationale,
+      recordedBeforeGuideDisclosure: true,
+    },
+    guide: {
+      locallyMeasured: consulted.measured,
+      communityReported: consulted.community,
+      exactMatchFound: consulted.matchCount > 0,
+      evidenceOrder: 'locally measured outcome > exact community match > fresh economics > unknown',
+    },
+    next: 'Compare the independent assessment with these matches. For goods/cash choices, value all required owned goods at opportunity cost, inspect exact missing quantity, preserve the cash reserve, then call pa_reply.',
+  }));
+  process.exit(0);
+}
+
 if (p.confirm === true
     && ['chat_private_send', 'chat_room_reply', 'chat_room_post', 'contract_accept'].includes(action)) {
   consumeWorkerExecutionClaim();
@@ -985,10 +1098,73 @@ if (economicCommunicationRequired) {
       batchPolicy,
     })}; ${setId} return 1`);
     res = await cdp.evaluate(page('produce.js'));
+  } else if (action === 'inspect_exchange_buy') {
+    await cdp.goto(`https://www.simcompanies.com/market/resource/${p.kind}/`);
+    await cdp.evaluate(`window.__planExactMarketPurchase=${planExactMarketPurchase.toString()}; window.__inspectExchangeBuy=${JSON.stringify({
+      kind: p.kind,
+      quantity: p.quantity,
+      maxUnitPrice: p.maxUnitPrice,
+      minCashAfter: Math.max(500, Number(CFG.minCash ?? 800)),
+      companyId: String(CFG.companyId),
+    })}; ${setId} return 1`);
+    res = await cdp.evaluate(`
+      const request = window.__inspectExchangeBuy;
+      const market = await api('/api/v3/market/0/' + request.kind + '/');
+      const auth = await api('/api/v3/companies/auth-data/');
+      const resources = await api('/api/v3/resources/' + request.companyId + '/');
+      const cashRaw = auth.json?.money ?? auth.json?.authCompany?.money;
+      const cash = cashRaw == null || cashRaw === '' ? null : Number(cashRaw);
+      const stock = Array.isArray(resources.json)
+        ? resources.json
+          .filter(row => Number(row?.kind) === Number(request.kind))
+          .reduce((total, row) => total + Number(row?.amount || 0), 0)
+        : null;
+      if (market.status !== 200 || !Array.isArray(market.json)) {
+        return { ok: false, readOnly: true, submitted: false,
+          reason: 'authoritative Exchange book is unavailable', marketStatus: market.status };
+      }
+      if (auth.status !== 200 || !Number.isFinite(cash)) {
+        return { ok: false, readOnly: true, submitted: false,
+          reason: 'authoritative cash is unavailable', authStatus: auth.status };
+      }
+      if (resources.status !== 200 || !Number.isFinite(stock)) {
+        return { ok: false, readOnly: true, submitted: false,
+          reason: 'authoritative inventory is unavailable', resourcesStatus: resources.status };
+      }
+      const spendable = Math.max(0, cash - request.minCashAfter);
+      const quote = window.__planExactMarketPurchase(
+        market.json,
+        request.quantity,
+        Math.max(spendable, 0.000001),
+        request.maxUnitPrice,
+      );
+      return {
+        ok: quote.ok === true,
+        readOnly: true,
+        submitted: false,
+        source: '/api/v3/market/0/' + request.kind + '/',
+        observedAt: new Date().toISOString(),
+        kind: request.kind,
+        requestedQuantity: request.quantity,
+        currentStock: stock,
+        cash,
+        minCashAfter: request.minCashAfter,
+        spendableCash: spendable,
+        cashAfter: quote.ok ? Math.round((cash - quote.estimatedCost) * 1e6) / 1e6 : null,
+        buyerCosts: {
+          exchangeFee: 0,
+          transportUnits: 0,
+          note: 'The buyer-side Exchange flow charges neither market fee nor warehouse Transport.',
+        },
+        quote,
+        reason: quote.ok ? undefined : quote.reason,
+      };
+    `);
   } else if (action === 'buy') {
     await cdp.goto(`https://www.simcompanies.com/market/resource/${p.kind}/`);
-    await cdp.evaluate(`window.__planMarketPurchase=${planMarketPurchase.toString()}; window.__quoteFixedMarketPurchase=${quoteFixedMarketPurchase.toString()}; window.__buy=${JSON.stringify({
+    await cdp.evaluate(`window.__planMarketPurchase=${planMarketPurchase.toString()}; window.__planExactMarketPurchase=${planExactMarketPurchase.toString()}; window.__quoteFixedMarketPurchase=${quoteFixedMarketPurchase.toString()}; window.__buy=${JSON.stringify({
       kind: p.kind,
+      quantity: p.quantity,
       maxSpend: p.maxSpend,
       ask: p.ask,
       minCashAfter: Math.max(500, Number(p.minCashAfter ?? CFG.minCash ?? 800)),
@@ -1163,24 +1339,140 @@ if (economicCommunicationRequired) {
     console.log(JSON.stringify(uiResult));
     process.exit(0);
   } else if (action === 'pa_read') {
-    // Read the personal-assistant conversation + any open offer. NOTE: opening it clears the
-    // unread badge — read only when state.paUnread > 0 or you intend to answer.
+    // Opening the conversation clears the unread badge. Persist the exact unresolved offer so a
+    // later refresh still knows that a decision is pending. Deliberately do not disclose guide
+    // text here: the model must first record its own assessment through pa_consult_guide.
     await cdp.goto('https://www.simcompanies.com/messages/');
     const paMsg = await cdp.evaluate(page('pa-read.js'));
-    // Attach the answer key + our measured outcomes ONLY here (not every wake).
-    let guide='', measured='';
-    try{guide=fs.readFileSync(path.join(REFERENCE, 'pa-quests-guide.md'),'utf8')}catch(e){}
-    try{measured=fs.readFileSync(path.join(REFERENCE, 'pa-quests.md'),'utf8')}catch(e){}
-    res = { ok: paMsg?.ok === true, offer: paMsg,
-      reason: paMsg?.ok === true ? undefined : (paMsg?.reason || 'Personal Assistant read failed'),
-      answerKey: guide, ourMeasuredOutcomes: measured, note: 'Match the offer text to the guide; our measured outcomes override. After answering, journal the RESULT to pa-quests.md.' };
+    const pending = buildPendingPa(paMsg);
+    if (pending) {
+      const previousPending = readPendingPa(PA_PENDING_FILE);
+      const retainReview = previousPending?.fingerprint === pending.fingerprint
+        && readPaReview(PA_REVIEW_FILE, previousPending);
+      writePendingPa(PA_PENDING_FILE, pending);
+      if (!retainReview) clearPaReview(PA_REVIEW_FILE);
+      writePaStatus(PA_STATUS_FILE, {
+        status: 'ok',
+        unread: 0,
+        rowText: paMsg.paRow,
+        source: 'rendered-personal-assistant-ui',
+      });
+      res = {
+        ok: true,
+        pending: true,
+        offerFingerprint: pending.fingerprint,
+        observedAt: pending.observedAt,
+        offerText: pending.offerText,
+        options: pending.options,
+        guideDisclosed: false,
+        next: 'Independently select one displayed option and state a concise business rationale. Then call pa_consult_guide with this fingerprint; it records that assessment before returning any guide match.',
+      };
+    } else if (paMsg?.ok === true) {
+      clearPendingPa(PA_PENDING_FILE);
+      clearPaReview(PA_REVIEW_FILE);
+      writePaStatus(PA_STATUS_FILE, {
+        status: 'ok',
+        unread: 0,
+        rowText: paMsg.paRow,
+        source: 'rendered-personal-assistant-ui',
+      });
+      res = {
+        ok: true,
+        pending: false,
+        reason: 'Personal Assistant conversation has no open reply choices',
+      };
+    } else {
+      res = {
+        ok: false,
+        reason: paMsg?.reason || 'Personal Assistant read failed',
+      };
+    }
   } else if (action === 'pa_reply') {
-    // Answer the open PA offer. {choice: substring uniquely identifying the option}. Navigate+click
-    // stay inside THIS one session (LESSONS B5 — never split navigate/act across locks).
-    if (!p.choice) refuse('pa_reply needs {choice: option substring}');
+    // The exact offer must have survived pa_read -> independent assessment -> guide consultation.
+    // Re-read the live rendered choices and bind their fingerprint immediately before one click.
+    const pending = readPendingPa(PA_PENDING_FILE);
+    if (!pending) refuse('pa_reply requires a valid pending offer; call pa_read first');
+    if (p.offerFingerprint !== pending.fingerprint) {
+      refuse('pa_reply offerFingerprint does not match the pending offer', {
+        expectedFingerprint: pending.fingerprint,
+      });
+    }
+    const review = readPaReview(PA_REVIEW_FILE, pending);
+    if (!review) {
+      refuse('pa_reply requires a current independent assessment followed by pa_consult_guide');
+    }
+    let communityGuide = '';
+    let measuredGuide = '';
+    try {
+      communityGuide = fs.readFileSync(path.join(REFERENCE, 'pa-quests-guide.md'), 'utf8');
+      measuredGuide = fs.readFileSync(path.join(REFERENCE, 'pa-quests.md'), 'utf8');
+    } catch (error) {
+      refuse('Personal Assistant guide files are unavailable before reply');
+    }
+    const currentGuide = consultPaGuides({
+      offerText: pending.offerText,
+      communityGuide,
+      measuredGuide,
+    });
+    if (currentGuide.digest !== review.guideDigest) {
+      clearPaReview(PA_REVIEW_FILE);
+      refuse('Personal Assistant guide changed after consultation; reassess with pa_consult_guide');
+    }
+    const finalChoice = matchUniqueOption(pending.options, p.choice);
+    if (!finalChoice.ok) refuse(finalChoice.reason, { options: pending.options });
     await cdp.goto('https://www.simcompanies.com/messages/');
-    await cdp.evaluate(`window.__paChoice=${JSON.stringify(String(p.choice))}; ${setId} return 1`);
-    res = await cdp.evaluate(page('pa-reply.js'));
+    const liveMessage = await cdp.evaluate(page('pa-read.js'));
+    const livePending = buildPendingPa(liveMessage);
+    if (!livePending || livePending.fingerprint !== pending.fingerprint) {
+      res = {
+        ok: false,
+        guard: true,
+        mutationAttempted: false,
+        reason: 'the live Personal Assistant offer no longer matches the reviewed fingerprint; no reply was clicked',
+        expectedFingerprint: pending.fingerprint,
+        liveFingerprint: livePending?.fingerprint || null,
+      };
+    } else {
+      // Consume the review before dispatch. An ambiguous click cannot reuse the same authorization.
+      clearPaReview(PA_REVIEW_FILE);
+      await cdp.evaluate(`window.__paChoice=${JSON.stringify(finalChoice.choice)}; ${setId} return 1`);
+      res = await cdp.evaluate(page('pa-reply.js'));
+      const history = {
+        schemaVersion: 1,
+        attemptedAt: new Date().toISOString(),
+        offerFingerprint: pending.fingerprint,
+        offerText: pending.offerText,
+        options: pending.options,
+        preliminaryChoice: review.preliminaryChoice,
+        preliminaryRationale: review.rationale,
+        guideMatchCount: review.matchCount,
+        finalChoice: finalChoice.choice,
+        comparison: String(p.comparison).replace(/\s+/gu, ' ').trim(),
+        verified: res?.ok === true,
+        outcome: res?.outcome || null,
+        resultTail: String(res?.resultTail || '').slice(-2200),
+      };
+      fs.appendFileSync(PA_HISTORY_FILE, `${JSON.stringify(history)}\n`, { mode: 0o600 });
+      if (res?.ok === true) {
+        clearPendingPa(PA_PENDING_FILE);
+        writePaStatus(PA_STATUS_FILE, {
+          status: 'ok',
+          unread: 0,
+          rowText: liveMessage.paRow,
+          source: 'rendered-personal-assistant-ui',
+        });
+      }
+      res = {
+        ...res,
+        offerFingerprint: pending.fingerprint,
+        independentAssessment: {
+          preliminaryChoice: review.preliminaryChoice,
+          rationale: review.rationale,
+        },
+        finalChoice: finalChoice.choice,
+        comparison: history.comparison,
+      };
+    }
   } else if (action === 'bonds') {
     // Issue / adjust / repay bonds on the HQ finance page. {amount, interest, confirm}.
     // Listing is NOT instant cash — players buy over time (verified operating constraint, 2026-07-25).

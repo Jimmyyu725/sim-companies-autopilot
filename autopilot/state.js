@@ -46,10 +46,19 @@ const {
 const {
   synchronizeOwnerProspectorConstruction,
 } = require(path.join(AUTOPILOT, 'owner-directive.js'));
+const {
+  derivePaState,
+  parsePaUnreadRows,
+  readPaStatus,
+  readPendingPa,
+  writePaStatus,
+} = require(path.join(AUTOPILOT, 'pa-state.js'));
 
 const MISSION_KINDS = Object.freeze([1, 2, 13, 66, 118, 119]);
 const PRICE_FALLBACK_MAX_AGE_SECONDS = 10 * 60;
 const PRINTED_RATE_FRESH_SECONDS = 6 * 3600;
+const PA_STATUS_FILE = path.join(AUTOPILOT, '.pa-status.json');
+const PA_PENDING_FILE = path.join(AUTOPILOT, '.pa-pending.json');
 
 (async () => {
   await cdp.connect();
@@ -309,6 +318,39 @@ const PRINTED_RATE_FRESH_SECONDS = 6 * 3600;
       },
     };
   }
+  let paUiStatus = readPaStatus(PA_STATUS_FILE);
+  if (process.env.SIM_PA_SCAN === '1') {
+    const paObservedAt = new Date().toISOString();
+    try {
+      await cdp.goto('https://www.simcompanies.com/messages/');
+      const rows = await cdp.evaluate(`
+        return all('a')
+          .filter(anchor => (anchor.href || '').includes('/messages/') && anchor.offsetParent !== null)
+          .map(anchor => ({ text: norm(anchor.innerText), href: anchor.href }));
+      `);
+      const parsed = parsePaUnreadRows(rows);
+      paUiStatus = writePaStatus(PA_STATUS_FILE, {
+        ...parsed,
+        source: 'rendered-messages-ui',
+      }, paObservedAt);
+    } catch (error) {
+      paUiStatus = writePaStatus(PA_STATUS_FILE, {
+        status: 'unknown',
+        unread: null,
+        source: 'rendered-messages-ui',
+        reason: `PA row scan failed: ${String(error.message || error).slice(0, 180)}`,
+      }, paObservedAt);
+    }
+  }
+  const pendingPa = readPendingPa(PA_PENDING_FILE);
+  const authPaUnread = Number.isSafeInteger(auth.paUnread) && auth.paUnread >= 0
+    ? auth.paUnread
+    : null;
+  const pa = derivePaState({
+    uiStatus: paUiStatus,
+    authUnread: authPaUnread,
+    pending: pendingPa,
+  });
   const sources = {
     auth: { status: 'ok', asOf: capturedAt, source: '/api/v3/companies/auth-data/' },
     buildings: {
@@ -327,6 +369,11 @@ const PRINTED_RATE_FRESH_SECONDS = 6 * 3600;
     modifiers: { status: modifierCapture.ok ? 'ok' : 'unknown', asOf: modifierCapture.ok ? capturedAt : null, source: modifiersSource },
     volume1h: { status: volume1hMeta?.status || 'unknown', asOf: volume1hMeta?.to || null, source: 'shared/price-tracker/data/volume.jsonl' },
     weather: { status: weather ? 'ok' : 'unknown', asOf: weather ? capturedAt : null, source: '/api/v2/weather/0/' },
+    pa: {
+      status: pa.status,
+      asOf: pa.observedAt,
+      source: pa.source,
+    },
     bonds: { status: bonds.status || 'unknown', asOf: capturedAt, source: 'sold bonds + balance sheet' },
     research: {
       status: Array.isArray(supplementalData.research) ? 'ok' : 'unknown',
@@ -346,7 +393,9 @@ const PRINTED_RATE_FRESH_SECONDS = 6 * 3600;
   const state = {
     t: capturedAt,
     sources,
-    weather, paUnread: auth.paUnread ?? null,
+    weather,
+    pa,
+    paUnread: pa.unread,
     money: auth.money ?? auth.authCompany?.money ?? null,
     level,
     buildings: blds,

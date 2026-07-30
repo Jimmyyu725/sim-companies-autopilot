@@ -8,8 +8,16 @@ if (!paLink.length) {
   return { ok: false, reason: 'no Personal assistant row on /messages/',
            rows: all('a').filter(a => (a.href || '').includes('/messages/')).map(a => norm(a.innerText)) };
 }
+const paRow = norm(paLink[0].innerText);
 paLink[0].click();
 await sleep(3500);
 const options = all('a.pa-reply').filter(a => a.offsetParent !== null).map(a => norm(a.innerText));
 const body = norm(document.body.innerText);
-return { ok: true, url: location.href, options, tail: body.slice(-1800) };
+return {
+  ok: true,
+  url: location.href,
+  paRow,
+  openOffer: options.length > 0,
+  options,
+  tail: body.slice(-3500),
+};

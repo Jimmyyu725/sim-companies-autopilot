@@ -19,6 +19,12 @@ test('publishes one typed tool per action with no extra fields', () => {
   assert.equal(produce.strict, true);
   assert.equal(Object.hasOwn(produce.parameters.properties, 'minCashAfter'), false);
   assert.equal(Object.hasOwn(produce.parameters.properties, 'ownerUpgradeAttemptVerified'), false);
+  const buy = tools.find((tool) => tool.name === 'buy');
+  assert.deepEqual(buy.parameters.required, ['kind', 'quantity', 'maxSpend', 'ask']);
+  assert.deepEqual(buy.parameters.properties.quantity.type, ['integer', 'null']);
+  const consult = tools.find((tool) => tool.name === 'pa_consult_guide');
+  assert.deepEqual(consult.parameters.required,
+    ['offerFingerprint', 'preliminaryChoice', 'rationale']);
 });
 
 test('accepts valid production parameters and rejects guessed field names', () => {
@@ -176,4 +182,21 @@ test('an ambiguous do-not-retry mutation opens the circuit immediately', () => {
     outcome: 'UNKNOWN_AFTER_SINGLE_CLICK',
   }), 2);
   assert.equal(budget.before(key).failureBudgetOpen, true);
+});
+
+test('PA reply is fingerprint-bound and requires a guide reconciliation', () => {
+  const fingerprint = 'a'.repeat(64);
+  assert.equal(validateActionParams('pa_reply', {
+    offerFingerprint: fingerprint,
+    choice: 'Make it official',
+    comparison: 'The independent choice agrees with the exact guide match.',
+  }).ok, true);
+  assert.equal(validateActionParams('pa_reply', {
+    choice: 'Make it official',
+  }).ok, false);
+  assert.equal(validateActionParams('pa_consult_guide', {
+    offerFingerprint: fingerprint,
+    preliminaryChoice: 'Make it official',
+    rationale: 'This appears to dominate the other displayed options.',
+  }).ok, true);
 });

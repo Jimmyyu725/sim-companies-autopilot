@@ -115,6 +115,80 @@ function planMarketPurchase(rows, maxSpend, maxUnitPrice = null) {
   };
 }
 
+function planExactMarketPurchase(rows, quantity, maxSpend, maxUnitPrice = null) {
+  const wanted = Number(quantity);
+  const budget = Number(maxSpend);
+  if (!Number.isSafeInteger(wanted) || wanted <= 0) {
+    return { ok: false, reason: 'quantity must be a positive safe integer' };
+  }
+  if (!Number.isFinite(budget) || budget <= 0) {
+    return { ok: false, reason: 'maxSpend must be a positive finite number' };
+  }
+  const book = (Array.isArray(rows) ? rows : [])
+    .map(row => ({ price: Number(row?.price), quantity: Math.floor(Number(row?.quantity)) }))
+    .filter(row => Number.isFinite(row.price) && row.price > 0
+      && Number.isSafeInteger(row.quantity) && row.quantity > 0)
+    .sort((left, right) => left.price - right.price);
+  if (!book.length) return { ok: false, reason: 'market book has no positive asks' };
+
+  const suppliedCeiling = maxUnitPrice == null ? null : Number(maxUnitPrice);
+  if (suppliedCeiling != null
+      && (!Number.isFinite(suppliedCeiling) || suppliedCeiling <= 0)) {
+    return { ok: false, reason: 'maxUnitPrice must be a positive finite price or null' };
+  }
+  let remaining = wanted;
+  let estimatedCost = 0;
+  let highestFillPrice = null;
+  let availableWithinCeiling = 0;
+  for (const row of book) {
+    if (suppliedCeiling != null && row.price > suppliedCeiling + 1e-9) break;
+    availableWithinCeiling += row.quantity;
+    const take = Math.min(remaining, row.quantity);
+    if (take <= 0) continue;
+    estimatedCost += take * row.price;
+    highestFillPrice = row.price;
+    remaining -= take;
+    if (remaining === 0) break;
+  }
+  estimatedCost = Math.round(estimatedCost * 1e6) / 1e6;
+  const priceCeiling = suppliedCeiling ?? highestFillPrice;
+  if (remaining > 0) {
+    return {
+      ok: false,
+      reason: suppliedCeiling == null
+        ? 'market book does not contain the requested exact quantity'
+        : 'market book does not contain the requested exact quantity within maxUnitPrice',
+      quantity: wanted,
+      unfilled: remaining,
+      availableWithinCeiling,
+      estimatedCost,
+      topAsk: book[0].price,
+      priceCeiling,
+      highestFillPrice,
+    };
+  }
+  if (estimatedCost > budget + 1e-6) {
+    return {
+      ok: false,
+      reason: `exact-quantity cost $${estimatedCost} exceeds maxSpend $${budget}`,
+      quantity: wanted,
+      estimatedCost,
+      topAsk: book[0].price,
+      priceCeiling,
+      highestFillPrice,
+    };
+  }
+  return {
+    ok: true,
+    quantity: wanted,
+    estimatedCost,
+    topAsk: book[0].price,
+    priceCeiling,
+    highestFillPrice,
+    averageFillPrice: Math.round((estimatedCost / wanted) * 1e6) / 1e6,
+  };
+}
+
 function quoteFixedMarketPurchase(rows, quantity, maxSpend, maxUnitPrice) {
   const wanted = Number(quantity);
   const budget = Number(maxSpend);
@@ -500,6 +574,7 @@ module.exports = {
   explicitFiniteNumber,
   parseExplicitCurrency,
   evaluateSpendGuard,
+  planExactMarketPurchase,
   planMarketPurchase,
   quoteFixedMarketPurchase,
   verifyBuildingRemoved,

@@ -66,6 +66,8 @@ function writeProviderArtifacts(directory, provider, result, score, config) {
     model: config.model,
     effort: config.effort,
     maxTokens: config.maxTokens,
+    promptProfile: config.promptProfile || null,
+    promptProfileSha256: config.promptProfileSha256 || null,
     calls: result?.usageCalls || [],
     total: result?.usageTotal || null,
     wallDurationMs: result?.wallDurationMs ?? null,

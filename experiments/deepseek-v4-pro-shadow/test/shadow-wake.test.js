@@ -154,6 +154,16 @@ test('DeepSeek thinking request omits unsupported routing controls', () => {
   assert.equal(Object.hasOwn(request, 'temperature'), false);
 });
 
+test('DeepSeek request sends the documented maximum reasoning effort', () => {
+  const request = buildRequest({
+    messages: [{ role: 'user', content: 'test' }],
+    tools: [],
+    effort: 'max',
+  });
+  assert.deepEqual(request.thinking, { type: 'enabled' });
+  assert.equal(request.reasoning_effort, 'max');
+});
+
 test('OpenAI request uses Responses high reasoning without priority routing', () => {
   const request = initialRequest({
     instructions: 'system',

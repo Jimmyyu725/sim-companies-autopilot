@@ -64,6 +64,8 @@ function coverageRow(run) {
     scenarioKey: run.scenarioKey,
     scenarioId: snapshot.scenario.id,
     variant: run.variant,
+    coveragePass: run.coveragePass || null,
+    replicate: run.replicate || 1,
     difficulty: snapshot.scenario.difficulty,
     completed: result.ok === true,
     score: score.total,
@@ -130,19 +132,33 @@ function aggregateRows(rows) {
 }
 
 function readiness(aggregate, scenarioSummaries) {
+  const expectedPerFamily = scenarioSummaries.length
+    ? aggregate.runs / scenarioSummaries.length
+    : 0;
+  const legacyThirty = aggregate.runs === 30 && expectedPerFamily === 3;
   const checks = [
     {
       id: 'completion',
-      label: 'All 30 shadow wakes complete',
-      passed: aggregate.completed === aggregate.runs && aggregate.runs === 30,
+      label: legacyThirty
+        ? 'All 30 shadow wakes complete'
+        : `All ${aggregate.runs} shadow wakes complete`,
+      passed: aggregate.completed === aggregate.runs
+        && Number.isSafeInteger(expectedPerFamily),
       actual: `${aggregate.completed}/${aggregate.runs}`,
     },
     {
       id: 'scenario-coverage',
-      label: 'Every scenario family completes all three variants',
+      label: legacyThirty
+        ? 'Every scenario family completes all three variants'
+        : `Every scenario family completes all ${expectedPerFamily} planned wakes`,
       passed: scenarioSummaries.length === 10
-        && scenarioSummaries.every(row => row.completed === 3 && row.runs === 3),
-      actual: `${scenarioSummaries.filter(row => row.completed === 3).length}/${scenarioSummaries.length}`,
+        && Number.isSafeInteger(expectedPerFamily)
+        && scenarioSummaries.every(row => (
+          row.completed === expectedPerFamily && row.runs === expectedPerFamily
+        )),
+      actual: `${scenarioSummaries.filter(row => (
+        row.completed === expectedPerFamily
+      )).length}/${scenarioSummaries.length}`,
     },
     {
       id: 'score',
@@ -213,9 +229,10 @@ function buildCoverageSummary(
   const provider = metadata.provider || runs[0]?.provider || 'deepseek';
   const model = runs[0]?.model || null;
   const toolSurface = toolParity?.[provider] || toolParity?.deepseek || {};
+  const runCount = rows.length;
   return {
     schemaVersion: 1,
-    benchmark: `Sim Companies ${providerDisplayName(provider, model)} 30-wake coverage validation`,
+    benchmark: `Sim Companies ${providerDisplayName(provider, model)} ${runCount}-wake coverage validation`,
     provider,
     startedAt,
     finishedAt,
@@ -223,6 +240,8 @@ function buildCoverageSummary(
     model,
     effort: runs[0]?.effort || null,
     maxTokens: runs[0]?.maxTokens || null,
+    promptProfile: metadata.promptProfile || runs[0]?.promptProfile || null,
+    promptProfileSha256: metadata.promptProfileSha256 || null,
     baseSnapshotSha256: sha256(JSON.stringify(baseSnapshot)),
     baseStateAsOf: baseSnapshot.stateAsOf,
     scenarioFamilyCount: scenarioSummaries.length,
@@ -230,13 +249,16 @@ function buildCoverageSummary(
     fairness: {
       oneImmutableBaseSnapshot: true,
       threeControlledVariantsPerScenario: true,
-      sameHighReasoningEffort: true,
+      sameHighReasoningEffort: runs[0]?.effort === 'high',
+      maximumReasoningEffort: runs[0]?.effort === 'max',
+      sameConfiguredReasoningEffort: true,
       sameMaxOutputTokens: true,
       semanticToolParityWithTerra: toolParity.sameSemanticToolNames === true,
       toolSurfaceSha256: toolSurface.sha256,
       referenceCoverageId: metadata.referenceCoverageId || null,
       referenceCoverageSha256: metadata.referenceCoverageSha256 || null,
       exactReferenceCaseSnapshots: metadata.exactReferenceCaseSnapshots === true,
+      coveragePasses: metadata.coveragePasses || null,
       productionModelChanged: false,
       liveBrowserOpened: false,
       liveGameMutations: 0,
@@ -246,7 +268,7 @@ function buildCoverageSummary(
     scenarioSummaries,
     aggregate,
     readiness: readiness(aggregate, scenarioSummaries),
-    limitation: 'Thirty deterministic shadow wakes provide operational breadth and repeatability evidence for this Sim Companies prompt and tool surface. They do not measure live game profit, provider behavior under a changed UI, or long-horizon memory across real wakes.',
+    limitation: `${runCount} deterministic shadow wakes provide operational breadth and repeatability evidence for this Sim Companies prompt and tool surface. They do not measure live game profit, provider behavior under a changed UI, or long-horizon memory across real wakes.`,
   };
 }
 
@@ -266,7 +288,7 @@ function buildCoverageReport(summary) {
   const aggregate = summary.aggregate;
   const displayName = providerDisplayName(summary.provider, summary.model);
   return [
-    `# ${displayName} — Sim Companies 30-wake shadow coverage`,
+    `# ${displayName} — Sim Companies ${summary.runCount}-wake shadow coverage`,
     '',
     `- Started: ${summary.startedAt}`,
     `- Finished: ${summary.finishedAt}`,

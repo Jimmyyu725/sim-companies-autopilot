@@ -11,6 +11,9 @@ const {
 const {
   COVERAGE_SCENARIOS,
 } = require('./lib/scenarios.js');
+const {
+  resolveDeepSeekPromptProfile,
+} = require('./lib/deepseek-prompt.js');
 const { scoreShadowResult } = require('./lib/scoring.js');
 const { sha256 } = require('./lib/snapshot.js');
 
@@ -136,8 +139,17 @@ function validateCoverage(input) {
     ['deepseek', 'terra'].includes(provider),
     provider,
   );
-  assertCheck('exactly 30 planned cases', plan.cases?.length === 30, plan.cases?.length);
-  assertCheck('exactly 30 result rows', summary.rows?.length === 30, summary.rows?.length);
+  const plannedRuns = Number(plan.cases?.length);
+  assertCheck(
+    'supported complete coverage size',
+    [30, 50].includes(plannedRuns),
+    plannedRuns,
+  );
+  assertCheck(
+    'result rows match plan',
+    summary.rows?.length === plannedRuns,
+    summary.rows?.length,
+  );
   assertCheck(
     'ten scenario families',
     summary.scenarioFamilyCount === 10,
@@ -149,17 +161,53 @@ function validateCoverage(input) {
       === JSON.stringify(COVERAGE_SCENARIOS),
     [...new Set(summary.rows.map(row => row.scenarioKey))],
   );
+  const expectedVariants = plannedRuns === 50
+    ? [1, 1, 2, 3, 3]
+    : [1, 2, 3];
   assertCheck(
-    'three variants per family',
+    plannedRuns === 50
+      ? 'three variants plus two repeatability passes per family'
+      : 'three variants per family',
     COVERAGE_SCENARIOS.every(scenarioKey => {
       const variants = summary.rows
         .filter(row => row.scenarioKey === scenarioKey)
         .map(row => row.variant)
         .sort();
-      return JSON.stringify(variants) === JSON.stringify([1, 2, 3]);
+      return JSON.stringify(variants) === JSON.stringify(expectedVariants);
     }),
     summary.scenarioSummaries,
   );
+  assertCheck(
+    'supported reasoning effort',
+    ['high', 'max'].includes(summary.effort)
+      && summary.effort === plan.effort,
+    { summary: summary.effort, plan: plan.effort },
+  );
+  const promptProfileId = summary.promptProfile || plan.promptProfile || 'shared';
+  let promptProfile = null;
+  try {
+    promptProfile = resolveDeepSeekPromptProfile(promptProfileId);
+  } catch (_) {
+    // The failed check below records the unsupported profile without exposing prompt contents.
+  }
+  assertCheck(
+    'known DeepSeek prompt profile',
+    provider !== 'deepseek' || Boolean(promptProfile),
+    promptProfileId,
+  );
+  if (provider === 'deepseek' && plan.promptProfile) {
+    assertCheck(
+      'DeepSeek prompt profile hash',
+      summary.promptProfile === plan.promptProfile
+        && summary.promptProfileSha256 === plan.promptProfileSha256
+        && summary.promptProfileSha256 === promptProfile?.sha256,
+      {
+        profile: summary.promptProfile,
+        summaryHash: summary.promptProfileSha256,
+        planHash: plan.promptProfileSha256,
+      },
+    );
+  }
   assertCheck(
     'semantic tool parity',
     summary.fairness?.semanticToolParityWithTerra === true,
@@ -252,7 +300,10 @@ function validateCoverage(input) {
       `${row.caseId}: case identity`,
       caseMeta.caseId === row.caseId
         && snapshot.scenario?.coverageScenarioKey === row.scenarioKey
-        && snapshot.scenario?.coverageVariant === row.variant,
+        && snapshot.scenario?.coverageVariant === row.variant
+        && (row.coveragePass == null
+          || Number(caseMeta.coveragePass) === Number(row.coveragePass))
+        && Number(caseMeta.replicate || 1) === Number(row.replicate || 1),
       { caseMeta, scenario: snapshot.scenario },
     );
     assertCheck(
@@ -284,6 +335,7 @@ function validateCoverage(input) {
       effort: usage.effort,
       maxTokens: usage.maxTokens,
       provider,
+      promptProfile: usage.promptProfile || null,
     });
   }
 
@@ -302,6 +354,9 @@ function validateCoverage(input) {
       referenceCoverageId: summary.fairness?.referenceCoverageId || null,
       referenceCoverageSha256: summary.fairness?.referenceCoverageSha256 || null,
       exactReferenceCaseSnapshots: summary.fairness?.exactReferenceCaseSnapshots === true,
+      promptProfile: summary.promptProfile || null,
+      promptProfileSha256: summary.promptProfileSha256 || null,
+      coveragePasses: summary.fairness?.coveragePasses || null,
     },
   );
   const aggregateFields = [
@@ -354,6 +409,7 @@ function validateCoverage(input) {
     'coverage.js',
     'terra-coverage.js',
     'lib/coverage-artifacts.js',
+    'lib/deepseek-prompt.js',
     'lib/scenarios.js',
     'lib/tool-runtime.js',
   ].map(relative => fs.readFileSync(path.join(__dirname, relative), 'utf8')).join('\n');

@@ -20,6 +20,14 @@ core state does not change. Continue through the normal close sequence. Clearly 
 snapshot facts from unmeasured live evidence.
 `.trimEnd();
 
+function buildDeepSeekSystemPrompt(systemPrompt, systemPromptPrefix = '') {
+  return [
+    String(systemPromptPrefix || '').trim(),
+    String(systemPrompt || '').trim(),
+    SHADOW_APPENDIX,
+  ].filter(Boolean).join('\n\n');
+}
+
 function assistantMessageForHistory(message) {
   const result = {
     role: 'assistant',
@@ -101,13 +109,17 @@ async function runShadowWake({
   environment = process.env,
   maxRounds = 30,
   onEvent = () => {},
+  systemPromptPrefix = '',
 }) {
   if (!snapshot || typeof snapshot !== 'object') throw new Error('snapshot is required');
   if (typeof complete !== 'function') throw new Error('complete must be a function');
   const tools = buildDeepSeekTools(environment);
   const runtime = new ShadowToolRuntime(snapshot);
   const messages = [
-    { role: 'system', content: `${snapshot.systemPrompt}\n\n${SHADOW_APPENDIX}` },
+    {
+      role: 'system',
+      content: buildDeepSeekSystemPrompt(snapshot.systemPrompt, systemPromptPrefix),
+    },
     { role: 'user', content: buildWakeMessage(snapshot) },
   ];
   const transcript = [];
@@ -335,6 +347,7 @@ module.exports = {
   SHADOW_APPENDIX,
   aggregateUsage,
   assistantMessageForHistory,
+  buildDeepSeekSystemPrompt,
   parseToolArguments,
   responsesCalls,
   responsesReasoningSummary,

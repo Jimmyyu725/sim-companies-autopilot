@@ -17,9 +17,17 @@ const { createSnapshot, sha256 } = require('../lib/snapshot.js');
 const { buildSuiteComparison } = require('../lib/suite-artifacts.js');
 const { ShadowToolRuntime } = require('../lib/tool-runtime.js');
 const {
+  COVERAGE_PASSES,
   coverageMatrix,
   parseArguments: parseCoverageArguments,
 } = require('../coverage.js');
+const {
+  DEEPSEEK_EXECUTION_V1,
+  resolveDeepSeekPromptProfile,
+} = require('../lib/deepseek-prompt.js');
+const {
+  buildDeepSeekSystemPrompt,
+} = require('../lib/runner.js');
 const { parseArguments: parseSuiteArguments } = require('../suite.js');
 const {
   parseArguments: parseTerraCoverageArguments,
@@ -304,11 +312,50 @@ test('coverage CLI defaults to ten families, three variants, and thirty High-eff
   assert.equal(options.runs, 30);
   assert.equal(options.concurrency, 3);
   assert.equal(options.effort, 'high');
+  assert.equal(options.promptProfile, 'deepseek-execution-v1');
   assert.equal(matrix.length, 30);
   assert.deepEqual(
     matrix.filter(row => row.scenarioKey === 'chat-contract-risk').map(row => row.variant),
     [1, 2, 3],
   );
+});
+
+test('fifty-wake Max coverage adds two repeatability passes per scenario family', () => {
+  const options = parseCoverageArguments([
+    '--runs',
+    '50',
+    '--effort',
+    'max',
+    '--prompt-profile',
+    'deepseek-execution-v1',
+  ]);
+  const matrix = coverageMatrix(options);
+  assert.equal(options.effort, 'max');
+  assert.equal(matrix.length, 50);
+  assert.equal(new Set(matrix.map(row => row.caseId)).size, 50);
+  assert.deepEqual(
+    matrix.filter(row => row.scenarioKey === 'chat-contract-risk')
+      .map(row => ({
+        pass: row.coveragePass,
+        variant: row.variant,
+        replicate: row.replicate,
+      })),
+    COVERAGE_PASSES,
+  );
+  assert.deepEqual(
+    matrix.filter(row => row.scenarioKey === 'mill-upgrade').map(row => row.variant),
+    [1, 2, 3, 1, 3],
+  );
+});
+
+test('DeepSeek execution profile is prepended and binds one-call refresh discipline', () => {
+  const profile = resolveDeepSeekPromptProfile('deepseek-execution-v1');
+  const combined = buildDeepSeekSystemPrompt('CORE CEO PROMPT', profile.prefix);
+  assert.equal(profile.prefix, DEEPSEEK_EXECUTION_V1);
+  assert.ok(combined.indexOf('DeepSeek execution adapter') < combined.indexOf('CORE CEO PROMPT'));
+  assert.match(combined, /exactly one tool call/u);
+  assert.match(combined, /next and only call must be `refresh_state`/u);
+  assert.match(profile.sha256, /^[0-9a-f]{64}$/u);
 });
 
 test('coverage matrix exposes ten scenario families with three controlled variants', () => {

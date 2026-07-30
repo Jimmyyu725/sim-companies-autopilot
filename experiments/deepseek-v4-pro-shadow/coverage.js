@@ -17,6 +17,9 @@ const {
   DEFAULT_MODEL,
 } = require('./lib/client.js');
 const {
+  resolveDeepSeekPromptProfile,
+} = require('./lib/deepseek-prompt.js');
+const {
   ensureInside,
   writeJson,
   writeProviderArtifacts,
@@ -27,13 +30,24 @@ const {
   applyScenario,
 } = require('./lib/scenarios.js');
 const { writeCoverageArtifacts } = require('./lib/coverage-artifacts.js');
-const { runShadowWake } = require('./lib/runner.js');
+const {
+  buildDeepSeekSystemPrompt,
+  runShadowWake,
+} = require('./lib/runner.js');
 const { scoreShadowResult } = require('./lib/scoring.js');
 const { createSnapshot } = require('./lib/snapshot.js');
 
 function coverageId(now = new Date()) {
   return `coverage-${now.toISOString().replace(/[-:.]/gu, '')}-${crypto.randomBytes(4).toString('hex')}`;
 }
+
+const COVERAGE_PASSES = Object.freeze([
+  Object.freeze({ pass: 1, variant: 1, replicate: 1 }),
+  Object.freeze({ pass: 2, variant: 2, replicate: 1 }),
+  Object.freeze({ pass: 3, variant: 3, replicate: 1 }),
+  Object.freeze({ pass: 4, variant: 1, replicate: 2 }),
+  Object.freeze({ pass: 5, variant: 3, replicate: 2 }),
+]);
 
 function parseArguments(argv) {
   const options = {
@@ -43,15 +57,18 @@ function parseArguments(argv) {
     maxRounds: 30,
     maxTokens: 32768,
     model: DEFAULT_MODEL,
+    promptProfile: 'deepseek-execution-v1',
     scenarios: [...COVERAGE_SCENARIOS],
   };
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
     if (value === '--runs') options.runs = Number(argv[++index]);
     else if (value === '--concurrency') options.concurrency = Number(argv[++index]);
+    else if (value === '--effort') options.effort = String(argv[++index]);
     else if (value === '--max-rounds') options.maxRounds = Number(argv[++index]);
     else if (value === '--max-tokens') options.maxTokens = Number(argv[++index]);
     else if (value === '--model') options.model = String(argv[++index]);
+    else if (value === '--prompt-profile') options.promptProfile = String(argv[++index]);
     else if (value === '--scenarios') {
       options.scenarios = String(argv[++index] || '')
         .split(',')
@@ -60,8 +77,8 @@ function parseArguments(argv) {
     } else if (value === '--help' || value === '-h') options.help = true;
     else throw new Error(`unknown argument: ${value}`);
   }
-  if (!Number.isSafeInteger(options.runs) || options.runs < 1 || options.runs > 100) {
-    throw new Error('--runs must be an integer from 1 to 100');
+  if (!Number.isSafeInteger(options.runs) || options.runs < 1 || options.runs > 50) {
+    throw new Error('--runs must be an integer from 1 to 50');
   }
   if (!Number.isSafeInteger(options.concurrency)
       || options.concurrency < 1
@@ -78,11 +95,15 @@ function parseArguments(argv) {
       || options.maxTokens > 32768) {
     throw new Error('--max-tokens must be an integer from 1024 to 32768');
   }
+  if (!['high', 'max'].includes(options.effort)) {
+    throw new Error('--effort must be high or max');
+  }
+  resolveDeepSeekPromptProfile(options.promptProfile);
   if (!options.scenarios.length || options.scenarios.some(name => !SCENARIO_BUILDERS[name])) {
     throw new Error(`--scenarios must contain only: ${Object.keys(SCENARIO_BUILDERS).join(', ')}`);
   }
-  if (options.runs > options.scenarios.length * 3) {
-    throw new Error('--runs cannot exceed three controlled variants per selected scenario');
+  if (options.runs > options.scenarios.length * COVERAGE_PASSES.length) {
+    throw new Error('--runs cannot exceed five coverage passes per selected scenario');
   }
   return options;
 }
@@ -91,26 +112,35 @@ function usage() {
   return [
     'Usage:',
     '  node coverage.js [--runs 30] [--concurrency 3]',
-    '                   [--max-rounds 30] [--max-tokens 32768]',
+    '                   [--effort high|max] [--max-rounds 30]',
+    '                   [--max-tokens 32768]',
+    '                   [--prompt-profile shared|deepseek-execution-v1]',
     '',
-    'Runs DeepSeek V4 Pro High across ten controlled scenario families and three variants each.',
+    'Runs DeepSeek V4 Pro across ten controlled scenario families.',
+    'Runs 31–50 repeat corrected variants 1 and 3 to measure repeatability.',
     'No OpenAI request, Chrome connection, or live game mutation is made.',
   ].join('\n');
 }
 
 function coverageMatrix(options) {
   const rows = [];
-  for (let variant = 1; variant <= 3 && rows.length < options.runs; variant += 1) {
+  for (const coveragePass of COVERAGE_PASSES) {
     for (const scenarioKey of options.scenarios) {
       if (rows.length >= options.runs) break;
       const runIndex = rows.length + 1;
+      const suffix = coveragePass.replicate > 1
+        ? `-r${coveragePass.replicate}`
+        : '';
       rows.push({
         runIndex,
         scenarioKey,
-        variant,
-        caseId: `${String(runIndex).padStart(2, '0')}-${scenarioKey}-v${variant}`,
+        variant: coveragePass.variant,
+        coveragePass: coveragePass.pass,
+        replicate: coveragePass.replicate,
+        caseId: `${String(runIndex).padStart(2, '0')}-${scenarioKey}-v${coveragePass.variant}${suffix}`,
       });
     }
+    if (rows.length >= options.runs) break;
   }
   return rows;
 }
@@ -150,6 +180,7 @@ async function runCoverage(options) {
   if (!environment.DEEPSEEK_API_KEY) {
     throw new Error('DEEPSEEK_API_KEY is required through the process environment');
   }
+  const promptProfile = resolveDeepSeekPromptProfile(options.promptProfile);
   const startedAt = new Date().toISOString();
   const id = coverageId(new Date(startedAt));
   const directory = ensureInside(RUNS_DIR, path.join(RUNS_DIR, id));
@@ -174,12 +205,27 @@ async function runCoverage(options) {
   const matrix = coverageMatrix(options);
   writeJson(path.join(directory, 'coverage-plan.json'), {
     schemaVersion: 1,
+    provider: 'deepseek',
     startedAt,
+    requestedRuns: options.runs,
     model: options.model,
     effort: options.effort,
     maxRounds: options.maxRounds,
     maxTokens: options.maxTokens,
     concurrency: options.concurrency,
+    promptProfile: promptProfile.id,
+    promptProfileSha256: promptProfile.sha256,
+    effectiveSystemPromptSha256: crypto.createHash('sha256').update(
+      buildDeepSeekSystemPrompt(baseSnapshot.systemPrompt, promptProfile.prefix),
+    ).digest('hex'),
+    coverageDesign: {
+      scenarioFamilies: options.scenarios.length,
+      controlledVariants: [1, 2, 3],
+      repeatabilityPasses: [
+        { variant: 1, replicate: 2 },
+        { variant: 3, replicate: 2 },
+      ],
+    },
     cases: matrix,
     isolation: {
       liveBrowserOpened: false,
@@ -202,6 +248,7 @@ async function runCoverage(options) {
       snapshot,
       environment,
       maxRounds: options.maxRounds,
+      systemPromptPrefix: promptProfile.prefix,
       complete: (messages, tools) => client.complete(messages, tools),
       onEvent: caseLogger(row),
     }));
@@ -220,6 +267,8 @@ async function runCoverage(options) {
         model: options.model,
         effort: options.effort,
         maxTokens: options.maxTokens,
+        promptProfile: promptProfile.id,
+        promptProfileSha256: promptProfile.sha256,
       },
     );
     console.log(
@@ -233,6 +282,7 @@ async function runCoverage(options) {
       model: options.model,
       effort: options.effort,
       maxTokens: options.maxTokens,
+      promptProfile: promptProfile.id,
     };
   });
   const finishedAt = new Date().toISOString();
@@ -244,6 +294,12 @@ async function runCoverage(options) {
     startedAt,
     finishedAt,
     toolParity,
+    {
+      provider: 'deepseek',
+      promptProfile: promptProfile.id,
+      promptProfileSha256: promptProfile.sha256,
+      coveragePasses: COVERAGE_PASSES,
+    },
   );
   return { baseSnapshot, runs, artifacts, toolParity };
 }
@@ -271,6 +327,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  COVERAGE_PASSES,
   caseLogger,
   coverageId,
   coverageMatrix,

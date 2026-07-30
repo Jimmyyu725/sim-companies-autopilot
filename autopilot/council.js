@@ -5,8 +5,6 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { councilVoteSchema, validateCouncilVote } = require('./council-verdict.js');
 
-const ROLE_ATTEMPT_TIMEOUT_MS = 45_000;
-const ROLE_TOTAL_TIMEOUT_MS = 90_000;
 const ROLE_MAX_ATTEMPTS = 2;
 const DEEPSEEK_COUNCIL_JSON_INSTRUCTION = [
   'Return only one valid JSON object with exactly these keys: verdict, summary, metrics, unknowns, conditions.',
@@ -111,12 +109,6 @@ function isTimeoutError(error) {
   return name === 'timeouterror' || /\btimeout\b|timed out|aborted due to timeout/.test(message);
 }
 
-function timeoutError(message = 'Council role exceeded its bounded request deadline.') {
-  const error = new Error(message);
-  error.name = 'TimeoutError';
-  return error;
-}
-
 function failClosedRoleVote(role, error) {
   const timedOut = isTimeoutError(error);
   const validationFailed = error?.name === 'CouncilValidationError';
@@ -135,56 +127,16 @@ function failClosedRoleVote(role, error) {
   };
 }
 
-async function runWithTimeoutRetry(operation, options = {}) {
-  const attemptTimeoutMs = Number(options.attemptTimeoutMs ?? ROLE_ATTEMPT_TIMEOUT_MS);
-  const totalTimeoutMs = Number(options.totalTimeoutMs ?? ROLE_TOTAL_TIMEOUT_MS);
+async function runWithRetry(operation, options = {}) {
   const maxAttempts = Math.min(ROLE_MAX_ATTEMPTS,
     Math.max(1, Number(options.maxAttempts ?? ROLE_MAX_ATTEMPTS)));
-  const now = options.now || (() => performance.now());
-  const makeSignal = options.makeSignal || (timeoutMs => AbortSignal.timeout(timeoutMs));
   const shouldRetry = options.shouldRetry || isTimeoutError;
-  const setTimer = options.setTimer || setTimeout;
-  const clearTimer = options.clearTimer || clearTimeout;
-  if (!Number.isFinite(attemptTimeoutMs) || attemptTimeoutMs <= 0 ||
-      !Number.isFinite(totalTimeoutMs) || totalTimeoutMs <= 0) {
-    throw new TypeError('council timeout bounds must be positive finite numbers');
-  }
-
-  const startedAt = Number(now());
-  const deadline = startedAt + totalTimeoutMs;
   let attempts = 0;
-  let lastError = timeoutError();
+  let lastError = new Error('Council role did not return a usable vote.');
   while (attempts < maxAttempts) {
-    const remainingMs = deadline - Number(now());
-    if (!Number.isFinite(remainingMs) || remainingMs <= 0) {
-      lastError = timeoutError('Council role exhausted its hard total deadline.');
-      break;
-    }
-    const timeoutMs = Math.max(1, Math.ceil(Math.min(attemptTimeoutMs, remainingMs)));
     attempts += 1;
     try {
-      const context = {
-        attempt: attempts,
-        timeoutMs,
-        signal: makeSignal(timeoutMs),
-      };
-      let timer;
-      const deadlinePromise = new Promise((_, reject) => {
-        timer = setTimer(() => reject(timeoutError()), timeoutMs);
-      });
-      let value;
-      try {
-        value = await Promise.race([
-          Promise.resolve().then(() => operation(context)),
-          deadlinePromise,
-        ]);
-      } finally {
-        clearTimer(timer);
-      }
-      if (Number(now()) > deadline) {
-        lastError = timeoutError('Council role completed after its hard total deadline.');
-        break;
-      }
+      const value = await operation({ attempt: attempts });
       return { ok: true, value, attempts };
     } catch (error) {
       lastError = error;
@@ -277,7 +229,7 @@ async function reviewCouncilRole({ role, system, evidence, args, apiKey, brainDi
     let validationFeedback = null;
     let initialValidationError = null;
     let repairAttempted = false;
-    const request = await runWithTimeoutRetry(async ({ signal }) => {
+    const request = await runWithRetry(async () => {
       const repairFeedback = validationFeedback;
       repairAttempted ||= Boolean(repairFeedback);
       const systemContent = `${system} Use only the automatic evidence below as facts. ` +
@@ -293,7 +245,6 @@ async function reviewCouncilRole({ role, system, evidence, args, apiKey, brainDi
       ];
       const response = await fetchImpl(councilApiUrl, {
         method: 'POST',
-        signal,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify(buildCouncilRequest({
           provider: councilProvider,
@@ -329,12 +280,6 @@ async function reviewCouncilRole({ role, system, evidence, args, apiKey, brainDi
       }
       return validated.value;
     }, {
-      attemptTimeoutMs: dependencies.attemptTimeoutMs,
-      totalTimeoutMs: dependencies.totalTimeoutMs,
-      now: dependencies.now,
-      makeSignal: dependencies.makeSignal,
-      setTimer: dependencies.setTimer,
-      clearTimer: dependencies.clearTimer,
       shouldRetry: error => isTimeoutError(error) || error?.name === 'CouncilValidationError',
     });
     const vote = request.ok ? request.value : failClosedRoleVote(role, request.error);
@@ -385,9 +330,7 @@ async function runCouncil({ args, apiKey, brainDir, simDir }, dependencies = {})
 }
 
 module.exports = {
-  ROLE_ATTEMPT_TIMEOUT_MS,
   ROLE_MAX_ATTEMPTS,
-  ROLE_TOTAL_TIMEOUT_MS,
   ROLES,
   buildCouncilRequest,
   collectEvidence,
@@ -398,7 +341,7 @@ module.exports = {
   resolveCouncilProvider,
   reviewCouncilRole,
   runCouncil,
-  runWithTimeoutRetry,
+  runWithRetry,
   writeCouncilAudit,
   writeCouncilUsage,
 };

@@ -9,6 +9,14 @@ before any `pkill`, and before "just deploying" a change. Add a row whenever you
 
 ## A. Workflow orchestration (the 2026-07-24 saga — three failed tries to run the board)
 
+**A5 — a short client timeout can repeatedly restart slow reasoning and guarantee failure.**
+On 2026-07-30, DeepSeek V4 Pro Max council roles were limited to two 45-second attempts and a
+90-second total. Most roles were aborted before producing a vote, so four otherwise viable Farm
+build reviews failed closed. Retrying did not resume reasoning; it discarded the first attempt and
+started over. **FIX: council requests and the enclosing brain wake have no client-side elapsed-time
+limit. Keep the full-wake lock so only one brain runs, and judge completion from the validated vote
+rather than elapsed wall time.**
+
 **A1 — `claude -p` kills background tasks after 600s. THE root cause.**
 A workflow run from `claude -p "... use Workflow ..."` runs in the background. Headless print mode
 has a **600-second background-task limit**: after 600s it prints `Background tasks still running

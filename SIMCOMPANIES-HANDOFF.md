@@ -92,7 +92,7 @@ artifacts. They are not part of either the active autopilot or the archived thre
 | `autopilot/exchange-sale-safety.js` | Final execution-layer guard for fresh state/plan, available stock, Transport, exact five-minute inspection match, and positive game-form profit. |
 | `autopilot/mill-upgrade-policy.js` | Pure deterministic Pareto comparison of evidence-backed Mill upgrade candidates; ranks merit without using current cash. |
 | `autopilot/council-evidence.js` | Shared read-only collector that gives CFO/COO/CMO separate live finance, operations/P1, and retail/order-book evidence packs before deliberation. |
-| `autopilot/council.js` | Runs the three council roles independently against automatic evidence. It follows the active main-brain provider: DeepSeek V4 Pro Max during the trial and OpenAI Luna High after rollback. Each role has bounded timeout/retry, API/JSON failures remain `UNKNOWN`, one invalid vote may receive one validation-feedback repair and must pass the same strict validator, and a non-sensitive per-role audit is written to `council-audit.jsonl`. |
+| `autopilot/council.js` | Runs the three council roles independently against automatic evidence. It follows the active main-brain provider: DeepSeek V4 Pro Max during the trial and OpenAI Luna High after rollback. Council requests have no client-side elapsed-time limit; API/JSON failures remain `UNKNOWN`, one provider-reported timeout or invalid vote may receive one retry, and a non-sensitive per-role audit is written to `council-audit.jsonl`. |
 | `autopilot/council-verdict.js` | Validates structured council citations against exact evidence values and rejects unsupported claims. |
 | `autopilot/api-result.js` | Adds source/status/time plus explicit pagination and truncation metadata to generic API reads. |
 | `autopilot/tool-output.js` | Bounds large tool results by whole fields and marks every omission explicitly; no raw JSON clipping. |
@@ -407,10 +407,11 @@ function. Runtime validation repeats the schema checks before CDP starts.
 - Build, scrap, bonds, upgrade, robots, contracts, or a spend over `$10,000` require:
   fresh state → live evidence → `confirm:false` preview → council → unchanged terms → confirmation
   → fresh-state verification.
-- Council requests isolate CFO/COO/CMO failures. One role timeout cannot discard completed peer
-  votes; each role is bounded to two 45-second attempts and a 90-second total. Timeout/API/JSON
-  failures and twice-invalid evidence stay UNKNOWN. A single validation repair is permitted only by
-  returning a new vote that passes the unchanged deterministic citation validator.
+- Council requests isolate CFO/COO/CMO failures and have no client-side or whole-wake elapsed-time
+  limit. The full-wake lock prevents overlap while all roles finish. Provider-reported
+  timeout/API/JSON failures stay UNKNOWN; one provider-reported timeout or invalid vote may receive
+  one retry. A validation repair is accepted only when the new vote passes the unchanged
+  deterministic citation validator.
 - Preview/dry results do not consume the failure budget.
 - Two real failures for one action target open its circuit for the rest of that wake.
 - Never cancel a running production or sales order.

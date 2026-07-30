@@ -69,15 +69,25 @@ test('chat engine builds a DeepSeek Max thinking request without relying on prom
   assert.equal(tools[0].function.strict, true, 'normalization must not mutate shared tools');
 });
 
-test('chat engine can force one DeepSeek recovery tool without changing OpenAI requests', () => {
-  const tools = [{
-    type: 'function',
-    function: {
-      name: 'refresh_state',
-      strict: true,
-      parameters: { type: 'object', additionalProperties: false, properties: {} },
+test('chat engine limits DeepSeek recovery to one published tool without changing OpenAI requests', () => {
+  const tools = [
+    {
+      type: 'function',
+      function: {
+        name: 'refresh_state',
+        strict: true,
+        parameters: { type: 'object', additionalProperties: false, properties: {} },
+      },
     },
-  }];
+    {
+      type: 'function',
+      function: {
+        name: 'finish',
+        strict: true,
+        parameters: { type: 'object', additionalProperties: false, properties: {} },
+      },
+    },
+  ];
   const messages = [{ role: 'user', content: 'test' }];
   const deepSeek = ENGINES[1][1].buildChatCompletionRequest({
     provider: 'deepseek',
@@ -87,10 +97,11 @@ test('chat engine can force one DeepSeek recovery tool without changing OpenAI r
     effort: 'max',
     forcedToolName: 'refresh_state',
   });
-  assert.deepEqual(deepSeek.tool_choice, {
-    type: 'function',
-    function: { name: 'refresh_state' },
-  });
+  assert.equal(deepSeek.tool_choice, 'auto');
+  assert.deepEqual(
+    deepSeek.tools.map(tool => tool.function.name),
+    ['refresh_state'],
+  );
   assert.equal(Object.hasOwn(deepSeek, 'parallel_tool_calls'), false);
 
   const openAi = ENGINES[1][1].buildChatCompletionRequest({
@@ -102,6 +113,10 @@ test('chat engine can force one DeepSeek recovery tool without changing OpenAI r
   });
   assert.equal(openAi.tool_choice, 'auto');
   assert.equal(openAi.parallel_tool_calls, false);
+  assert.deepEqual(
+    openAi.tools.map(tool => tool.function.name),
+    ['refresh_state', 'finish'],
+  );
   assert.equal(openAi.tools[0].function.strict, true);
 });
 

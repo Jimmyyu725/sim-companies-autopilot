@@ -1,8 +1,31 @@
-# Terra High versus DeepSeek V4 Pro High
+# Terra and DeepSeek V4 Pro shadow benchmark
 
-This experiment compares `gpt-5.6-terra` High and `deepseek-v4-pro` High on one immutable
-Sim Companies wake. It does not change `autopilot/run-brain.sh`, the production model, the browser,
-or the game.
+This experiment compares provider behavior on immutable Sim Companies wakes. It never changes
+`autopilot/run-brain.sh`, provider routing, the browser, or the game.
+
+## Preserved result summary
+
+The final 50-wake run on 2026-07-30 used `deepseek-v4-pro` with Max reasoning and the dedicated
+execution prompt:
+
+- 50/50 wakes completed across ten scenario families;
+- average observable score: 95.776/100;
+- readiness gates: 7/7 passed;
+- 36 scoring guard failures across 26 wakes, with no unknown tools, forbidden confirmed
+  mutations, or duplicate confirmed mutation targets;
+- 16,664,872 prompt tokens and 327,572 output tokens;
+- exact list-price cost: $0.78487937, or $0.01569759 per wake;
+- live browser opens and live game mutations: zero.
+
+On the 26 unchanged fixtures shared with the earlier comparison, Terra High averaged 97.308,
+DeepSeek Max with the dedicated prompt averaged 96.019, and DeepSeek High with the shared prompt
+averaged 95.654. DeepSeek Max was materially cheaper but slower and more verbose than Terra.
+These results supported a reversible DeepSeek production trial only after adding program-level
+single-tool enforcement, credential separation, and automatic OpenAI fallback. They do not prove
+equal long-horizon live-game performance.
+
+Raw run transcripts are intentionally disposable and are not source-controlled. The harness,
+fixtures, validators, and this summary are the durable record.
 
 The default single-scenario benchmark derives a controlled `prospector-ready-v1` replay from the latest captured
 state: it advances only the recorded Quarry construction to its known completion, marks that exact
@@ -108,8 +131,8 @@ experiments/deepseek-v4-pro-shadow/run-coverage-interactive.sh
 ```
 
 The default run uses DeepSeek V4 Pro High, three concurrent workers, and one immutable base
-snapshot. It makes no OpenAI request, does not open Chrome, and records every would-click action as
-`executed:false`. Production remains on Terra.
+snapshot. It makes no OpenAI request, does not open Chrome, records every would-click action as
+`executed:false`, and never changes production routing.
 
 After the run, independently recompute every scenario score, exact list-price cost, aggregate,
 readiness gate, and zero-mutation guarantee:

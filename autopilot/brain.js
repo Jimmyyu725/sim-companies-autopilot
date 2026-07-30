@@ -27,7 +27,10 @@ const {
 const { currentMemorySchema, readCurrentMemory, validateCurrentMemory, writeCurrentMemory } = require(path.join(BRAIN, 'current-memory.js'));
 const { formatWakeSnapshot, journalToolSchema, prepareJournalEntry } = require(path.join(BRAIN, 'journal-entry.js'));
 const { buildingUtilizationJournalGate } = require(path.join(BRAIN, 'building-utilization-policy.js'));
-const { readPendingOwnerDirective } = require(path.join(BRAIN, 'owner-directive.js'));
+const {
+  readPendingOwnerDirective,
+  readPendingOwnerDirectiveForPrompt,
+} = require(path.join(BRAIN, 'owner-directive.js'));
 const { formatToolOutput, previewJson } = require(path.join(BRAIN, 'tool-output.js'));
 const {
   authorizeChatAction,
@@ -544,13 +547,14 @@ function buildChatCompletionRequest({
   if (provider === 'deepseek' && forcedToolName && !availableToolNames.has(forcedToolName)) {
     throw new Error(`unknown forced DeepSeek tool ${forcedToolName}`);
   }
+  const publishedTools = provider === 'deepseek' && forcedToolName
+    ? tools.filter(tool => tool?.function?.name === forcedToolName)
+    : tools;
   const request = {
     model,
     messages,
-    tools: provider === 'deepseek' ? buildDeepSeekTools(tools) : tools,
-    tool_choice: provider === 'deepseek' && forcedToolName
-      ? { type: 'function', function: { name: forcedToolName } }
-      : 'auto',
+    tools: provider === 'deepseek' ? buildDeepSeekTools(publishedTools) : tools,
+    tool_choice: 'auto',
   };
   if (provider === 'deepseek') {
     if (!['high', 'max'].includes(effort)) {
@@ -696,16 +700,8 @@ async function main() {
     : baseSystem;
   const stateObject = JSON.parse(fs.readFileSync(path.join(BRAIN, '.state.json'), 'utf8'));
   const state = JSON.stringify(stateObject);
-  // Memory across wakes: the API is stateless, so feed back the brain's own last journal entries
-  // (it writes them each wake — without this read-back it keeps a diary it never reads).
-  let memory = '';
-  try {
-    const j = fs.readFileSync(path.join(BRAIN, 'JOURNAL.md'), 'utf8');
-    const mine = j.split(/\n(?=## )/).filter(s => s.startsWith('## ') && s.includes('BRAIN wake'));
-    memory = mine.slice(-1).join('\n').slice(-1800);
-  } catch (e) { /* first wake ever */ }
   const current = readCurrentMemory(path.join(BRAIN, 'CURRENT.json'));
-  const ownerDirective = readPendingOwnerDirective(
+  const ownerDirective = readPendingOwnerDirectiveForPrompt(
     path.join(BRAIN, 'OWNER-DIRECTIVE.json'),
     path.join(BRAIN, '.state.json'),
   );
@@ -713,7 +709,7 @@ async function main() {
   try { wakeReason = JSON.parse(fs.readFileSync(path.join(BRAIN, '.last-wake.json'), 'utf8')).reason || ''; } catch (e) {}
   const messages = [
     { role: 'system', content: system },
-    { role: 'user', content: `WAKE ${new Date().toISOString()}${DRY ? ' (DRY RUN — plan and narrate, act is a no-op)' : ''}.\nYOU WERE WOKEN BECAUSE: ${wakeReason||"(scheduled check)"}\nPENDING OWNER DIRECTIVE (highest priority; execute safely and keep pending until verified complete):\n${ownerDirective ? JSON.stringify(ownerDirective) : '(none)'}\nCURRENT MEMORY (authoritative cross-wake plan; current state still wins if newer):\n${current ? JSON.stringify(current) : '(missing — create it with master this wake)'}\n\nRECENT JOURNAL (last wake; historical context only, never override CURRENT or current state):\n${memory || '(no prior entries — this is your first wake)'}\n\nCurrent state:\n${state}` },
+    { role: 'user', content: `WAKE ${new Date().toISOString()}${DRY ? ' (DRY RUN — plan and narrate, act is a no-op)' : ''}.\nYOU WERE WOKEN BECAUSE: ${wakeReason||"(scheduled check)"}\nPENDING OWNER DIRECTIVE (highest priority; execute safely and keep pending until verified complete):\n${ownerDirective ? JSON.stringify(ownerDirective) : '(none)'}\nCURRENT MEMORY (authoritative cross-wake plan; current state still wins if newer):\n${current ? JSON.stringify(current) : '(missing — create it with master this wake)'}\n\nCurrent state:\n${state}` },
   ];
   // Wake transcript — the brain's visible thinking and every action. The runner mirrors operating
   // journals to the configured Windows log destination.

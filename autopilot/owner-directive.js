@@ -21,9 +21,78 @@ function readJson(file) {
   catch (_) { return null; }
 }
 
+function pickDefined(source, keys) {
+  const picked = {};
+  for (const key of keys) {
+    if (source?.[key] !== undefined) picked[key] = source[key];
+  }
+  return picked;
+}
+
+function compactProspectorExperiment(experiment, { prompt = false } = {}) {
+  if (!experiment || typeof experiment !== 'object') return experiment;
+  const compact = pickDefined(experiment, [
+    'status',
+    'authorizedAt',
+    'building',
+    'buildingId',
+    'level',
+    'expectedBaseline',
+    'expectedTarget',
+    'expectedIncrement',
+    'completesAt',
+    'campaign',
+    'instruction',
+    'baselineProgress',
+    'lastProgressEvidence',
+    'verificationError',
+  ]);
+  const attemptStatus = String(experiment?.rebuildAttempt?.status || '');
+  if ((!prompt && experiment.rebuildAttempt) ||
+      ['claimed', 'awaiting-counter', 'not-clicked'].includes(attemptStatus)) {
+    compact.rebuildAttempt = experiment.rebuildAttempt;
+  }
+  if (experiment.status === 'completed') {
+    if (experiment.verificationEvidence !== undefined) {
+      compact.verificationEvidence = experiment.verificationEvidence;
+    }
+    if (experiment.verifiedAt !== undefined) compact.verifiedAt = experiment.verifiedAt;
+  }
+  if (prompt) {
+    if (experiment.progressEvidenceContract !== undefined) {
+      compact.progressEvidenceContract = experiment.progressEvidenceContract;
+    }
+    if (experiment.recoveryCandidate !== undefined) {
+      compact.recoveryCandidate = experiment.recoveryCandidate;
+    }
+  }
+  return compact;
+}
+
+function compactOwnerDirectiveForStorage(value) {
+  if (value?.action !== OWNER_SUBTASK_ACTION ||
+      !isProspectorCampaign(value?.prospectorExperiment)) return value;
+  return {
+    ...pickDefined(value, [
+      'schemaVersion',
+      'id',
+      'createdAt',
+      'status',
+      'priority',
+      'action',
+      'completedAt',
+      'completionEvidence',
+    ]),
+    prospectorExperiment: compactProspectorExperiment(value.prospectorExperiment),
+  };
+}
+
 function writeJsonAtomic(file, value) {
   const temporary = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`);
+  fs.writeFileSync(
+    temporary,
+    `${JSON.stringify(compactOwnerDirectiveForStorage(value), null, 2)}\n`,
+  );
   fs.renameSync(temporary, file);
 }
 
@@ -82,6 +151,11 @@ function parseProspectorOverview(data) {
 
 function isProspectorCampaign(experiment) {
   return experiment?.campaign?.mode === PROSPECTOR_CAMPAIGN_MODE;
+}
+
+function ownerProspectorRootIsAuthorized(directive) {
+  return directive?.action === OWNER_SUBTASK_ACTION ||
+    directive?.program?.status === 'completed';
 }
 
 function prospectorCampaignIsComplete(experiment) {
@@ -247,12 +321,16 @@ function decoratePendingDirective(directive) {
     };
   }
   const pendingSubtasks = pendingOwnerSubtasks(decorated);
-  if (programCompletionEvidenceIsValid(decorated) && pendingSubtasks.length > 0) {
+  const completedUpgradeProgram = programCompletionEvidenceIsValid(decorated);
+  if ((completedUpgradeProgram || decorated?.action === OWNER_SUBTASK_ACTION) &&
+      pendingSubtasks.length > 0) {
     decorated = {
       ...decorated,
       action: OWNER_SUBTASK_ACTION,
-      completedAction: directive.action,
-      activeInstruction: 'The funded upgrade program is authoritatively complete. Do not preview or start another upgrade or upgrade bridge; execute only the listed pending owner subtasks. The exact eligible owner-authorized Prospector REBUILD campaign is already strategically approved: after each replacement Quarry finishes, dry-preview it, confirm it without council re-review, verify exactly one counter increment, bind the replacement building ID, and repeat until stars equals starsMax. Do not start production on the campaign target once REBUILD is executable.',
+      ...(completedUpgradeProgram ? { completedAction: directive.action } : {}),
+      activeInstruction: `${completedUpgradeProgram
+        ? 'The funded upgrade program is authoritatively complete. Do not preview or start another upgrade or upgrade bridge; '
+        : ''}Execute only the listed pending owner subtasks. The exact eligible owner-authorized Prospector REBUILD campaign is already strategically approved: after each replacement Quarry finishes, dry-preview it, confirm it without council re-review, verify exactly one counter increment, bind the replacement building ID, and repeat until stars equals starsMax. Do not start production on the campaign target once REBUILD is executable.`,
       pendingOwnerSubtasks: pendingSubtasks,
     };
   }
@@ -316,7 +394,7 @@ function ownerProspectorCampaignCanRecover(directive, nowMs = Date.now()) {
     experiment?.rebuildAttempt?.status,
   );
   return directive?.schemaVersion === 1 && directive?.status === 'pending' &&
-    directive?.priority === 'owner' && directive?.program?.status === 'completed' &&
+    directive?.priority === 'owner' && ownerProspectorRootIsAuthorized(directive) &&
     isProspectorCampaign(experiment) && experiment?.campaign?.status === 'active' &&
     experiment?.status === 'counter-mismatch' && !activeAttempt &&
     Number(experiment?.expectedIncrement) === 1 && Number(experiment?.level) === 1 &&
@@ -399,7 +477,6 @@ function appendVerifiedProspectorAttempt(experiment, evidence, nowMs) {
   if (!attempt || attempt.status !== 'awaiting-counter') {
     return {
       rebuildAttempt: attempt,
-      completedAttempts: experiment.completedAttempts,
       verifiedRebuilds: Number(experiment.campaign?.verifiedRebuilds) || 0,
     };
   }
@@ -411,12 +488,8 @@ function appendVerifiedProspectorAttempt(experiment, evidence, nowMs) {
     progressTargetAfter: evidence.target,
     starsAfter: evidence.stars,
   };
-  const priorAttempts = Array.isArray(experiment.completedAttempts)
-    ? experiment.completedAttempts.filter(row => row?.attemptId !== attempt.attemptId)
-    : [];
   return {
     rebuildAttempt: verifiedAttempt,
-    completedAttempts: [...priorAttempts, verifiedAttempt].slice(-250),
     verifiedRebuilds: (Number(experiment.campaign?.verifiedRebuilds) || 0) + 1,
   };
 }
@@ -497,7 +570,6 @@ function recordOwnerProspectorOverview(directiveFile, observation, now = Date.no
           verificationEvidence: evidence,
           verifiedAt: new Date(nowMs).toISOString(),
           rebuildAttempt: verifiedAttempt.rebuildAttempt,
-          completedAttempts: verifiedAttempt.completedAttempts,
           campaign: {
             ...experiment.campaign,
             status: 'active',
@@ -507,6 +579,7 @@ function recordOwnerProspectorOverview(directiveFile, observation, now = Date.no
             lastVerifiedAt: new Date(nowMs).toISOString(),
           },
         };
+        delete nextExperiment.completedAttempts;
         delete nextExperiment.verificationError;
       } else if (transition === 'tier-pending') {
         nextExperiment = {
@@ -865,7 +938,7 @@ function synchronizeOwnerProspectorConstruction(directiveFile, state, now = Date
     sourceAtMs <= nowMs + 60e3 && nowMs - stateAtMs <= MAX_COMPLETION_STATE_AGE_MS &&
     nowMs - sourceAtMs <= MAX_COMPLETION_STATE_AGE_MS;
   if (directive?.schemaVersion !== 1 || directive?.status !== 'pending' ||
-      directive?.priority !== 'owner' || directive?.program?.status !== 'completed' ||
+      directive?.priority !== 'owner' || !ownerProspectorRootIsAuthorized(directive) ||
       !isProspectorCampaign(experiment) || experiment?.campaign?.status !== 'active' ||
       !Number.isSafeInteger(buildingId) || buildingId <= 0 ||
       !PROSPECTOR_BUILDING_NAMES.has(expectedName) ||
@@ -978,6 +1051,23 @@ function readPendingOwnerDirective(directiveFile, stateFile, now = Date.now()) {
       return null;
     }
   }
+  if (directive.action === OWNER_SUBTASK_ACTION && directive.prospectorExperiment &&
+      pendingOwnerSubtasks(directive).length === 0 &&
+      Number.isFinite(new Date(Number(now)).getTime())) {
+    writeJsonAtomic(directiveFile, {
+      ...directive,
+      status: 'completed',
+      completedAt: new Date(Number(now)).toISOString(),
+      completionEvidence: {
+        ownerSubtasks: [{
+          key: 'prospectorExperiment',
+          status: directive.prospectorExperiment.status,
+          verificationEvidence: directive.prospectorExperiment.verificationEvidence || null,
+        }],
+      },
+    });
+    return null;
+  }
   const recoveryCandidate = findOwnerProspectorRecoveryCandidate(state, directive, now);
   const decorated = decoratePendingDirective(directive);
   if (!recoveryCandidate || !decorated?.prospectorExperiment) return decorated;
@@ -988,6 +1078,27 @@ function readPendingOwnerDirective(directiveFile, stateFile, now = Date.now()) {
       ...decorated.prospectorExperiment,
       recoveryCandidate,
     },
+  };
+}
+
+function readPendingOwnerDirectiveForPrompt(directiveFile, stateFile, now = Date.now()) {
+  const directive = readPendingOwnerDirective(directiveFile, stateFile, now);
+  if (!directive || directive.action !== OWNER_SUBTASK_ACTION ||
+      !isProspectorCampaign(directive.prospectorExperiment)) return directive;
+  return {
+    ...pickDefined(directive, [
+      'schemaVersion',
+      'id',
+      'status',
+      'priority',
+      'action',
+      'activeInstruction',
+      'pendingOwnerSubtasks',
+    ]),
+    prospectorExperiment: compactProspectorExperiment(
+      directive.prospectorExperiment,
+      { prompt: true },
+    ),
   };
 }
 
@@ -1048,6 +1159,7 @@ module.exports = {
   pendingOwnerSubtasks,
   programCompletionEvidenceIsValid,
   readPendingOwnerDirective,
+  readPendingOwnerDirectiveForPrompt,
   recordOwnerProspectorRebuildOutcome,
   recordOwnerProspectorOverview,
   refreshAndClaimOwnerProspectorRebuildAttempt,

@@ -82,6 +82,7 @@ function compactRefreshState(state, totalBytes, maxBytes) {
     warehouse: state.warehouse,
     stock: state.stock,
     bonds: state.bonds,
+    companyValue: state.companyValue,
     buildings: (state.buildings || []).map(building => ({
       id: building.id,
       name: building.name,

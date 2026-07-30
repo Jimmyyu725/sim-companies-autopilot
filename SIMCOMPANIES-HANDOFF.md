@@ -309,6 +309,19 @@ The normalized state is authoritative only for the capture time shown in `state.
   `0.1`. Active-production inputs were already consumed and are not deducted twice.
 - `state.sources` records source status, timestamp, age, and fallback use. Missing retail,
   modifiers, volume, or prices remain unknown instead of becoming empty arrays or zeroes.
+- `state.companyValue.official` reproduces the game's daily equation from the complete balance-sheet
+  API: current assets plus non-current assets minus liabilities. `realtimeEstimate` recalculates at
+  each closing wake from live cash, receivables, warehouse/exchange/contract/production/retail
+  inventory, completed buildings, construction in progress, and reconciled debt. Inventory follows
+  the documented 85% prior-day VWAP policy using the local tracker; because tracker volume blends
+  qualities, the result is explicitly an estimate with coverage/confidence/limitations rather than
+  an official rank update.
+- `run-brain.sh` takes one final locked state capture after the model exits, then
+  `company-value-recorder.js` writes ignored runtime files
+  `autopilot/metrics/company-value-current.json` and `company-value-history.jsonl`, and appends the
+  same measurement to the per-wake diary before usage accounting and Windows synchronization.
+  Provider/state/final-capture failures still get one idempotent `UNAVAILABLE` record; missing
+  components are never coerced to zero.
 - Cached ticker prices expire after ten minutes. Mixed-level printed-rate caches carry their own
   age/status and are only inspection anchors.
 - `volume1h` prorates each `t0..t1` sample by its overlap with the true trailing-hour window. It is

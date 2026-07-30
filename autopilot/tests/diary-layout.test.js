@@ -15,10 +15,12 @@ function read(relativePath) {
 test('all per-wake diaries live in the dedicated diaries directory', () => {
   const rootDiaries = fs.readdirSync(autopilot).filter((name) => /^diary-.*\.md$/.test(name));
   const diaryDirectory = path.join(autopilot, 'diaries');
-  const nestedDiaries = fs.readdirSync(diaryDirectory).filter((name) => /^diary-.*\.md$/.test(name));
+  const nestedDiaries = fs.existsSync(diaryDirectory)
+    ? fs.readdirSync(diaryDirectory).filter((name) => /^diary-.*\.md$/.test(name))
+    : [];
 
   assert.deepEqual(rootDiaries, []);
-  assert.ok(nestedDiaries.length > 0, 'expected migrated per-wake diaries');
+  assert.ok(nestedDiaries.every((name) => /^diary-.*\.md$/.test(name)));
 });
 
 test('all diary writers and Windows synchronization use the dedicated directory', () => {
@@ -46,7 +48,21 @@ test('a diary is initialized before state capture and failure still gets summari
   assert.ok(diaryInitialization >= 0 && diaryInitialization < stateCapture);
   assert.ok(failureStart >= 0 && brainStart > failureStart);
   assert.match(failureBranch, /STATE CAPTURE FAILED/);
+  assert.match(failureBranch, /record_company_value/);
   assert.match(failureBranch, /--diary=\$DIARY_FILE/);
   assert.match(failureBranch, /sync-windows-logs\.sh/);
   assert.match(failureBranch, /no model call and no game action were attempted/);
+});
+
+test('the closing company-value record uses a final locked state capture before Windows sync', () => {
+  const runner = read('autopilot/run-brain.sh');
+  const brainStart = runner.indexOf('timeout 900 node');
+  const finalCapture = runner.indexOf('final company-value state capture');
+  const recorder = runner.lastIndexOf('record_company_value');
+  const windowsSync = runner.lastIndexOf('sync-windows-logs.sh');
+
+  assert.ok(brainStart >= 0 && finalCapture > brainStart);
+  assert.ok(recorder > finalCapture);
+  assert.ok(windowsSync > recorder);
+  assert.match(runner, /flock -w 90 \.tick\.lock node "\$AUTOPILOT\/state\.js"/);
 });

@@ -21,6 +21,16 @@ const {
   parseArguments: parseCoverageArguments,
 } = require('../coverage.js');
 const { parseArguments: parseSuiteArguments } = require('../suite.js');
+const {
+  parseArguments: parseTerraCoverageArguments,
+} = require('../terra-coverage.js');
+const {
+  terraCallCost,
+} = require('../validate-coverage.js');
+const {
+  conflictSensitivity,
+  pairedStatistics,
+} = require('../compare-coverages.js');
 
 const SIM_DIR = path.resolve(__dirname, '..', '..', '..');
 
@@ -318,6 +328,116 @@ test('coverage matrix exposes ten scenario families with three controlled varian
     [...new Set(rows.map(row => row.scenario.coverageScenarioKey))],
     COVERAGE_SCENARIOS,
   );
+});
+
+test('structural-action scenarios contain no competing construction fixture', () => {
+  const base = baseSnapshot();
+  for (const scenarioKey of ['mill-upgrade', 'slot-expansion']) {
+    for (const variant of [1, 3]) {
+      const snapshot = applyScenario(base, scenarioKey, {
+        coverage: true,
+        variant,
+      });
+      const competing = snapshot.state.buildings.filter(building => (
+        building.busy?.type === 'construction'
+          || building.activity?.type === 'construction'
+      ));
+      assert.deepEqual(
+        competing,
+        [],
+        `${scenarioKey} variant ${variant} must expose only its target structural move`,
+      );
+      const quarry = snapshot.state.buildings.find(building => building.name === 'Quarry');
+      assert.equal(quarry.busy.type, 'production');
+      assert.equal(quarry.busy.makingName, 'Sand');
+    }
+  }
+});
+
+test('Terra coverage requires an explicit frozen reference and preserves High settings', () => {
+  assert.throws(
+    () => parseTerraCoverageArguments([]),
+    /--reference-coverage is required/u,
+  );
+  const options = parseTerraCoverageArguments([
+    '--reference-coverage',
+    'runs/coverage-reference',
+  ]);
+  assert.equal(options.referenceCoverage, 'runs/coverage-reference');
+  assert.equal(options.model, 'gpt-5.6-terra');
+  assert.equal(options.effort, 'high');
+  assert.equal(options.maxRounds, 30);
+  assert.equal(options.maxTokens, 32768);
+  assert.equal(options.concurrency, 3);
+});
+
+test('independent Terra pricing applies long-context rates per API call', () => {
+  const shortCost = terraCallCost({
+    serviceTier: 'default',
+    usage: {
+      input_tokens: 100000,
+      input_tokens_details: {
+        cached_tokens: 80000,
+        cache_write_tokens: 10000,
+      },
+      output_tokens: 1000,
+    },
+  });
+  assert.equal(Number(shortCost.toFixed(6)), 0.09125);
+  const longCost = terraCallCost({
+    serviceTier: 'default',
+    usage: {
+      input_tokens: 300000,
+      input_tokens_details: {
+        cached_tokens: 250000,
+        cache_write_tokens: 25000,
+      },
+      output_tokens: 2000,
+    },
+  });
+  assert.equal(Number(longCost.toFixed(6)), 0.45125);
+});
+
+test('paired coverage statistics preserve ties and report a two-sided sign test', () => {
+  const rows = [
+    8, 0, -13, -10, 1, 3, 3, 7, 0, 0,
+    0, -2, 0, 3, 3, 3, 7, 0, -2, -2,
+    5, -13, 6, 3, 2, 0, 0, 0, 0, 0,
+  ].map(scoreDeltaTerraMinusDeepSeek => ({ scoreDeltaTerraMinusDeepSeek }));
+  const statistics = pairedStatistics(rows);
+  assert.equal(statistics.pairedCases, 30);
+  assert.equal(statistics.nonTiedCases, 19);
+  assert.equal(statistics.meanScoreDeltaTerraMinusDeepSeek, 0.4);
+  assert.equal(statistics.twoSidedSignTestP, 0.16706848);
+  assert.ok(statistics.normalApproximation95Pct[0] < 0);
+  assert.ok(statistics.normalApproximation95Pct[1] > 0);
+});
+
+test('coverage sensitivity excludes only the four conflicting structural pairs', () => {
+  const pairs = Array.from({ length: 30 }, (_, index) => {
+    const runIndex = index + 1;
+    const caseIds = {
+      7: '07-mill-upgrade-v1',
+      8: '08-slot-expansion-v1',
+      27: '27-mill-upgrade-v3',
+      28: '28-slot-expansion-v3',
+    };
+    return {
+      caseId: caseIds[runIndex] || `${String(runIndex).padStart(2, '0')}-clean`,
+      terraScore: 100,
+      deepseekScore: 99,
+      scoreDeltaTerraMinusDeepSeek: 1,
+      terraConfirmedMutations: [7, 8, 28].includes(runIndex) ? 0 : 1,
+      deepseekConfirmedMutations: 1,
+    };
+  });
+  const sensitivity = conflictSensitivity(pairs);
+  assert.equal(sensitivity.conflictCaseIds.length, 4);
+  assert.equal(sensitivity.uncontaminatedCases, 26);
+  assert.equal(sensitivity.ruleCompliance.terra, 3);
+  assert.equal(sensitivity.ruleCompliance.deepseek, 0);
+  assert.equal(sensitivity.uncontaminated.terra.score, 2600);
+  assert.equal(sensitivity.uncontaminated.deepseek.score, 2574);
 });
 
 test('collectible recovery collects exactly once and restarts the same Power plant', async () => {

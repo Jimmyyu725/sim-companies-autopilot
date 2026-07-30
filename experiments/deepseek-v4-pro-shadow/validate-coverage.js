@@ -19,6 +19,21 @@ const DEEPSEEK_PRICING_PER_MILLION = Object.freeze({
   cacheMissInput: 0.435,
   output: 0.87,
 });
+const TERRA_SHORT_CONTEXT_LIMIT = 272000;
+const TERRA_PRICING_PER_MILLION = Object.freeze({
+  short: Object.freeze({
+    input: 2.5,
+    cached: 0.25,
+    cacheWrite: 3.125,
+    output: 15,
+  }),
+  long: Object.freeze({
+    input: 5,
+    cached: 0.5,
+    cacheWrite: 6.25,
+    output: 22.5,
+  }),
+});
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -52,6 +67,38 @@ function deepseekCallCost(call) {
   ) / 1_000_000;
 }
 
+function terraCallCost(call) {
+  const usage = call?.usage || {};
+  const details = usage.input_tokens_details || {};
+  const input = Number(usage.input_tokens);
+  const cached = Number(details.cached_tokens);
+  const cacheWrite = Number(details.cache_write_tokens);
+  const output = Number(usage.output_tokens);
+  if (![input, cached, cacheWrite, output].every(Number.isFinite)
+      || [input, cached, cacheWrite, output].some(value => value < 0)
+      || cached + cacheWrite > input) {
+    throw new Error('invalid Terra token allocation');
+  }
+  if (!['default', 'standard'].includes(String(call?.serviceTier || 'default'))) {
+    throw new Error('unsupported Terra service tier for independent pricing');
+  }
+  const prices = input > TERRA_SHORT_CONTEXT_LIMIT
+    ? TERRA_PRICING_PER_MILLION.long
+    : TERRA_PRICING_PER_MILLION.short;
+  return (
+    (input - cached - cacheWrite) * prices.input
+      + cached * prices.cached
+      + cacheWrite * prices.cacheWrite
+      + output * prices.output
+  ) / 1_000_000;
+}
+
+function providerCallCost(provider, call) {
+  if (provider === 'terra') return terraCallCost(call);
+  if (provider === 'deepseek') return deepseekCallCost(call);
+  throw new Error(`unsupported coverage provider: ${provider}`);
+}
+
 function persistedResult(result, transcript, usage) {
   return {
     ok: result.ok === true,
@@ -71,6 +118,7 @@ function validateCoverage(input) {
   const summary = readJson(path.join(directory, 'coverage-summary.json'));
   const plan = readJson(path.join(directory, 'coverage-plan.json'));
   const baseSnapshot = readJson(path.join(directory, 'base-snapshot.json'));
+  const provider = summary.provider || plan.provider || 'deepseek';
   const checks = [];
   const failures = [];
   const assertCheck = (name, condition, evidence) => {
@@ -82,6 +130,11 @@ function validateCoverage(input) {
     'base snapshot hash',
     summary.baseSnapshotSha256 === sha256(JSON.stringify(baseSnapshot)),
     summary.baseSnapshotSha256,
+  );
+  assertCheck(
+    'known provider',
+    ['deepseek', 'terra'].includes(provider),
+    provider,
   );
   assertCheck('exactly 30 planned cases', plan.cases?.length === 30, plan.cases?.length);
   assertCheck('exactly 30 result rows', summary.rows?.length === 30, summary.rows?.length);
@@ -129,18 +182,49 @@ function validateCoverage(input) {
   );
 
   const recomputedRuns = [];
+  let referenceDirectory = null;
+  let referenceSummary = null;
+  if (provider === 'terra') {
+    const referenceId = summary.fairness?.referenceCoverageId
+      || plan.referenceCoverageId;
+    if (referenceId) {
+      referenceDirectory = resolveCoverage(path.join(RUNS_DIR, referenceId));
+      referenceSummary = readJson(path.join(referenceDirectory, 'coverage-summary.json'));
+      const referenceValidation = readJson(path.join(referenceDirectory, 'validation.json'));
+      assertCheck(
+        'reference coverage independently passed',
+        referenceValidation.status === 'passed',
+        referenceValidation.status,
+      );
+      assertCheck(
+        'same immutable base as reference',
+        referenceSummary.baseSnapshotSha256 === summary.baseSnapshotSha256,
+        {
+          reference: referenceSummary.baseSnapshotSha256,
+          terra: summary.baseSnapshotSha256,
+        },
+      );
+      assertCheck(
+        'exact reference snapshots declared',
+        summary.fairness?.exactReferenceCaseSnapshots === true,
+        summary.fairness?.exactReferenceCaseSnapshots,
+      );
+    } else {
+      assertCheck('reference coverage identified', false, referenceId || null);
+    }
+  }
   for (const row of summary.rows) {
     const root = path.join(directory, row.artifactPath);
     const snapshot = readJson(path.join(root, 'snapshot.json'));
     const caseMeta = readJson(path.join(root, 'case.json'));
-    const providerRoot = path.join(root, 'deepseek');
+    const providerRoot = path.join(root, provider);
     const resultJson = readJson(path.join(providerRoot, 'result.json'));
     const scoreJson = readJson(path.join(providerRoot, 'score.json'));
     const usage = readJson(path.join(providerRoot, 'usage.json'));
     const transcript = readJson(path.join(providerRoot, 'transcript.json'));
     const result = persistedResult(resultJson, transcript, usage);
     const score = scoreShadowResult(snapshot, result);
-    const callCosts = usage.calls.map(call => Number(deepseekCallCost(call).toFixed(8)));
+    const callCosts = usage.calls.map(call => Number(providerCallCost(provider, call).toFixed(8)));
     const independentlyPriced = Number(
       callCosts.reduce((sum, value) => sum + value, 0).toFixed(8),
     );
@@ -151,6 +235,19 @@ function validateCoverage(input) {
       snapshot.baseSnapshotSha256 === summary.baseSnapshotSha256,
       snapshot.baseSnapshotSha256,
     );
+    if (referenceDirectory) {
+      const referenceSnapshot = readJson(
+        path.join(referenceDirectory, 'cases', row.caseId, 'snapshot.json'),
+      );
+      assertCheck(
+        `${row.caseId}: exact reference snapshot`,
+        sha256(JSON.stringify(snapshot)) === sha256(JSON.stringify(referenceSnapshot)),
+        {
+          reference: sha256(JSON.stringify(referenceSnapshot)),
+          terra: sha256(JSON.stringify(snapshot)),
+        },
+      );
+    }
     assertCheck(
       `${row.caseId}: case identity`,
       caseMeta.caseId === row.caseId
@@ -186,6 +283,7 @@ function validateCoverage(input) {
       model: usage.model,
       effort: usage.effort,
       maxTokens: usage.maxTokens,
+      provider,
     });
   }
 
@@ -197,6 +295,13 @@ function validateCoverage(input) {
     {
       sameSemanticToolNames: summary.fairness.semanticToolParityWithTerra,
       deepseek: { sha256: summary.fairness.toolSurfaceSha256 },
+      terra: { sha256: summary.fairness.toolSurfaceSha256 },
+    },
+    {
+      provider,
+      referenceCoverageId: summary.fairness?.referenceCoverageId || null,
+      referenceCoverageSha256: summary.fairness?.referenceCoverageSha256 || null,
+      exactReferenceCaseSnapshots: summary.fairness?.exactReferenceCaseSnapshots === true,
     },
   );
   const aggregateFields = [
@@ -247,6 +352,7 @@ function validateCoverage(input) {
   );
   const isolatedSources = [
     'coverage.js',
+    'terra-coverage.js',
     'lib/coverage-artifacts.js',
     'lib/scenarios.js',
     'lib/tool-runtime.js',
@@ -263,10 +369,15 @@ function validateCoverage(input) {
     status: failures.length ? 'failed' : 'passed',
     validatedAt: new Date().toISOString(),
     coverageDirectory: path.basename(directory),
+    provider,
     checks,
     failures,
-    officialPricingPerMillion: DEEPSEEK_PRICING_PER_MILLION,
-    pricingSource: 'DeepSeek API Models & Pricing: deepseek-v4-pro cache-hit, cache-miss, and output rates.',
+    officialPricingPerMillion: provider === 'terra'
+      ? TERRA_PRICING_PER_MILLION
+      : DEEPSEEK_PRICING_PER_MILLION,
+    pricingSource: provider === 'terra'
+      ? 'OpenAI API pricing: gpt-5.6-terra Standard short- and long-context rates.'
+      : 'DeepSeek API Models & Pricing: deepseek-v4-pro cache-hit, cache-miss, and output rates.',
   };
   writeJson(path.join(directory, 'validation.json'), validation);
   return validation;
@@ -293,9 +404,13 @@ if (require.main === module) {
 
 module.exports = {
   DEEPSEEK_PRICING_PER_MILLION,
+  TERRA_PRICING_PER_MILLION,
+  TERRA_SHORT_CONTEXT_LIMIT,
   almostEqual,
   deepseekCallCost,
   persistedResult,
+  providerCallCost,
   resolveCoverage,
+  terraCallCost,
   validateCoverage,
 };

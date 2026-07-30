@@ -69,6 +69,96 @@ test('chat engine builds a DeepSeek Max thinking request without relying on prom
   assert.equal(tools[0].function.strict, true, 'normalization must not mutate shared tools');
 });
 
+test('chat engine can force one DeepSeek recovery tool without changing OpenAI requests', () => {
+  const tools = [{
+    type: 'function',
+    function: {
+      name: 'refresh_state',
+      strict: true,
+      parameters: { type: 'object', additionalProperties: false, properties: {} },
+    },
+  }];
+  const messages = [{ role: 'user', content: 'test' }];
+  const deepSeek = ENGINES[1][1].buildChatCompletionRequest({
+    provider: 'deepseek',
+    model: 'deepseek-v4-pro',
+    messages,
+    tools,
+    effort: 'max',
+    forcedToolName: 'refresh_state',
+  });
+  assert.deepEqual(deepSeek.tool_choice, {
+    type: 'function',
+    function: { name: 'refresh_state' },
+  });
+  assert.equal(Object.hasOwn(deepSeek, 'parallel_tool_calls'), false);
+
+  const openAi = ENGINES[1][1].buildChatCompletionRequest({
+    provider: 'openai',
+    model: 'gpt-test',
+    messages,
+    tools,
+    forcedToolName: 'refresh_state',
+  });
+  assert.equal(openAi.tool_choice, 'auto');
+  assert.equal(openAi.parallel_tool_calls, false);
+  assert.equal(openAi.tools[0].function.strict, true);
+});
+
+test('chat engine normalizes only DeepSeek string nulls allowed by a tool schema', () => {
+  const tools = [{
+    type: 'function',
+    function: {
+      name: 'inspect_building',
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          buildingId: { type: 'integer' },
+          product: { type: ['string', 'null'] },
+          qty: { type: ['number', 'null'] },
+          label: { type: 'string' },
+        },
+        required: ['buildingId', 'product', 'qty', 'label'],
+      },
+    },
+  }];
+  const normalized = ENGINES[1][1].normalizeDeepSeekToolArguments(
+    'inspect_building',
+    { buildingId: 42, product: ' null ', qty: 'NULL', label: 'null' },
+    tools,
+  );
+  assert.deepEqual(normalized.args, {
+    buildingId: 42,
+    product: null,
+    qty: null,
+    label: 'null',
+  });
+  assert.deepEqual(normalized.normalizedFields, ['product', 'qty']);
+});
+
+test('chat engine converts DeepSeek guard hints into a forced next tool', () => {
+  const tools = [
+    { type: 'function', function: { name: 'refresh_state', parameters: {} } },
+    { type: 'function', function: { name: 'set_alarm', parameters: {} } },
+  ];
+  assert.equal(
+    ENGINES[1][1].requiredDeepSeekTool(
+      { requiredNextTool: 'refresh_state' }, tools),
+    'refresh_state',
+  );
+  assert.equal(
+    ENGINES[1][1].requiredDeepSeekTool(
+      { requiredTool: 'set_alarm' }, tools),
+    'set_alarm',
+  );
+  assert.equal(
+    ENGINES[1][1].requiredDeepSeekTool(
+      { requiredTool: 'unknown_tool' }, tools),
+    null,
+  );
+});
+
 test('chat engine rejects an entire multi-tool turn and returns one result for every call id', () => {
   const calls = [
     { id: 'call-a', function: { name: 'inspect_building' } },
@@ -84,4 +174,11 @@ test('chat engine rejects an entire multi-tool turn and returns one result for e
     assert.match(content.reason, /no tool from this message was executed/i);
   }
   assert.equal(ENGINES[1][1].buildMultiToolRejections([calls[0]]), null);
+  assert.equal(
+    ENGINES[1][1].deepSeekMultiToolRecovery(calls, [
+      { type: 'function', function: { name: 'inspect_building' } },
+      { type: 'function', function: { name: 'collect' } },
+    ]),
+    'inspect_building',
+  );
 });

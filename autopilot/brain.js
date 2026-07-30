@@ -533,15 +533,24 @@ function buildChatCompletionRequest({
   tools = TOOLS,
   effort = EFFORT,
   maxTokens = MAX_TOKENS,
+  forcedToolName = null,
 }) {
   if (!['openai', 'deepseek'].includes(provider)) {
     throw new Error('BRAIN_PROVIDER must be openai or deepseek');
+  }
+  const availableToolNames = new Set(
+    tools.map(tool => tool?.function?.name).filter(Boolean),
+  );
+  if (provider === 'deepseek' && forcedToolName && !availableToolNames.has(forcedToolName)) {
+    throw new Error(`unknown forced DeepSeek tool ${forcedToolName}`);
   }
   const request = {
     model,
     messages,
     tools: provider === 'deepseek' ? buildDeepSeekTools(tools) : tools,
-    tool_choice: 'auto',
+    tool_choice: provider === 'deepseek' && forcedToolName
+      ? { type: 'function', function: { name: forcedToolName } }
+      : 'auto',
   };
   if (provider === 'deepseek') {
     if (!['high', 'max'].includes(effort)) {
@@ -554,6 +563,46 @@ function buildChatCompletionRequest({
     request.parallel_tool_calls = false;
   }
   return request;
+}
+
+function nullableTopLevelFields(toolName, tools = TOOLS) {
+  const tool = tools.find(candidate => candidate?.function?.name === toolName);
+  const properties = tool?.function?.parameters?.properties || {};
+  return Object.entries(properties)
+    .filter(([, schema]) => Array.isArray(schema?.type) && schema.type.includes('null'))
+    .map(([field]) => field);
+}
+
+function normalizeDeepSeekToolArguments(toolName, args, tools = TOOLS) {
+  if (!args || typeof args !== 'object' || Array.isArray(args)) {
+    return { args, normalizedFields: [] };
+  }
+  const normalized = { ...args };
+  const normalizedFields = [];
+  for (const field of nullableTopLevelFields(toolName, tools)) {
+    const value = normalized[field];
+    if (typeof value === 'string' && value.trim().toLowerCase() === 'null') {
+      normalized[field] = null;
+      normalizedFields.push(field);
+    }
+  }
+  return { args: normalized, normalizedFields };
+}
+
+function requiredDeepSeekTool(result, tools = TOOLS) {
+  const requested = String(result?.requiredNextTool || result?.requiredTool || '').trim();
+  if (!requested) return null;
+  return tools.some(tool => tool?.function?.name === requested) ? requested : null;
+}
+
+function deepSeekMultiToolRecovery(toolCalls, tools = TOOLS) {
+  if (!Array.isArray(toolCalls) || toolCalls.length <= 1) return null;
+  const availableToolNames = new Set(
+    tools.map(tool => tool?.function?.name).filter(Boolean),
+  );
+  return toolCalls
+    .map(call => call?.function?.name)
+    .find(name => availableToolNames.has(name)) || null;
 }
 
 function normalizeChatUsage(provider, payload) {
@@ -607,13 +656,16 @@ function buildMultiToolRejections(toolCalls) {
   }));
 }
 
-async function chat(messages, fetchImpl = globalThis.fetch) {
+async function chat(messages, {
+  fetchImpl = globalThis.fetch,
+  forcedToolName = null,
+} = {}) {
   let res;
   try {
     res = await fetchImpl(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
-      body: JSON.stringify(buildChatCompletionRequest({ messages })),
+      body: JSON.stringify(buildChatCompletionRequest({ messages, forcedToolName })),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (error) {
@@ -685,9 +737,11 @@ async function main() {
   const handleTerm = () => { diaryFlush(); process.exit(143); };
   process.once('SIGTERM', handleTerm);
   let finished = false;
+  let forcedToolName = null;
   try {
     for (let i = 0; i < MAX_ROUNDS; i++) {
-    const msg = await chat(messages);
+    const msg = await chat(messages, { forcedToolName });
+    forcedToolName = null;
     messages.push(msg);
     if (msg.content && msg.content.trim()) { log('THINK:', msg.content.slice(0, 300)); DIARY.push(`🧠 ${msg.content.trim()}`); }
     if (!msg.tool_calls || !msg.tool_calls.length) {
@@ -701,12 +755,28 @@ async function main() {
       log('MULTI_TOOL_TURN_REJECTED', names);
       DIARY.push(`🛡️ Multi-tool turn rejected without execution: ${names}`);
       messages.push(...multiToolRejections);
+      if (PROVIDER === 'deepseek') {
+        forcedToolName = deepSeekMultiToolRecovery(msg.tool_calls);
+        if (forcedToolName) {
+          log('DEEPSEEK_NEXT_TOOL_FORCED', forcedToolName, 'after multi-tool rejection');
+        }
+      }
       continue;
     }
     let done = false;
     for (const tc of msg.tool_calls) {
       let args;
       try { args = JSON.parse(tc.function.arguments || '{}'); } catch (e) { args = {}; }
+      if (PROVIDER === 'deepseek') {
+        const normalized = normalizeDeepSeekToolArguments(tc.function.name, args);
+        args = normalized.args;
+        if (normalized.normalizedFields.length) {
+          log('DEEPSEEK_ARGS_NORMALIZED', tc.function.name,
+            normalized.normalizedFields.join(','));
+          DIARY.push(`🛡️ DeepSeek JSON null normalized for ${tc.function.name}: ${
+            normalized.normalizedFields.join(', ')}`);
+        }
+      }
       log('TOOL', tc.function.name, previewJson(args, 200));
       if (tc.function.name === 'finish') {
         const validatedFinish = validateFinishSummary(args.summary);
@@ -720,6 +790,9 @@ async function main() {
           log('  ->', JSON.stringify(finishCheck));
           DIARY.push(`🛡️ finish blocked: ${finishCheck.reason}`);
           messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(finishCheck) });
+          if (PROVIDER === 'deepseek') {
+            forcedToolName = requiredDeepSeekTool(finishCheck);
+          }
           continue;
         }
         log('FINISH:', summary);
@@ -730,6 +803,13 @@ async function main() {
         break;
       }
       const result = await runTool(tc.function.name, args);
+      if (PROVIDER === 'deepseek') {
+        forcedToolName = requiredDeepSeekTool(result);
+        if (forcedToolName) {
+          log('DEEPSEEK_NEXT_TOOL_FORCED', forcedToolName,
+            `after ${tc.function.name}`);
+        }
+      }
       log('  ->', previewJson(result, 300));
       if (tc.function.name === 'journal' && result.ok && result.decisionBrief) {
         DIARY.push(`🧠 DECISION BRIEF\n${result.decisionBrief}`);
@@ -769,11 +849,14 @@ if (require.main === module) {
 module.exports = {
   buildChatCompletionRequest,
   buildDeepSeekTools,
+  deepSeekMultiToolRecovery,
   buildIncompleteLoopRetryAlarm,
   buildMultiToolRejections,
   createUtilityExchangeReviews,
+  normalizeDeepSeekToolArguments,
   normalizeChatUsage,
   redactSecrets,
+  requiredDeepSeekTool,
   utilityKindFromExchangeIdentifier,
   missingMillInspectionIds,
   noteUtilityExchangeSale,

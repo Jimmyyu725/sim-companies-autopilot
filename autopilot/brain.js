@@ -1,9 +1,7 @@
 #!/usr/bin/env node
-// autopilot/brain.js — the OpenAI-powered brain loop. Reads BRAIN.md (system) + .state.json (user),
-// then runs a tool-calling loop: act / refresh_state / set_alarm / journal / finish.
-// Runs entirely on the OpenAI API (owner directive 2026-07-24: keep Claude quota untouched).
-// Key comes from the environment (sourced from ledgerwall/.env by run-brain.sh) — NEVER logged.
-// Usage per call is appended to autopilot/usage.jsonl. BRAIN_DRY=1 makes actions no-op planners.
+// autopilot/brain.js — provider-aware Chat Completions brain loop. It is the production DeepSeek
+// engine and retained OpenAI chat-completions fallback. The Responses API Terra engine remains
+// brain56.js. Keys come only from the environment prepared by run-brain.sh and are never logged.
 const fs = require('fs'), path = require('path');
 const { execFileSync } = require('child_process');
 const BRAIN = __dirname;
@@ -35,11 +33,35 @@ const {
   authorizeChatAction,
   resolveChatMode,
 } = require(path.join(BRAIN, 'chat', 'runtime-mode.js'));
-const MODEL = process.env.BRAIN_MODEL || 'gpt-5.5';
+const { DEEPSEEK_EXECUTION_PROMPT } = require(path.join(BRAIN, 'deepseek-execution-prompt.js'));
+
+function boundedInteger(value, minimum, maximum, fallback) {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= minimum && parsed <= maximum
+    ? parsed
+    : fallback;
+}
+
+const PROVIDER = process.env.BRAIN_PROVIDER || 'openai';
+const MODEL = process.env.BRAIN_MODEL ||
+  (PROVIDER === 'deepseek' ? 'deepseek-v4-pro' : 'gpt-5.5');
+const EFFORT = process.env.BRAIN_EFFORT || (PROVIDER === 'deepseek' ? 'max' : 'high');
+const MAX_TOKENS = boundedInteger(process.env.BRAIN_MAX_TOKENS, 1024, 384000, 32768);
+const MAX_ROUNDS = boundedInteger(process.env.BRAIN_MAX_ROUNDS, 1, 50, 30);
+const REQUEST_TIMEOUT_MS = boundedInteger(
+  process.env.BRAIN_REQUEST_TIMEOUT_MS, 1000, 600000, 180000);
 const DRY = process.env.BRAIN_DRY === '1';
 const CHAT_MODE = resolveChatMode();
-const KEY = process.env.OPENAI_API_KEY;
-if (require.main === module && !KEY) { console.error('no OPENAI_API_KEY in env'); process.exit(1); }
+const KEY = PROVIDER === 'deepseek'
+  ? process.env.DEEPSEEK_API_KEY
+  : process.env.OPENAI_API_KEY;
+const API_URL = PROVIDER === 'deepseek'
+  ? `${String(process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/+$/u, '')}/chat/completions`
+  : 'https://api.openai.com/v1/chat/completions';
+if (require.main === module && !KEY) {
+  console.error(`no ${PROVIDER === 'deepseek' ? 'DEEPSEEK_API_KEY' : 'OPENAI_API_KEY'} in env`);
+  process.exit(1);
+}
 
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 const writeJsonAtomic = (file, value) => {
@@ -482,7 +504,7 @@ async function runTool(name, args) {
       if (utilityBlock) return utilityBlock;
       const prepared = prepareJournalEntry(args, state);
       if (!prepared.ok) return prepared;
-      fs.appendFileSync(path.join(BRAIN, 'JOURNAL.md'), `\n## ${new Date().toISOString()} — BRAIN wake (${MODEL}${DRY ? ', DRY' : ''})\n${prepared.markdown}\n`);
+      fs.appendFileSync(path.join(BRAIN, 'JOURNAL.md'), `\n## ${new Date().toISOString()} — BRAIN wake (${PROVIDER}/${MODEL}${DRY ? ', DRY' : ''})\n${prepared.markdown}\n`);
       runtimeGuard.noteJournal();
       return { ok: true, decisionBrief: prepared.markdown };
     }
@@ -490,34 +512,136 @@ async function runTool(name, args) {
   } catch (e) { return { ok: false, err: String(e.message).slice(0, 300) }; }
 }
 
-async function chat(messages) {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
-    body: JSON.stringify({ model: MODEL, messages, tools: TOOLS, tool_choice: 'auto', parallel_tool_calls: false }),
+function redactSecrets(value) {
+  return String(value || '').replace(/\bsk-[A-Za-z0-9_-]{12,}\b/gu, '[REDACTED]');
+}
+
+function buildDeepSeekTools(tools) {
+  return tools.map(tool => {
+    if (!tool?.function || !Object.prototype.hasOwnProperty.call(tool.function, 'strict')) {
+      return tool;
+    }
+    const { strict: _openAiStrict, ...definition } = tool.function;
+    return { ...tool, function: definition };
   });
-  const j = await res.json();
-  if (j.error) throw new Error(j.error.message);
-  const details = j.usage?.prompt_tokens_details || {};
-  fs.appendFileSync(path.join(BRAIN, 'usage.jsonl'), JSON.stringify({
+}
+
+function buildChatCompletionRequest({
+  provider = PROVIDER,
+  model = MODEL,
+  messages,
+  tools = TOOLS,
+  effort = EFFORT,
+  maxTokens = MAX_TOKENS,
+}) {
+  if (!['openai', 'deepseek'].includes(provider)) {
+    throw new Error('BRAIN_PROVIDER must be openai or deepseek');
+  }
+  const request = {
+    model,
+    messages,
+    tools: provider === 'deepseek' ? buildDeepSeekTools(tools) : tools,
+    tool_choice: 'auto',
+  };
+  if (provider === 'deepseek') {
+    if (!['high', 'max'].includes(effort)) {
+      throw new Error('DeepSeek BRAIN_EFFORT must be high or max');
+    }
+    request.thinking = { type: 'enabled' };
+    request.reasoning_effort = effort;
+    request.max_tokens = maxTokens;
+  } else {
+    request.parallel_tool_calls = false;
+  }
+  return request;
+}
+
+function normalizeChatUsage(provider, payload) {
+  const usage = payload?.usage || {};
+  const details = usage.prompt_tokens_details || {};
+  const cached = provider === 'deepseek'
+    ? usage.prompt_cache_hit_tokens
+    : (Object.prototype.hasOwnProperty.call(details, 'cached_tokens')
+      ? details.cached_tokens
+      : null);
+  const cacheMiss = provider === 'deepseek'
+    ? usage.prompt_cache_miss_tokens
+    : null;
+  const cacheWrite = provider === 'deepseek'
+    ? 0
+    : (Object.prototype.hasOwnProperty.call(details, 'cache_write_tokens')
+      ? details.cache_write_tokens
+      : null);
+  return {
     t: new Date().toISOString(),
     model: MODEL,
     billing_model: MODEL,
+    billing_provider: provider,
     wake_id: process.env.WAKE_ID || null,
-    ...j.usage,
-    prompt_tokens: j.usage?.prompt_tokens ?? null,
-    completion_tokens: j.usage?.completion_tokens ?? null,
-    total_tokens: j.usage?.total_tokens ?? null,
+    ...usage,
+    prompt_tokens: usage.prompt_tokens ?? null,
+    completion_tokens: usage.completion_tokens ?? null,
+    total_tokens: usage.total_tokens ?? null,
     usage_schema: 'chat_completions',
-    service_tier: j.service_tier || null,
-    cached: Object.prototype.hasOwnProperty.call(details, 'cached_tokens') ? details.cached_tokens : null,
-    cache_write: Object.prototype.hasOwnProperty.call(details, 'cache_write_tokens') ? details.cache_write_tokens : null,
-  }) + '\n');
-  return j.choices[0].message;
+    service_tier: provider === 'openai' ? (payload?.service_tier || null) : null,
+    reasoning_effort: provider === 'deepseek' ? EFFORT : null,
+    cached: cached ?? null,
+    cache_miss: cacheMiss ?? null,
+    cache_write: cacheWrite,
+  };
+}
+
+function buildMultiToolRejections(toolCalls) {
+  if (!Array.isArray(toolCalls) || toolCalls.length <= 1) return null;
+  const reason = 'MULTI_TOOL_TURN_REJECTED: exactly one tool call is allowed per assistant ' +
+    'message; no tool from this message was executed. Retry with one tool call.';
+  return toolCalls.map(toolCall => ({
+    role: 'tool',
+    tool_call_id: toolCall.id,
+    content: JSON.stringify({
+      ok: false,
+      guard: true,
+      executed: false,
+      reason,
+    }),
+  }));
+}
+
+async function chat(messages, fetchImpl = globalThis.fetch) {
+  let res;
+  try {
+    res = await fetchImpl(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
+      body: JSON.stringify(buildChatCompletionRequest({ messages })),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    throw new Error(`${PROVIDER} request failed: ${redactSecrets(error.message || error)}`);
+  }
+  let payload;
+  try { payload = await res.json(); }
+  catch (_) { throw new Error(`${PROVIDER} returned non-JSON HTTP ${res.status}`); }
+  if (!res.ok || payload?.error) {
+    const detail = payload?.error?.message || payload?.message || `HTTP ${res.status}`;
+    throw new Error(`${PROVIDER} API error: ${redactSecrets(detail)}`);
+  }
+  const message = payload?.choices?.[0]?.message;
+  if (!message || typeof message !== 'object') {
+    throw new Error(`${PROVIDER} response did not contain choices[0].message`);
+  }
+  fs.appendFileSync(
+    path.join(BRAIN, 'usage.jsonl'),
+    `${JSON.stringify(normalizeChatUsage(PROVIDER, payload))}\n`,
+  );
+  return message;
 }
 
 async function main() {
-  const system = fs.readFileSync(path.join(BRAIN, 'BRAIN.md'), 'utf8');
+  const baseSystem = fs.readFileSync(path.join(BRAIN, 'BRAIN.md'), 'utf8');
+  const system = PROVIDER === 'deepseek'
+    ? `${DEEPSEEK_EXECUTION_PROMPT}\n\n${baseSystem}`
+    : baseSystem;
   const stateObject = JSON.parse(fs.readFileSync(path.join(BRAIN, '.state.json'), 'utf8'));
   const state = JSON.stringify(stateObject);
   // Memory across wakes: the API is stateless, so feed back the brain's own last journal entries
@@ -542,7 +666,7 @@ async function main() {
   // Wake transcript — the brain's visible thinking and every action. The runner mirrors operating
   // journals to the configured Windows log destination.
   const DIARY = [
-    `\n════ WAKE ${new Date().toISOString()} (${MODEL}${DRY ? ' DRY' : ''}) ════`,
+    `\n════ WAKE ${new Date().toISOString()} (${PROVIDER}/${MODEL} · ${EFFORT}${DRY ? ' DRY' : ''}) ════`,
     formatWakeSnapshot(stateObject, wakeReason),
   ];
   // One file PER WAKE (owner: unique names, Chicago timestamp to the second). Runner exports
@@ -562,13 +686,21 @@ async function main() {
   process.once('SIGTERM', handleTerm);
   let finished = false;
   try {
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < MAX_ROUNDS; i++) {
     const msg = await chat(messages);
     messages.push(msg);
     if (msg.content && msg.content.trim()) { log('THINK:', msg.content.slice(0, 300)); DIARY.push(`🧠 ${msg.content.trim()}`); }
     if (!msg.tool_calls || !msg.tool_calls.length) {
       log('BRAIN said (no tool):', (msg.content || '').slice(0, 400));
       messages.push({ role: 'user', content: 'Use the tools. If you are done, call finish(summary). Always set_alarm before finishing.' });
+      continue;
+    }
+    const multiToolRejections = buildMultiToolRejections(msg.tool_calls);
+    if (multiToolRejections) {
+      const names = msg.tool_calls.map(call => call?.function?.name || 'unknown').join(', ');
+      log('MULTI_TOOL_TURN_REJECTED', names);
+      DIARY.push(`🛡️ Multi-tool turn rejected without execution: ${names}`);
+      messages.push(...multiToolRejections);
       continue;
     }
     let done = false;
@@ -618,7 +750,7 @@ async function main() {
       }
     }
     if (!finished) {
-      const reason = 'chat-completions tool loop exhausted 30 rounds without a successful finish call';
+      const reason = `chat-completions tool loop exhausted ${MAX_ROUNDS} rounds without a successful finish call`;
       const retryAlarm = buildIncompleteLoopRetryAlarm(reason);
       writeJsonAtomic(path.join(BRAIN, 'next-wake.json'), retryAlarm);
       DIARY.push(`🛡️ SAFE FAILURE: ${reason}; retry at ${retryAlarm.atIso}`);
@@ -635,8 +767,13 @@ if (require.main === module) {
 }
 
 module.exports = {
+  buildChatCompletionRequest,
+  buildDeepSeekTools,
   buildIncompleteLoopRetryAlarm,
+  buildMultiToolRejections,
   createUtilityExchangeReviews,
+  normalizeChatUsage,
+  redactSecrets,
   utilityKindFromExchangeIdentifier,
   missingMillInspectionIds,
   noteUtilityExchangeSale,

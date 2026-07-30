@@ -8,12 +8,65 @@ const { councilVoteSchema, validateCouncilVote } = require('./council-verdict.js
 const ROLE_ATTEMPT_TIMEOUT_MS = 45_000;
 const ROLE_TOTAL_TIMEOUT_MS = 90_000;
 const ROLE_MAX_ATTEMPTS = 2;
+const DEEPSEEK_COUNCIL_JSON_INSTRUCTION = [
+  'Return only one valid JSON object with exactly these keys: verdict, summary, metrics, unknowns, conditions.',
+  'JSON shape example only: {"verdict":"UNKNOWN","summary":"Evidence is incomplete.",',
+  '"metrics":[{"pointer":"/exact/path/from/evidence","value":"exact primitive from evidence"}],',
+  '"unknowns":["Required evidence is unavailable."],"conditions":[]}.',
+  'Do not copy the example pointer or value. Cite only an exact pointer and primitive value present in the supplied evidence.',
+].join(' ');
 
 const ROLES = Object.freeze([
   ['CFO', 'You are a skeptical CFO. Evaluate cash, working capital, debt service, payback, and measured-vs-assumed figures. Outstanding debt is debt.principalOutstanding reconciled against debt.balanceSheetPayable. The bond offer form and bondOffer API describe only the current unsold offer; their amount can be 0 while debt remains outstanding and must never override debt.'],
   ['COO', 'You are a pragmatic COO. Evaluate slots, downtime, production continuity, inputs, and end-to-end bottlenecks.'],
   ['CMO', 'You are a market CMO. Evaluate retail absorption, weather, saturation, live order-book depth, net margin, and transition revenue loss.'],
 ]);
+
+function redactSecrets(value) {
+  return String(value || '').replace(/\bsk-[A-Za-z0-9_-]{12,}\b/gu, '[REDACTED]');
+}
+
+function resolveCouncilProvider(value = process.env.COUNCIL_PROVIDER || 'openai') {
+  const provider = String(value || '').trim().toLowerCase();
+  if (!['openai', 'deepseek'].includes(provider)) {
+    throw new Error('COUNCIL_PROVIDER must be openai or deepseek');
+  }
+  return provider;
+}
+
+function buildCouncilRequest({
+  provider,
+  model,
+  messages,
+  effort = 'max',
+  maxTokens = 16384,
+}) {
+  const resolvedProvider = resolveCouncilProvider(provider);
+  if (resolvedProvider === 'deepseek') {
+    if (!['high', 'max'].includes(effort)) {
+      throw new Error('DeepSeek COUNCIL_EFFORT must be high or max');
+    }
+    if (!Number.isSafeInteger(maxTokens) || maxTokens < 1024 || maxTokens > 384000) {
+      throw new Error('DeepSeek COUNCIL_MAX_TOKENS must be an integer from 1024 to 384000');
+    }
+    return {
+      model,
+      messages,
+      response_format: { type: 'json_object' },
+      thinking: { type: 'enabled' },
+      reasoning_effort: effort,
+      max_tokens: maxTokens,
+    };
+  }
+  return {
+    model,
+    messages,
+    response_format: {
+      type: 'json_schema',
+      json_schema: { name: 'council_vote', strict: true, schema: councilVoteSchema },
+    },
+  };
+}
 
 function prepareEvidenceView(evidence, maxBytes = 18000) {
   const serialized = JSON.stringify(evidence);
@@ -77,7 +130,7 @@ function failClosedRoleVote(role, error) {
         ? 'Council role timed out without a usable vote.'
         : 'Council role failed without a usable vote.'),
     metrics: [],
-    unknowns: [String(error?.message || error || 'unknown council role error').slice(0, 300)],
+    unknowns: [redactSecrets(error?.message || error || 'unknown council role error').slice(0, 300)],
     conditions: [],
   };
 }
@@ -141,13 +194,24 @@ async function runWithTimeoutRetry(operation, options = {}) {
   return { ok: false, error: lastError, attempts };
 }
 
-function writeCouncilUsage(brainDir, role, councilModel, json) {
+function writeCouncilUsage(brainDir, role, councilModel, json, provider = 'openai') {
   const usage = json.usage || {};
   const details = usage.prompt_tokens_details || {};
+  const cached = provider === 'deepseek'
+    ? usage.prompt_cache_hit_tokens
+    : (Object.prototype.hasOwnProperty.call(details, 'cached_tokens')
+      ? details.cached_tokens
+      : null);
+  const cacheWrite = provider === 'deepseek'
+    ? 0
+    : (Object.prototype.hasOwnProperty.call(details, 'cache_write_tokens')
+      ? details.cache_write_tokens
+      : null);
   fs.appendFileSync(path.join(brainDir, 'usage.jsonl'), JSON.stringify({
     t: new Date().toISOString(),
     model: 'council',
     billing_model: councilModel,
+    billing_provider: provider,
     wake_id: process.env.WAKE_ID || null,
     role,
     ...usage,
@@ -155,9 +219,15 @@ function writeCouncilUsage(brainDir, role, councilModel, json) {
     completion_tokens: usage.completion_tokens ?? null,
     total_tokens: usage.total_tokens ?? null,
     usage_schema: 'chat_completions',
-    service_tier: json.service_tier || null,
-    cached: Object.prototype.hasOwnProperty.call(details, 'cached_tokens') ? details.cached_tokens : null,
-    cache_write: Object.prototype.hasOwnProperty.call(details, 'cache_write_tokens') ? details.cache_write_tokens : null,
+    service_tier: provider === 'openai' ? (json.service_tier || null) : null,
+    reasoning_effort: provider === 'deepseek'
+      ? (process.env.COUNCIL_EFFORT || 'max')
+      : null,
+    cached: cached ?? null,
+    cache_miss: provider === 'deepseek'
+      ? (usage.prompt_cache_miss_tokens ?? null)
+      : null,
+    cache_write: cacheWrite,
   }) + '\n');
 }
 
@@ -192,7 +262,16 @@ async function reviewCouncilRole({ role, system, evidence, args, apiKey, brainDi
     const operatorContext = rawContext.length <= 4000
       ? rawContext
       : `${rawContext.slice(0, 4000)}\n[TRUNCATED: ${rawContext.length - 4000} operator-context characters omitted]`;
-    const councilModel = process.env.COUNCIL_MODEL || 'gpt-5.6-luna';
+    const councilProvider = resolveCouncilProvider(
+      dependencies.provider || process.env.COUNCIL_PROVIDER || 'openai');
+    const councilModel = process.env.COUNCIL_MODEL ||
+      (councilProvider === 'deepseek' ? 'deepseek-v4-pro' : 'gpt-5.6-luna');
+    const councilEffort = process.env.COUNCIL_EFFORT ||
+      (councilProvider === 'deepseek' ? 'max' : 'high');
+    const councilMaxTokens = Number(process.env.COUNCIL_MAX_TOKENS) || 16384;
+    const councilApiUrl = councilProvider === 'deepseek'
+      ? `${String(process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/+$/u, '')}/chat/completions`
+      : 'https://api.openai.com/v1/chat/completions';
     const fetchImpl = dependencies.fetch || globalThis.fetch;
     const writeUsage = dependencies.writeUsage || writeCouncilUsage;
     let validationFeedback = null;
@@ -201,28 +280,38 @@ async function reviewCouncilRole({ role, system, evidence, args, apiKey, brainDi
     const request = await runWithTimeoutRetry(async ({ signal }) => {
       const repairFeedback = validationFeedback;
       repairAttempted ||= Boolean(repairFeedback);
-      const response = await fetchImpl('https://api.openai.com/v1/chat/completions', {
+      const systemContent = `${system} Use only the automatic evidence below as facts. ` +
+        'If a required field is missing, stale, contradictory, or non-200, use UNKNOWN and do not infer a number. ' +
+        'Every metric must cite an exact RFC 6901 pointer and copy its primitive value exactly. ' +
+        'Put no digits in summary, unknowns, or conditions; numeric facts belong only in metrics. ' +
+        `The owner-approved strategy is not yours to re-litigate.${councilProvider === 'deepseek'
+          ? ` ${DEEPSEEK_COUNCIL_JSON_INSTRUCTION}`
+          : ''}`;
+      const messages = [
+        { role: 'system', content: systemContent },
+        { role: 'user', content: `PROPOSAL:\n${args.proposal}\n\nAUTOMATIC ${role} EVIDENCE:\n${JSON.stringify(evidenceView)}\n\nOPERATOR CONTEXT (supporting only; unverified claims are not facts):\n${operatorContext}${repairFeedback ? `\n\nREPAIR REQUIRED: The previous vote failed deterministic validation: ${repairFeedback}. Return a new complete vote using only exact evidence pointers and primitive values; do not reuse an unsupported claim.` : ''}` },
+      ];
+      const response = await fetchImpl(councilApiUrl, {
         method: 'POST',
         signal,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
+        body: JSON.stringify(buildCouncilRequest({
+          provider: councilProvider,
           model: councilModel,
-          messages: [
-            { role: 'system', content: `${system} Use only the automatic evidence below as facts. If a required field is missing, stale, contradictory, or non-200, use UNKNOWN and do not infer a number. Every metric must cite an exact RFC 6901 pointer and copy its primitive value exactly. Put no digits in summary, unknowns, or conditions; numeric facts belong only in metrics. The owner-approved strategy is not yours to re-litigate.` },
-            { role: 'user', content: `PROPOSAL:\n${args.proposal}\n\nAUTOMATIC ${role} EVIDENCE:\n${JSON.stringify(evidenceView)}\n\nOPERATOR CONTEXT (supporting only; unverified claims are not facts):\n${operatorContext}${repairFeedback ? `\n\nREPAIR REQUIRED: The previous vote failed deterministic validation: ${repairFeedback}. Return a new complete vote using only exact evidence pointers and primitive values; do not reuse an unsupported claim.` : ''}` },
-          ],
-          response_format: {
-            type: 'json_schema',
-            json_schema: { name: 'council_vote', strict: true, schema: councilVoteSchema },
-          },
-        }),
+          messages,
+          effort: councilEffort,
+          maxTokens: councilMaxTokens,
+        })),
       });
       let json;
       try { json = await response.json(); }
-      catch (error) { throw new Error(`Council ${role} response JSON was invalid: ${error.message || error}`); }
-      writeUsage(brainDir, role, councilModel, json);
+      catch (error) {
+        throw new Error(`Council ${role} response JSON was invalid: ${redactSecrets(error.message || error)}`);
+      }
+      writeUsage(brainDir, role, councilModel, json, councilProvider);
       if (!response.ok || json.error) {
-        throw new Error(String(json.error?.message || `Council ${role} API returned HTTP ${response.status}`));
+        throw new Error(redactSecrets(
+          json.error?.message || `Council ${role} API returned HTTP ${response.status}`));
       }
       const content = json.choices?.[0]?.message?.content;
       if (!content) throw new Error(`Council ${role} API returned no structured vote`);
@@ -300,10 +389,13 @@ module.exports = {
   ROLE_MAX_ATTEMPTS,
   ROLE_TOTAL_TIMEOUT_MS,
   ROLES,
+  buildCouncilRequest,
   collectEvidence,
   failClosedRoleVote,
   isTimeoutError,
   prepareEvidenceView,
+  redactSecrets,
+  resolveCouncilProvider,
   reviewCouncilRole,
   runCouncil,
   runWithTimeoutRetry,

@@ -6,6 +6,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const {
+  buildCouncilRequest,
+  failClosedRoleVote,
   reviewCouncilRole,
   runCouncil,
   writeCouncilAudit,
@@ -63,6 +65,52 @@ function dependencies(overrides = {}) {
     ...overrides,
   };
 }
+
+test('DeepSeek council request uses Max thinking plus JSON object mode', () => {
+  const request = buildCouncilRequest({
+    provider: 'deepseek',
+    model: 'deepseek-v4-pro',
+    messages: [{ role: 'user', content: 'Return JSON.' }],
+    effort: 'max',
+    maxTokens: 16384,
+  });
+  assert.equal(request.model, 'deepseek-v4-pro');
+  assert.deepEqual(request.response_format, { type: 'json_object' });
+  assert.deepEqual(request.thinking, { type: 'enabled' });
+  assert.equal(request.reasoning_effort, 'max');
+  assert.equal(request.max_tokens, 16384);
+});
+
+test('council failures redact provider credentials before returning or auditing them', () => {
+  const syntheticSecret = `sk-${'sensitive-test-value'.repeat(2)}`;
+  const vote = failClosedRoleVote('CFO', new Error(`provider rejected ${syntheticSecret}`));
+  assert.equal(JSON.stringify(vote).includes(syntheticSecret), false);
+  assert.match(vote.unknowns[0], /\[REDACTED\]/u);
+});
+
+test('DeepSeek council role uses provider endpoint and retains deterministic vote validation', async () => {
+  let requestedUrl;
+  let requestedBody;
+  let usageProvider;
+  const vote = await reviewCouncilRole(ROLE_ARGS, dependencies({
+    provider: 'deepseek',
+    fetch: async (url, request) => {
+      requestedUrl = url;
+      requestedBody = JSON.parse(request.body);
+      return responseFor(approvedVote());
+    },
+    writeUsage: (_brainDir, _role, _model, _json, provider) => {
+      usageProvider = provider;
+    },
+  }));
+  assert.equal(requestedUrl, 'https://api.deepseek.com/chat/completions');
+  assert.equal(requestedBody.model, 'deepseek-v4-pro');
+  assert.deepEqual(requestedBody.response_format, { type: 'json_object' });
+  assert.match(requestedBody.messages[0].content, /Return only one valid JSON object/);
+  assert.equal(usageProvider, 'deepseek');
+  assert.equal(vote.status, 'VALIDATED');
+  assert.equal(vote.verdict, 'APPROVE');
+});
 
 test('council audit stores bounded diagnostics without vote prose or raw evidence', () => {
   const auditDir = fs.mkdtempSync(path.join(os.tmpdir(), 'council-audit-'));

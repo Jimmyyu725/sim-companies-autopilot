@@ -70,6 +70,37 @@ test('computes exact mixed-model cost when cache allocation is reported', () => 
   assert.equal(summary.cost_usd.max, 0.0037825);
 });
 
+test('computes exact DeepSeek V4 Pro cost without an OpenAI service tier', () => {
+  const summary = summarizeUsage([{
+    billing_provider: 'deepseek',
+    billing_model: 'deepseek-v4-pro',
+    prompt_tokens: 1000,
+    completion_tokens: 100,
+    total_tokens: 1100,
+    cached: 800,
+    cache_miss: 200,
+    cache_write: 0,
+  }], { brainRc: 0 });
+
+  assert.equal(summary.calls.unpriced, 0);
+  assert.equal(summary.cost_usd.status, 'exact');
+  assert.equal(summary.cost_usd.min, 0.0001769);
+  assert.equal(summary.cost_usd.max, 0.0001769);
+  assert.match(formatDiarySummary(summary), /published provider rates/);
+});
+
+test('infers DeepSeek provider from the billing model for backward-compatible rows', () => {
+  const normalized = normalizeUsageRow({
+    billing_model: 'deepseek-v4-pro',
+    prompt_tokens: 10,
+    completion_tokens: 2,
+    cached: 4,
+    cache_write: 0,
+  });
+  assert.equal(normalized.provider, 'deepseek');
+  assert.equal(normalized.model, 'deepseek-v4-pro');
+});
+
 test('computes an honest cost interval when cache-write tokens are missing', () => {
   const summary = summarizeUsage([{
     billing_model: 'gpt-5.6-terra',

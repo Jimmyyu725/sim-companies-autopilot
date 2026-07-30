@@ -39,9 +39,12 @@ test('a diary is initialized before state capture and failure still gets summari
   const runner = read('autopilot/run-brain.sh');
   const diaryInitialization = runner.indexOf('export DIARY_FILE=');
   const stateCapture = runner.indexOf('node "$AUTOPILOT/state.js"');
-  const failureBranch = runner.slice(runner.indexOf('state capture FAILED'), runner.indexOf('export BRAIN_MODEL'));
+  const failureStart = runner.indexOf('state capture FAILED');
+  const brainStart = runner.indexOf('timeout 900 node');
+  const failureBranch = runner.slice(failureStart, brainStart);
 
   assert.ok(diaryInitialization >= 0 && diaryInitialization < stateCapture);
+  assert.ok(failureStart >= 0 && brainStart > failureStart);
   assert.match(failureBranch, /STATE CAPTURE FAILED/);
   assert.match(failureBranch, /--diary=\$DIARY_FILE/);
   assert.match(failureBranch, /sync-windows-logs\.sh/);

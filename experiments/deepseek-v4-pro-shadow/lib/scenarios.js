@@ -214,6 +214,41 @@ function ensureAllStandardBuildingsBusy(state, atIso) {
   }
 }
 
+function replaceCompetingStructuralWork(snapshot) {
+  const replacements = [];
+  for (const building of snapshot.state?.buildings || []) {
+    if (building?.busy?.type !== 'construction'
+        && building?.activity?.type !== 'construction') {
+      continue;
+    }
+    if (String(building.name || '').trim().toLowerCase() !== 'quarry') {
+      throw new Error(
+        `structural benchmark cannot safely replace active ${building.name || 'unknown'} construction`,
+      );
+    }
+    building.busy = {
+      ...building.busy,
+      type: 'production',
+      rawCategory: 'r',
+      makingKind: 44,
+      makingName: 'Sand',
+      amount: 100,
+      remainingOrUncollectedAmount: 100,
+      amountSemantics: 'live-remaining-or-uncollected',
+      amountAvailableNow: 0,
+      expanding: false,
+      canFetch: false,
+    };
+    building.activity = {
+      status: 'known',
+      busy: true,
+      type: 'production',
+    };
+    replacements.push(Number(building.id));
+  }
+  return replacements;
+}
+
 function expectedEvent(name, options = {}) {
   return { name, ...options };
 }
@@ -688,6 +723,9 @@ function millUpgradeCandidates(snapshot, target, peer) {
 function buildMillUpgradeScenario(baseSnapshot, variant = 1) {
   const snapshot = buildAllBusyScenario(baseSnapshot);
   clearOwnerDirective(snapshot);
+  const replacedStructuralWork = Number(variant) === 2
+    ? []
+    : replaceCompetingStructuralWork(snapshot);
   const target = buildingByName(snapshot.state, 'Mill', 0);
   const peer = buildingByName(snapshot.state, 'Mill', 1);
   target.size = 2;
@@ -750,6 +788,9 @@ function buildMillUpgradeScenario(baseSnapshot, variant = 1) {
       : 'Test evidence-backed upgrade ranking, preview, council authorization, exact confirmation, and post-action refresh.',
     transformations: [
       ...snapshot.scenario.transformations,
+      ...(replacedStructuralWork.length ? [
+        `Replace unrelated active Quarry construction ${replacedStructuralWork.join(', ')} with a deterministic busy Sand order so the target upgrade is the only structural move.`,
+      ] : []),
       `Set Mills ${target.id} and ${peer.id} to L2 with current measured rates.`,
       constrained
         ? 'Set cash below the upgrade cost while retaining high debt and UNKNOWN coverage.'
@@ -796,6 +837,9 @@ function buildSlotExpansionScenario(baseSnapshot, variant = 1) {
   const snapshot = buildAllBusyScenario(baseSnapshot);
   clearOwnerDirective(snapshot);
   const uncertain = Number(variant) === 2;
+  const replacedStructuralWork = uncertain
+    ? []
+    : replaceCompetingStructuralWork(snapshot);
   snapshot.state.money = uncertain ? 130000 : 250000;
   snapshot.state.slotCapacity = 10;
   snapshot.state.usedSlots = 9;
@@ -850,6 +894,9 @@ function buildSlotExpansionScenario(baseSnapshot, variant = 1) {
       : 'Test one-slot capital allocation from verified opportunity evidence through council and exact build confirmation.',
     transformations: [
       ...snapshot.scenario.transformations,
+      ...(replacedStructuralWork.length ? [
+        `Replace unrelated active Quarry construction ${replacedStructuralWork.join(', ')} with a deterministic busy Sand order so the pilot is the only structural move.`,
+      ] : []),
       'Clear the completed owner directive and expose exactly one free standard slot.',
       uncertain
         ? 'Expose an explicit UNKNOWN Tools evidence pack.'
@@ -1061,6 +1108,7 @@ module.exports = {
   markCoverageVariant,
   nextSyntheticBuildingId,
   prospectorRow,
+  replaceCompetingStructuralWork,
   stockByKind,
   touchStateSources,
 };

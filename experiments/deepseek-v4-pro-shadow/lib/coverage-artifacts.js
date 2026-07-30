@@ -185,7 +185,20 @@ function readiness(aggregate, scenarioSummaries) {
   };
 }
 
-function buildCoverageSummary(baseSnapshot, runs, startedAt, finishedAt, toolParity) {
+function providerDisplayName(provider, model) {
+  if (provider === 'terra') return 'GPT-5.6 Terra';
+  if (provider === 'deepseek') return 'DeepSeek V4 Pro';
+  return model || provider || 'Unknown provider';
+}
+
+function buildCoverageSummary(
+  baseSnapshot,
+  runs,
+  startedAt,
+  finishedAt,
+  toolParity,
+  metadata = {},
+) {
   const rows = runs.map(coverageRow).sort((left, right) => left.runIndex - right.runIndex);
   const scenarioKeys = [...new Set(rows.map(row => row.scenarioKey))];
   const scenarioSummaries = scenarioKeys.map(scenarioKey => {
@@ -197,13 +210,17 @@ function buildCoverageSummary(baseSnapshot, runs, startedAt, finishedAt, toolPar
     };
   });
   const aggregate = aggregateRows(rows);
+  const provider = metadata.provider || runs[0]?.provider || 'deepseek';
+  const model = runs[0]?.model || null;
+  const toolSurface = toolParity?.[provider] || toolParity?.deepseek || {};
   return {
     schemaVersion: 1,
-    benchmark: 'Sim Companies DeepSeek 30-wake coverage validation',
+    benchmark: `Sim Companies ${providerDisplayName(provider, model)} 30-wake coverage validation`,
+    provider,
     startedAt,
     finishedAt,
     wallDurationMs: Date.parse(finishedAt) - Date.parse(startedAt),
-    model: runs[0]?.model || null,
+    model,
     effort: runs[0]?.effort || null,
     maxTokens: runs[0]?.maxTokens || null,
     baseSnapshotSha256: sha256(JSON.stringify(baseSnapshot)),
@@ -216,7 +233,10 @@ function buildCoverageSummary(baseSnapshot, runs, startedAt, finishedAt, toolPar
       sameHighReasoningEffort: true,
       sameMaxOutputTokens: true,
       semanticToolParityWithTerra: toolParity.sameSemanticToolNames === true,
-      toolSurfaceSha256: toolParity.deepseek.sha256,
+      toolSurfaceSha256: toolSurface.sha256,
+      referenceCoverageId: metadata.referenceCoverageId || null,
+      referenceCoverageSha256: metadata.referenceCoverageSha256 || null,
+      exactReferenceCaseSnapshots: metadata.exactReferenceCaseSnapshots === true,
       productionModelChanged: false,
       liveBrowserOpened: false,
       liveGameMutations: 0,
@@ -244,8 +264,9 @@ function scenarioReportRow(row) {
 
 function buildCoverageReport(summary) {
   const aggregate = summary.aggregate;
+  const displayName = providerDisplayName(summary.provider, summary.model);
   return [
-    '# DeepSeek V4 Pro — Sim Companies 30-wake shadow coverage',
+    `# ${displayName} — Sim Companies 30-wake shadow coverage`,
     '',
     `- Started: ${summary.startedAt}`,
     `- Finished: ${summary.finishedAt}`,
@@ -285,11 +306,27 @@ function buildCoverageReport(summary) {
   ].join('\n');
 }
 
-function writeCoverageArtifacts(runsDirectory, coverageId, baseSnapshot, runs, startedAt, finishedAt, toolParity) {
+function writeCoverageArtifacts(
+  runsDirectory,
+  coverageId,
+  baseSnapshot,
+  runs,
+  startedAt,
+  finishedAt,
+  toolParity,
+  metadata = {},
+) {
   const directory = ensureInside(runsDirectory, path.join(runsDirectory, coverageId));
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   writeJson(path.join(directory, 'base-snapshot.json'), baseSnapshot);
-  const summary = buildCoverageSummary(baseSnapshot, runs, startedAt, finishedAt, toolParity);
+  const summary = buildCoverageSummary(
+    baseSnapshot,
+    runs,
+    startedAt,
+    finishedAt,
+    toolParity,
+    metadata,
+  );
   writeJson(path.join(directory, 'coverage-summary.json'), summary);
   fs.writeFileSync(
     path.join(directory, 'coverage-report.md'),
@@ -308,6 +345,7 @@ module.exports = {
   duplicateMutationCount,
   forbiddenMutationCount,
   percentile,
+  providerDisplayName,
   readiness,
   writeCoverageArtifacts,
 };

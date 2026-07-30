@@ -8,6 +8,7 @@ export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
 AUTOPILOT=autopilot
 LOG="$AUTOPILOT/brain.log"
 DIARY_DIR="$AUTOPILOT/diaries"
+METRICS_DIR="$AUTOPILOT/metrics"
 
 exec 7>"$AUTOPILOT/.brain.lock"
 # Absorb sub-second contention from optional telemetry that passed its preflight just before the
@@ -37,6 +38,23 @@ WAKE_STARTED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 USAGE_FILE="$AUTOPILOT/usage.jsonl"
 USAGE_OFFSET="$(stat -c%s "$USAGE_FILE" 2>/dev/null || echo 0)"
 
+record_company_value() {
+  local unavailable_reason="${1:-}"
+  local arguments=(
+    "--state=$AUTOPILOT/.state.json"
+    "--history=$METRICS_DIR/company-value-history.jsonl"
+    "--current=$METRICS_DIR/company-value-current.json"
+    "--diary=$DIARY_FILE"
+    "--wake-id=$WAKE_ID"
+    "--started-at=$WAKE_STARTED_AT"
+    "--brain-rc=${2:-1}"
+  )
+  if [ -n "$unavailable_reason" ]; then
+    arguments+=("--unavailable-reason=$unavailable_reason")
+  fi
+  node "$AUTOPILOT/company-value-recorder.js" "${arguments[@]}" >> "$LOG" 2>&1 || true
+}
+
 fail_before_state() {
   local reason="$1"
   echo "$(date '+%F %T %Z') provider preflight FAILED — $reason" >> "$LOG"
@@ -47,6 +65,7 @@ fail_before_state() {
     printf -- '- Safety result: no browser read, model call, or game action was attempted.\n'
     printf -- '- Recovery: retry scheduled in five minutes; see `brain.log` for the non-secret reason.\n'
   } >> "$DIARY_FILE"
+  record_company_value "Provider preflight failed before a live closing snapshot." 1
   local usage_end_offset
   usage_end_offset="$(stat -c%s "$USAGE_FILE" 2>/dev/null || echo 0)"
   node "$AUTOPILOT/usage-summary.js" \
@@ -123,6 +142,7 @@ if ! timeout 160 flock -w 90 .tick.lock node "$AUTOPILOT/state.js" >> "$LOG" 2>&
     printf -- '- Validation result: the live response was unavailable, incomplete, or malformed; see `brain.log` for the exact runtime error.\n'
     printf -- '- Recovery: retry scheduled for %s.\n' "$NEXT_WAKE"
   } >> "$DIARY_FILE"
+  record_company_value "Authoritative state capture failed before the brain started." 1
   USAGE_END_OFFSET="$(stat -c%s "$USAGE_FILE" 2>/dev/null || echo 0)"
   node "$AUTOPILOT/usage-summary.js" \
     "--usage=$USAGE_FILE" \
@@ -139,6 +159,13 @@ fi
 timeout 900 node "${BRAIN_JS:-autopilot/brain.js}" >> "$LOG" 2>&1
 rc=$?
 node "$AUTOPILOT/brain-provider.js" record "$BRAIN_PROVIDER" "$rc" >> "$LOG" 2>&1 || true
+# The brain may finish after its last refresh or after an ambiguous failure. Capture once more so
+# the per-wake company value describes the actual closing state, not the opening snapshot.
+FINAL_COMPANY_VALUE_REASON=""
+if ! timeout 160 flock -w 90 .tick.lock node "$AUTOPILOT/state.js" >> "$LOG" 2>&1; then
+  FINAL_COMPANY_VALUE_REASON="Final authoritative state capture failed; a stale estimate was not recorded as current."
+  echo "$(date '+%F %T %Z') final company-value state capture FAILED" >> "$LOG"
+fi
 USAGE_END_OFFSET="$(stat -c%s "$USAGE_FILE" 2>/dev/null || echo 0)"
 # Safety: an alarm must ALWAYS exist or the brain never wakes again. Five minutes is the maximum
 # safe delay here: the process may have exited immediately after an ambiguous click and before its
@@ -153,6 +180,7 @@ if [ "$rc" -ne 0 ]; then
 fi
 # Ensure the alarm matches reality: never oversleep the earliest real building completion.
 node "$AUTOPILOT/check-alarm.js" >> "$LOG" 2>&1 || true
+record_company_value "$FINAL_COMPANY_VALUE_REASON" "$rc"
 node "$AUTOPILOT/usage-summary.js" \
   "--usage=$USAGE_FILE" \
   "--offset=$USAGE_OFFSET" \

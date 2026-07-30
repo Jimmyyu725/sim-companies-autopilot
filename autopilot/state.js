@@ -8,8 +8,14 @@ const AUTOPILOT = __dirname;
 const SIM = path.dirname(AUTOPILOT);
 const SHARED = path.join(SIM, 'shared');
 const FACTS = path.join(SHARED, 'facts', 'game-facts.json');
+const DEFS = path.join(SHARED, 'facts', 'defs.json');
 const cdp = require(path.join(SHARED, 'cdp.js'));
 const CFG = require(path.join(SHARED, 'config.json'));
+const { aggregateVolumeRecords } = require(path.join(SHARED, 'price-tracker', 'data-quality.js'));
+const {
+  calculateCompanyValue,
+  derivePreviousDayReferencePrices,
+} = require(path.join(AUTOPILOT, 'company-value.js'));
 const {
   ageSeconds,
   aggregateStock,
@@ -183,19 +189,39 @@ const PRINTED_RATE_FRESH_SECONDS = 6 * 3600;
   let weather = null;
   try { weather = await cdp.evaluate(`const r=await api('/api/v2/weather/0/'); return r.status===200?r.json:null;`); } catch (e) {}
   let bonds = summarizeBonds(null, null, null);
+  let supplementalData = {
+    sold: null,
+    recent: null,
+    balance: null,
+    marketOrders: null,
+    outgoingContracts: null,
+    status: {},
+  };
   try {
     const bondData = await cdp.evaluate(`
-      const [sold, recent, balance] = await Promise.all([
+      const [sold, recent, balance, marketOrders, outgoingContracts] = await Promise.all([
         api('/api/v2/companies/me/bonds/sold/'),
         api('/api/v2/companies/me/cashflow/recent/'),
         api('/api/v2/companies/me/balance-sheet/'),
+        api('/api/v2/companies/me/market-orders/'),
+        api('/api/v3/contracts-outgoing/me/'),
       ]);
       return {
         sold: sold.status === 200 ? sold.json : null,
         recent: recent.status === 200 ? recent.json : null,
         balance: balance.status === 200 ? balance.json : null,
+        marketOrders: marketOrders.status === 200 ? marketOrders.json : null,
+        outgoingContracts: outgoingContracts.status === 200 ? outgoingContracts.json : null,
+        status: {
+          sold: sold.status,
+          recent: recent.status,
+          balance: balance.status,
+          marketOrders: marketOrders.status,
+          outgoingContracts: outgoingContracts.status,
+        },
       };
     `);
+    supplementalData = bondData;
     bonds = summarizeBonds(bondData.sold, bondData.recent, bondData.balance);
   } catch (e) {
     bonds = summarizeBonds(null, null, null);
@@ -234,6 +260,47 @@ const PRINTED_RATE_FRESH_SECONDS = 6 * 3600;
     scope: 'Mixed building IDs and levels; values are cache anchors, never proof for a different building or current modifier.',
     values: printedRateValues,
   };
+  let companyValue;
+  try {
+    const volumeText = fs.readFileSync(
+      path.join(SHARED, 'price-tracker', 'data', 'volume.jsonl'),
+      'utf8',
+    );
+    const definitions = JSON.parse(fs.readFileSync(DEFS, 'utf8')).resources;
+    const referencePrices = derivePreviousDayReferencePrices(
+      volumeText,
+      supplementalData.balance?.date,
+      aggregateVolumeRecords,
+    );
+    companyValue = calculateCompanyValue({
+      capturedAt,
+      balanceSheet: supplementalData.balance,
+      liveCash: auth.money ?? auth.authCompany?.money,
+      liveBondsPayable: bonds.principalOutstanding,
+      buildings,
+      warehouse: resourcesKnown ? resourcesRaw : null,
+      marketOrders: supplementalData.marketOrders,
+      outgoingContracts: supplementalData.outgoingContracts,
+      resourceDefinitions: definitions,
+      referencePriceResult: referencePrices,
+      tickerPrices: P,
+    });
+  } catch (error) {
+    companyValue = {
+      methodVersion: 1,
+      capturedAt,
+      official: {
+        status: 'unavailable',
+        asOf: supplementalData.balance?.date || null,
+        total: null,
+      },
+      realtimeEstimate: {
+        status: 'unavailable',
+        total: null,
+        reason: `company value calculation failed: ${String(error.message || error).slice(0, 180)}`,
+      },
+    };
+  }
   const sources = {
     auth: { status: 'ok', asOf: capturedAt, source: '/api/v3/companies/auth-data/' },
     buildings: {
@@ -253,6 +320,13 @@ const PRINTED_RATE_FRESH_SECONDS = 6 * 3600;
     volume1h: { status: volume1hMeta?.status || 'unknown', asOf: volume1hMeta?.to || null, source: 'shared/price-tracker/data/volume.jsonl' },
     weather: { status: weather ? 'ok' : 'unknown', asOf: weather ? capturedAt : null, source: '/api/v2/weather/0/' },
     bonds: { status: bonds.status || 'unknown', asOf: capturedAt, source: 'sold bonds + balance sheet' },
+    companyValue: {
+      status: companyValue.realtimeEstimate?.status || 'unavailable',
+      asOf: companyValue.realtimeEstimate?.asOf || null,
+      source: 'live assets + official balance baseline + previous-day local VWAP',
+      officialAsOf: companyValue.official?.asOf || null,
+      supplementalStatus: supplementalData.status,
+    },
     printedRates: { status: printedRateStatus, asOf: printedRateAsOf, ageSeconds: printedRateAgeSeconds, source: 'shared/config.json' },
   };
 
@@ -282,6 +356,7 @@ const PRINTED_RATE_FRESH_SECONDS = 6 * 3600;
     },
     stock,
     bonds,
+    companyValue,
     keyPrices: Object.fromEntries([1, 2, 13, 66, 115, 116, 118, 119, 5, 7, 8].map(k => [N[k] || k, P[k] ?? null])),
     printedRates,
     modifiers,

@@ -111,7 +111,17 @@ function formatWarehouse(stock, complete = false) {
 function formatStateLine(state) {
   const debt = state?.bonds?.principalOutstanding;
   const slots = `${formatNumber(state?.usedSlots)}/${formatNumber(state?.slotCapacity)} used; ${formatNumber(state?.freeSlots)} free`;
-  return `as of ${state?.t || 'UNKNOWN'}; cash $${formatNumber(state?.money)}; debt $${formatNumber(debt)}; slots ${slots}`;
+  const estimate = state?.companyValue?.realtimeEstimate?.total;
+  const official = state?.companyValue?.official?.total;
+  const companyValue = typeof estimate === 'number' && Number.isFinite(estimate)
+    ? `; company value estimate $${formatNumber(estimate)}`
+      + (typeof official === 'number' && Number.isFinite(official)
+        ? ` (official daily $${formatNumber(official)})`
+        : '')
+    : (typeof official === 'number' && Number.isFinite(official)
+      ? `; company value official daily $${formatNumber(official)}`
+      : '');
+  return `as of ${state?.t || 'UNKNOWN'}; cash $${formatNumber(state?.money)}; debt $${formatNumber(debt)}; slots ${slots}${companyValue}`;
 }
 
 function formatWakeSnapshot(state, wakeReason) {

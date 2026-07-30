@@ -116,6 +116,10 @@ debt, inventory, or spending.
   formulas. Re-measure after a level or temporary modifier changes.
 - Read every `state.sources` status before relying on its value. State unknown/stale/partial/fallback
   evidence explicitly. `volume1h` is supporting evidence, not guaranteed demand.
+- Read `state.companyValue` as a decision KPI. `official` is the game's daily accounting snapshot;
+  `realtimeEstimate` is a same-wake estimate, not an official rank/value update. State its confidence
+  and material limitations whenever it supports a capital decision, and never silently treat an
+  unavailable valuation component as zero.
 - Inspect cash, reconciled outstanding debt, base plus purchased slots, every `stock` entry, and
   every building's activity on every wake. Do not stop at Coffee products or the triggering building.
 - Use `inspect_building` for current levels/rates and read-only quantity quotes when a capacity or

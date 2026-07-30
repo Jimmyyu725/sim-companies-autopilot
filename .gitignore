@@ -32,6 +32,7 @@ autopilot/.chat-shadow/
 autopilot/chat-diaries/
 autopilot/chat-logs/
 autopilot/diaries/
+autopilot/metrics/
 experiments/deepseek-v4-pro-shadow/runs/
 shared/price-tracker/data/
 

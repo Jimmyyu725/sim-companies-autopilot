@@ -70,7 +70,15 @@ function matchScore(offerText, cue) {
 
 function rankedMatches(markdown, offerText, source, limit = 3) {
   return parseMarkdownTable(markdown)
-    .map(row => ({ ...row, source, score: matchScore(offerText, row.cue) }))
+    .map(row => {
+      const score = matchScore(offerText, row.cue);
+      return {
+        ...row,
+        source,
+        score,
+        matchStrength: score === 1 ? 'exact-cue' : 'fuzzy-cue',
+      };
+    })
     .filter(row => row.score >= 0.45)
     .sort((left, right) => right.score - left.score || left.cue.localeCompare(right.cue))
     .slice(0, limit);

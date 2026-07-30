@@ -988,9 +988,10 @@ if (action === 'pa_consult_guide') {
       locallyMeasured: consulted.measured,
       communityReported: consulted.community,
       exactMatchFound: consulted.matchCount > 0,
+      scoreMeaning: 'Cue-match score 1.0 is the strongest exact match, not weak evidence. Evidence reliability is labeled separately by source.',
       evidenceOrder: 'locally measured outcome > exact community match > fresh economics > unknown',
     },
-    next: 'Compare the independent assessment with these matches. For goods/cash choices, value all required owned goods at opportunity cost, inspect exact missing quantity, preserve the cash reserve, then call pa_reply.',
+    next: 'Compare the independent assessment with these matches. Complete guide outcomes describe reported consequences; use fresh economics to value them, never to assume an unreported alternative is free. For goods/cash choices, value all required owned goods at opportunity cost, inspect exact missing quantity, preserve the cash reserve, then call pa_reply.',
   }));
   process.exit(0);
 }
@@ -1450,6 +1451,7 @@ if (economicCommunicationRequired) {
         comparison: String(p.comparison).replace(/\s+/gu, ' ').trim(),
         verified: res?.ok === true,
         outcome: res?.outcome || null,
+        economics: res?.economics || null,
         resultTail: String(res?.resultTail || '').slice(-2200),
       };
       fs.appendFileSync(PA_HISTORY_FILE, `${JSON.stringify(history)}\n`, { mode: 0o600 });

@@ -24,6 +24,7 @@ game shows the result.
 | Sales department requested a $3,000 party; declined | Offer resolved with no spend, reward, or penalty text | Decline was neutral in this occurrence |
 | Enable email notifications; declined | Offer resolved with no cash/inventory effect or penalty text | This observation establishes no economic reward for the declined branch |
 | SimConstruction requested 2,000 Bricks; declined while holding none | Offer resolved with no spend, reward, or penalty text | The accept-branch upgrade benefit remains community-only and unverified locally |
+| Forklift Olympics; chose logistics training / remove “Olympics” | Transport increased exactly from 2,648 to 3,648 and the PA reported finding 1,000 Transport capacity | The 1,000 Transport reward is exact. Cash was not isolated inside the PA click and concurrent exchange fills can change it, so this observation does not establish the option’s cash cost |
 
 ## Evidence rules
 

@@ -61,10 +61,10 @@ All outcomes below are community reports unless `pa-quests.md` records a local m
 | CTO savings question | Choose the second unit ($2/hour rather than $1/hour saved) |
 | Conference customers | Souvenirs / 50% conversion, reportedly +$5,000 |
 | Robot loan | “That’s a terrible idea” |
-| Coffee War | Option B reportedly grants a permanent speed bonus |
-| Forklift Olympic | Option B reportedly gives 10,000 Transport for $5,000 |
-| Influencer | Measurable-sales option reportedly +$3,000 |
-| Triangle consultant | Recommend to competitors, reportedly +$10,000 |
+| Coffee War | Complete community report: A reduces current production 5% and retail 2.5%; B increases current production 5% and retail 2.5%; C has no effect. Recommended B |
+| Forklift Olympic | Complete community report: A reduces current production 5% and retail 2.5%; B costs $5,000 and gives 10,000 Transport; C costs $5,000 and gives 1,000 Transport. Recommended B; C is strictly dominated by B under those reported terms |
+| Influencer | Complete community report: A gives $30; B gives $3,000; C gives $3,000 but consumes one Watch. Recommended B; C is dominated when the Watch has positive value |
+| Triangle consultant | Complete community report: A costs $25,000 and reduces current production 5% and retail 2.5%; B gives $10,000. Recommended B |
 
 ## Unknown offer discipline
 
@@ -73,3 +73,8 @@ and opportunity cost. Prefer a pessimistic payout when the result is not locally
 Permanent boosts, building levels, and time skips can be valuable but still require exact terms and
 liquidity. Pure cash sinks with no stated business return are normally declined. Record the observed
 result in `pa-quests.md`; never turn a community claim into measured fact.
+
+An exact cue-match score of `1` is the strongest text match, not a probability that the reported
+outcome is true. A complete reported option set should be compared as a set: do not invent zero cost
+or no effect for an alternative, and eliminate a strictly dominated option before current-price
+valuation.

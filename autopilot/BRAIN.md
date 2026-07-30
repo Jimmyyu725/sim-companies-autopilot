@@ -121,6 +121,12 @@ debt, inventory, or spending.
   strongest; an exact community match is useful but remains historical. Unknown or dynamic offers
   still require fresh economics. Call `pa_reply` only with the same fingerprint, one exact displayed
   choice, and a concise reconciliation of independent judgment versus the guide.
+- A cue-match score of `1` means the strongest exact text match, not weak evidence. When an exact
+  row explicitly recommends one choice and the displayed terms match, use it by default unless
+  fresh evidence proves that the terms changed or a local measurement contradicts it. When the row
+  reports every option, eliminate strictly dominated choices before applying liquidity preferences.
+  Never assume an alternative has zero cost or no penalty merely because a shorter guide row did
+  not describe its outcome.
 - For a branch requiring goods, value **all** required goods at current opportunity/replacement
   cost, including stock already owned. Compute the exact shortage, call `inspect_exchange_buy` for
   that quantity, and count its full book cost. The verified buyer route has no Exchange fee and

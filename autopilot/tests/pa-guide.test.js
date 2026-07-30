@@ -31,6 +31,7 @@ test('matches the current Forklift quest despite plural wording', () => {
   assert.equal(result.community.length, 1);
   assert.equal(result.community[0].cue, 'Forklift Olympic');
   assert.equal(result.community[0].score, 1);
+  assert.equal(result.community[0].matchStrength, 'exact-cue');
   assert.equal(result.measured.length, 0);
 });
 

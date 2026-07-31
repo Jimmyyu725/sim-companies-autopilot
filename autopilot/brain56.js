@@ -531,6 +531,13 @@ async function runTool(name, args) {   // identical behavior to brain.js
       // Bind exact preview terms into what the reviewers see even when the model's prose omits a
       // cap, rate, quantity, or specialization. Target authorization still uses the original args.
       const reviewArgs = runtimeGuard.bindCouncilArgs(args);
+      if (!reviewArgs.authorizationPreview) {
+        return {
+          ok: false,
+          guard: true,
+          reason: 'council requires a current runtime-verified structural preview; rerun the exact action with confirm:false first',
+        };
+      }
       const result = await runCouncil({ args: reviewArgs, apiKey: KEY, brainDir: BRAIN, simDir: SIM });
       const structuralAuthorization = runtimeGuard.noteCouncil(result, args);
       return structuralAuthorization ? { structuralAuthorization, ...result } : result;

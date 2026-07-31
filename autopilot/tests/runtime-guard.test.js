@@ -155,6 +155,29 @@ assert.match(boundCouncilArgs.proposal, /RUNTIME-BOUND PREVIEW TERMS/);
 assert.match(boundCouncilArgs.proposal, /"amount":15000/);
 assert.match(boundCouncilArgs.proposal, /"interest":0\.5/);
 assert.equal(boundCouncilArgs.context, 'Fresh finance evidence is attached.');
+assert.equal(boundCouncilArgs.authorizationPreview, null);
+
+const previewEvidenceGuard = new WakeRuntimeGuard();
+previewEvidenceGuard.afterAction('build', {
+  building: 'farm',
+  maxCost: 20000,
+  minCashAfter: 5000,
+  confirm: false,
+}, {
+  ok: true,
+  dry: true,
+  preview: true,
+  quoted: 7794,
+  cashAfter: 84702,
+});
+const evidenceBoundCouncilArgs = previewEvidenceGuard.bindCouncilArgs({
+  proposal: 'Build the previewed farm.',
+  context: '',
+});
+assert.equal(evidenceBoundCouncilArgs.authorizationPreview.source,
+  'runtime-verified-structural-preview');
+assert.equal(evidenceBoundCouncilArgs.authorizationPreview.preview.quoted, 7794);
+assert.equal(evidenceBoundCouncilArgs.authorizationPreview.preview.cashAfter, 84702);
 
 const guard = new WakeRuntimeGuard();
 assert.equal(guard.beforeAction('produce'), null);

@@ -39,6 +39,15 @@ const STRATEGY_ACTIONS = new Set([
   'pivot',
   'other',
 ]);
+const AUTHORIZATION_ACTIONS = new Set([
+  'build',
+  'upgrade',
+  'scrap',
+  'rebuild',
+  'bonds',
+  'robots',
+  'contract_send',
+]);
 const strategyCouncilToolParameters = {
   type: 'object',
   additionalProperties: false,
@@ -209,6 +218,76 @@ function attachStrategyCandidateEvidence(evidence, candidates) {
     ...(evidence || {}),
     meta,
     roles,
+  };
+}
+
+function normalizeAuthorizationPreview(preview, collectedAt) {
+  if (!preview || preview.source !== 'runtime-verified-structural-preview' ||
+      !AUTHORIZATION_ACTIONS.has(String(preview.action || '').trim().toLowerCase()) ||
+      !preview.terms || typeof preview.terms !== 'object' ||
+      !preview.preview || typeof preview.preview !== 'object' ||
+      preview.preview.ok !== true ||
+      (preview.preview.preview !== true && preview.preview.dry !== true)) {
+    return null;
+  }
+  const previewedAt = String(preview.previewedAt || '');
+  const previewAgeSeconds = Math.round(
+    (Date.parse(collectedAt) - Date.parse(previewedAt)) / 1000,
+  );
+  if (!Number.isFinite(previewAgeSeconds) ||
+      previewAgeSeconds < -30 || previewAgeSeconds > 600) {
+    return null;
+  }
+  return {
+    action: String(preview.action).trim().toLowerCase(),
+    terms: preview.terms,
+    preview: preview.preview,
+    source: preview.source,
+    previewedAt,
+    previewAgeSeconds,
+    previewVersion: Number.isSafeInteger(Number(preview.previewVersion))
+      ? Number(preview.previewVersion)
+      : null,
+  };
+}
+
+function attachAuthorizationPreviewEvidence(evidence, preview) {
+  if (!preview) return evidence;
+  const collectedAt = evidence?.meta?.collectedAt || new Date().toISOString();
+  const normalized = normalizeAuthorizationPreview(preview, collectedAt);
+  const status = normalized ? 'VERIFIED' : 'UNKNOWN';
+  const meta = {
+    ...(evidence?.meta || { status: 'UNKNOWN' }),
+    authorizationPreview: status,
+  };
+  const roles = {};
+  for (const [role, roleEvidence] of Object.entries(evidence?.roles || {})) {
+    const { meta: roleMeta, ...rest } = roleEvidence || {};
+    roles[role] = {
+      meta: {
+        ...(roleMeta || meta),
+        authorizationPreview: status,
+      },
+      authorizationPreview: normalized || 'UNKNOWN',
+      ...rest,
+    };
+  }
+  return {
+    ...(evidence || {}),
+    meta,
+    roles,
+  };
+}
+
+function staleEvidenceGuard(evidence, reviewType) {
+  if (evidence?.meta?.stateFreshness === 'FRESH') return null;
+  return {
+    ok: false,
+    guard: true,
+    reason: `${reviewType === 'strategy' ? 'strategy council' : 'council'} state evidence is stale; refresh before asking advisors`,
+    requiredTool: 'refresh_state',
+    evidence: evidence?.meta || { status: 'UNKNOWN' },
+    council: [],
   };
 }
 
@@ -416,7 +495,9 @@ async function reviewCouncilRole({ role, system, evidence, args, apiKey, brainDi
       const systemContent = `${system} ${reviewInstruction} Use only the automatic evidence below as facts. ` +
         'If a required field is missing, stale, contradictory, or non-200, use UNKNOWN and do not infer a number. ' +
         'Every metric must cite an exact RFC 6901 pointer and copy its primitive value exactly. ' +
-        `Put no digits in summary, unknowns, or conditions; numeric facts belong only in metrics.${councilProvider === 'deepseek'
+        `Put no digits in summary, unknowns, or conditions; numeric facts belong only in metrics.${reviewType === 'authorization'
+          ? ' The exact runtime-verified proposal quote is under /authorizationPreview/preview. A non-UNKNOWN verdict must cite any material preview term used plus at least one authoritative role-specific metric.'
+          : ''}${councilProvider === 'deepseek'
           ? ` ${reviewType === 'strategy'
             ? DEEPSEEK_STRATEGY_JSON_INSTRUCTION
             : DEEPSEEK_COUNCIL_JSON_INSTRUCTION}`
@@ -514,7 +595,13 @@ async function reviewCouncilRole({ role, system, evidence, args, apiKey, brainDi
 async function runCouncil({ args, apiKey, brainDir, simDir }, dependencies = {}) {
   const normalizedArgs = args || {};
   const evidenceCollector = dependencies.collectEvidence || collectEvidence;
-  const evidence = evidenceCollector(normalizedArgs, brainDir, simDir);
+  const collectedEvidence = evidenceCollector(normalizedArgs, brainDir, simDir);
+  const evidence = attachAuthorizationPreviewEvidence(
+    collectedEvidence,
+    normalizedArgs.authorizationPreview,
+  );
+  const stale = staleEvidenceGuard(evidence, 'authorization');
+  if (stale) return stale;
   const roleReviewer = dependencies.reviewRole || reviewCouncilRole;
   const votes = await Promise.all(ROLES.map(async ([role, system]) => {
     try {
@@ -721,6 +808,19 @@ async function runStrategyCouncil({
     buildingId: normalizedArgs.focusBuildingId,
   }, brainDir, simDir);
   const evidence = attachStrategyCandidateEvidence(collectedEvidence, strategyCandidates);
+  const stale = staleEvidenceGuard(evidence, 'strategy');
+  if (stale) {
+    return {
+      ...stale,
+      decision: {
+        status: 'INCOMPLETE',
+        optionId: null,
+        method: null,
+        tally: {},
+        reason: stale.reason,
+      },
+    };
+  }
   const roleReviewer = dependencies.reviewRole || reviewCouncilRole;
   const votes = await Promise.all(ROLES.map(async ([role, system]) => {
     try {
@@ -751,12 +851,14 @@ module.exports = {
   ROLES,
   STRATEGY_ACTIONS,
   aggregateStrategyDecision,
+  attachAuthorizationPreviewEvidence,
   attachStrategyCandidateEvidence,
   buildCouncilRequest,
   collectEvidence,
   failClosedRoleVote,
   isTimeoutError,
   normalizeStrategyCandidates,
+  normalizeAuthorizationPreview,
   normalizeDeepSeekCouncilVote,
   prepareEvidenceView,
   redactSecrets,
@@ -767,6 +869,7 @@ module.exports = {
   runWithRetry,
   strategyRepairInstruction,
   strategyCouncilToolParameters,
+  staleEvidenceGuard,
   validateStrategyCouncilArgs,
   writeCouncilAudit,
   writeCouncilUsage,

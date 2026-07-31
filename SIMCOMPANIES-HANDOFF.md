@@ -419,7 +419,11 @@ function. Runtime validation repeats the schema checks before CDP starts.
   never authorizes build, upgrade, scrap, rebuild, bonds, robots, or pivot. A completed decision
   cannot be rerolled in the same wake.
 - Council requests isolate CFO/COO/CMO failures and have no client-side or whole-wake elapsed-time
-  limit. The full-wake lock prevents overlap while all roles finish. Provider-reported
+  limit. Before any advisor request, stale state returns directly to `refresh_state` instead of
+  spending three model calls on evidence that cannot pass validation. Exact-term authorization
+  receives the sanitized runtime preview as automatic evidence; only its verified result fields
+  are citable, and every non-UNKNOWN vote must still cite authoritative role-specific evidence.
+  The full-wake lock prevents overlap while all roles finish. Provider-reported
   timeout/API/JSON failures stay UNKNOWN; one provider-reported timeout or invalid vote may receive
   one retry. A validation repair is accepted only when the new vote passes the unchanged
   deterministic citation validator.

@@ -8,6 +8,7 @@ const path = require('path');
 const {
   DEEPSEEK_STRATEGY_JSON_INSTRUCTION,
   aggregateStrategyDecision,
+  attachAuthorizationPreviewEvidence,
   attachStrategyCandidateEvidence,
   buildCouncilRequest,
   failClosedRoleVote,
@@ -240,6 +241,31 @@ test('two successful roles survive when one role times out and UNKNOWN cannot au
   assert.equal(result.council[1].status, 'VALIDATED');
   assert.equal(result.council[2].status, 'VALIDATED');
   assert.equal(validateCouncilAuthorization(result, { buildingInspectionRequired: true }).ok, false);
+});
+
+test('stale state blocks authorization advisors before any model call', async () => {
+  let roleCalls = 0;
+  const result = await runCouncil({
+    args: { proposal: 'Review building 1.', context: '', buildingId: 1, marketKinds: [] },
+    apiKey: 'test-only',
+    brainDir: '/not-used',
+    simDir: '/not-used',
+  }, {
+    collectEvidence: () => ({
+      ok: true,
+      meta: { stateFreshness: 'STALE', financePage: 200, buildingInspection: 'OK' },
+      roles: {},
+    }),
+    reviewRole: async () => {
+      roleCalls += 1;
+      throw new Error('must not run');
+    },
+  });
+
+  assert.equal(roleCalls, 0);
+  assert.equal(result.ok, false);
+  assert.equal(result.requiredTool, 'refresh_state');
+  assert.deepEqual(result.council, []);
 });
 
 test('an initial timeout retries once and preserves the successful role vote and usage', async () => {
@@ -645,4 +671,78 @@ test('verified strategy candidates are injected ahead of each bounded role evide
   assert.deepEqual(seen.sort(), ['upgrade_mill', 'upgrade_mill', 'upgrade_mill']);
   assert.equal(result.ok, true);
   assert.equal(result.evidence.strategyCandidateCount, 1);
+});
+
+test('runtime authorization preview is injected as bounded automatic evidence', () => {
+  const baseEvidence = {
+    ok: true,
+    meta: {
+      collectedAt: AS_OF,
+      stateFreshness: 'FRESH',
+      financePage: 200,
+      buildingInspection: 'NOT_REQUESTED',
+    },
+    roles: {
+      CFO: {
+        meta: { collectedAt: AS_OF, stateFreshness: 'FRESH' },
+        company: { cash: 41032 },
+      },
+    },
+  };
+  const attached = attachAuthorizationPreviewEvidence(baseEvidence, {
+    action: 'build',
+    terms: { building: 'farm', maxCost: 20000, minCashAfter: 5000 },
+    preview: {
+      ok: true,
+      dry: true,
+      preview: true,
+      quoted: 7794,
+      cashAfter: 33238,
+    },
+    source: 'runtime-verified-structural-preview',
+    previewedAt: AS_OF,
+    previewVersion: 4,
+  });
+
+  assert.equal(attached.meta.authorizationPreview, 'VERIFIED');
+  assert.equal(attached.roles.CFO.authorizationPreview.preview.quoted, 7794);
+  assert.deepEqual(Object.keys(attached.roles.CFO).slice(0, 2), [
+    'meta',
+    'authorizationPreview',
+  ]);
+});
+
+test('stale state blocks strategy advisors before any model call', async () => {
+  let roleCalls = 0;
+  const result = await runStrategyCouncil({
+    args: {
+      question: 'Which direction should the company take?',
+      context: '',
+      focusBuildingId: null,
+      marketKinds: [66],
+      options: STRATEGY_OPTIONS,
+    },
+    apiKey: 'test-only',
+    brainDir: '/not-used',
+    simDir: '/not-used',
+  }, {
+    collectEvidence: () => ({
+      ok: true,
+      meta: {
+        stateFreshness: 'STALE',
+        financePage: 200,
+        buildingInspection: 'NOT_REQUESTED',
+      },
+      roles: {},
+    }),
+    reviewRole: async () => {
+      roleCalls += 1;
+      throw new Error('must not run');
+    },
+  });
+
+  assert.equal(roleCalls, 0);
+  assert.equal(result.ok, false);
+  assert.equal(result.requiredTool, 'refresh_state');
+  assert.equal(result.decision.status, 'INCOMPLETE');
 });

@@ -86,9 +86,9 @@ const strategyCouncilToolParameters = {
 };
 
 const ROLES = Object.freeze([
-  ['CFO', 'You are a skeptical CFO. Evaluate cash, working capital, debt service, payback, and measured-vs-assumed figures. Outstanding debt is debt.principalOutstanding reconciled against debt.balanceSheetPayable. The bond offer form and bondOffer API describe only the current unsold offer; their amount can be 0 while debt remains outstanding and must never override debt.'],
-  ['COO', 'You are a pragmatic COO. Evaluate slots, downtime, production continuity, inputs, and end-to-end bottlenecks.'],
-  ['CMO', 'You are a market CMO. Evaluate retail absorption, weather, saturation, live order-book depth, net margin, and transition revenue loss.'],
+  ['CFO', 'You are a skeptical CFO. Evaluate cash, working capital, debt service, payback, and measured-vs-assumed figures. Start from decisionModel, which automatically reconciles the complete Coffee chain and candidate economics; treat every stated projection and caveat according to its evidenceStatus. Outstanding debt is debt.principalOutstanding reconciled against debt.balanceSheetPayable. The bond offer form and bondOffer API describe only the current unsold offer; their amount can be 0 while debt remains outstanding and must never override debt.'],
+  ['COO', 'You are a pragmatic COO. Start from decisionModel and portfolioInspections. Evaluate every owned Farm, Mill, Grocery store, Power plant, and Water reservoir together, including slots, exact current rates, downtime, continuity, input recipes, modifier expiry, and end-to-end bottlenecks. Never infer an absent rate as zero.'],
+  ['CMO', 'You are a market CMO. Start from decisionModel and groceryRetailEvidence. Evaluate the current Grocery order or fresh read-only price/profit curve, retail absorption, weather, saturation, live order-book depth, net margin, and transition revenue loss. Distinguish a measured retail point from a full curve.'],
 ]);
 
 function redactSecrets(value) {
@@ -343,8 +343,13 @@ function collectEvidence(args, brainDir, simDir) {
       'node', path.join(brainDir, 'council-evidence.js'), JSON.stringify({
         buildingId: args.buildingId ?? null,
         marketKinds: args.marketKinds ?? [1, 2, 66, 118, 119],
+        reviewType: args.reviewType === 'strategy' ? 'strategy' : 'authorization',
+        strategyCandidates: Array.isArray(args.strategyCandidates)
+          ? args.strategyCandidates.slice(0, 5)
+          : [],
+        authorizationPreview: args.authorizationPreview || null,
       }),
-    ], { cwd: simDir, timeout: 180000, encoding: 'utf8' });
+    ], { cwd: simDir, timeout: 360000, encoding: 'utf8' });
     const parsed = JSON.parse(out.trim().split('\n').pop());
     if (parsed.ok) return parsed;
     return { ok: false, meta: { status: 'UNKNOWN', error: parsed.error }, roles: {} };
@@ -806,6 +811,7 @@ async function runStrategyCouncil({
   const collectedEvidence = evidenceCollector({
     ...normalizedArgs,
     buildingId: normalizedArgs.focusBuildingId,
+    strategyCandidates,
   }, brainDir, simDir);
   const evidence = attachStrategyCandidateEvidence(collectedEvidence, strategyCandidates);
   const stale = staleEvidenceGuard(evidence, 'strategy');

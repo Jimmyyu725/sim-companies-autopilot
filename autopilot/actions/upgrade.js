@@ -31,6 +31,7 @@ if (!dlg) return { ok: false, reason: 'upgrade dialog did not open' };
 
 const num = (re, src) => Number((src.match(re) || [])[1]?.replace(/,/g, ''));
 const text = norm(dlg.innerText);
+const effectMatch = text.match(/\b(Sales|Production)\s+increase\s+by\s+(\d+(?:\.\d+)?)%/i);
 const cashCost = num(/Exchange purchase cost \$([\d,]+)/, text);   // the only cash outlay
 const totalValue = num(/Cost inflation \(savings\) \$([\d,]+)/, text) ? null : null;
 const money = cashSnapshot?.value == null ? NaN : Number(cashSnapshot.value);
@@ -39,7 +40,9 @@ const info = {
   cashSource: cashSnapshot?.source || null,
   cashAsOf: cashSnapshot?.asOf || null,
   cashAfter: Number.isFinite(money) ? money - cashCost : null,
-  effect: (text.match(/(Sales|Production) increase by \d+%/) || [])[0] || null,
+  effect: effectMatch?.[0] || null,
+  effectType: effectMatch?.[1] || null,
+  effectPct: effectMatch ? Number(effectMatch[2]) : null,
   downtime: (text.match(/downtime ([\d:]+h)/) || [])[1] || null,
 };
 

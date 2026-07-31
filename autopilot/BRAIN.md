@@ -298,9 +298,13 @@ a strategy-changing commitment:
    authorize execution.
 3. Call `strategy_council`. CFO reads the live Finance page, balance sheet, income statement, cash
    flow, recent cash flow, bonds, and candidate costs; COO reads slots, buildings, complete
-   warehouse, stock, modifiers, printed production rates, target-building inspection, and candidate
-   downtime; CMO reads retail, weather, key prices, recent volume, live market books, and transition
-   implications.
+   warehouse, stock, modifiers, and fresh printed rates for every owned Farm, Mill, Grocery store,
+   Power plant, and Water reservoir plus the focus target; CMO reads the active Grocery order or
+   fresh idle-store price/profit curve, weather, key prices, recent volume, live market books, and
+   transition implications. All three receive the same automatic `decisionModel`: current and
+   post-modifier chain bottlenecks plus each candidate's measured cost, projected capacity, slot
+   use, downtime loss, incremental retail contribution, and payback. Respect its evidence status
+   and caveats; `PARTIAL` or an absent value is unknown, never zero.
 4. Proceed only with the selected action and target. If `hold` wins, make no structural move and
    keep every idle building useful until the next concrete checkpoint.
 5. Run the selected exact typed action again with `confirm:false`. The pre-vote candidate quote is

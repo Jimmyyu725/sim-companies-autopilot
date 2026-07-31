@@ -422,6 +422,9 @@ function validateCouncilAuthorization(result, requirements = {}) {
   if (requirements.buildingInspectionRequired === true && evidence?.buildingInspection !== 'OK') {
     return { ok: false, reason: 'council did not inspect the structural target building' };
   }
+  if (requirements.portfolioInspectionRequired === true && evidence?.portfolioInspection !== 'OK') {
+    return { ok: false, reason: 'council did not inspect the complete Coffee operating portfolio' };
+  }
   if (evidence?.buildingInspection === 'UNKNOWN') {
     return { ok: false, reason: 'council building evidence is unknown' };
   }
@@ -452,6 +455,10 @@ function validateStrategyCouncilCompletion(result, requirements = {}) {
   if (requirements.buildingInspectionRequired === true &&
       evidence?.buildingInspection !== 'OK') {
     return { ok: false, reason: 'strategy council did not inspect the focus building' };
+  }
+  if (requirements.portfolioInspectionRequired === true &&
+      evidence?.portfolioInspection !== 'OK') {
+    return { ok: false, reason: 'strategy council did not inspect the complete Coffee operating portfolio' };
   }
   if (evidence?.buildingInspection === 'UNKNOWN') {
     return { ok: false, reason: 'strategy council building evidence is unknown' };
@@ -717,6 +724,7 @@ class WakeRuntimeGuard {
     this.strategyCouncilAttempted = true;
     const completion = validateStrategyCouncilCompletion(result, {
       buildingInspectionRequired: args?.focusBuildingId != null,
+      portfolioInspectionRequired: true,
     });
     this.strategyCouncilCompleted = completion.ok;
     const selected = completion.ok
@@ -970,6 +978,7 @@ class WakeRuntimeGuard {
     const authorization = argsMatch.ok
       ? validateCouncilAuthorization(result, {
           buildingInspectionRequired: ['upgrade', 'scrap', 'rebuild', 'robots'].includes(this.structuralPreview.action),
+          portfolioInspectionRequired: true,
         })
       : argsMatch;
     this.structuralPreview.councilAuthorized = authorization.ok;

@@ -50,6 +50,14 @@ const STRATEGY_DIRECTION_ACTIONS = new Set([
   'bonds',
   'robots',
 ]);
+const STRATEGY_PREVIEW_OMIT_KEYS = new Set([
+  'after',
+  'buttons',
+  'raw',
+  'resultTail',
+  'sample',
+  'state',
+]);
 const CHAT_PREVIEW_ACTIONS = new Set([
   'chat_room_post',
   'chat_room_reply',
@@ -193,6 +201,61 @@ function strategyDecisionMatchesAction(decision, action, params = {}) {
     return Number(decision.buildingId) === Number(params.buildingId);
   }
   return action === 'bonds';
+}
+
+function strategyDirectionKey(action, params = {}) {
+  const terms = structuralTerms(action, params);
+  if (!terms || !STRATEGY_DIRECTION_ACTIONS.has(action)) return null;
+  if (action === 'build') return `${action}:${terms.building}`;
+  if (['upgrade', 'scrap', 'rebuild', 'robots'].includes(action)) {
+    return `${action}:${terms.buildingId}`;
+  }
+  return action === 'bonds' ? action : null;
+}
+
+function strategyOptionKey(option = {}) {
+  const action = String(option?.action || '').trim().toLowerCase();
+  if (!STRATEGY_DIRECTION_ACTIONS.has(action)) return null;
+  if (action === 'build') {
+    return strategyDirectionKey(action, { building: option.target });
+  }
+  if (['upgrade', 'scrap', 'rebuild', 'robots'].includes(action)) {
+    return strategyDirectionKey(action, { buildingId: option.buildingId });
+  }
+  return action === 'bonds' ? action : null;
+}
+
+function sanitizeStrategyPreviewValue(value, depth = 0) {
+  if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) {
+    return typeof value === 'string' ? value.slice(0, 500) : value;
+  }
+  if (depth >= 5) return '[DEPTH_LIMIT]';
+  if (Array.isArray(value)) {
+    return value.slice(0, 25).map(item => sanitizeStrategyPreviewValue(item, depth + 1));
+  }
+  if (!value || typeof value !== 'object') return String(value).slice(0, 500);
+  const result = {};
+  for (const [key, item] of Object.entries(value).slice(0, 50)) {
+    if (STRATEGY_PREVIEW_OMIT_KEYS.has(key)) continue;
+    result[key] = sanitizeStrategyPreviewValue(item, depth + 1);
+  }
+  return result;
+}
+
+function buildStrategyCandidate(action, params, result, version, previewedAt = new Date().toISOString()) {
+  const key = strategyDirectionKey(action, params);
+  if (!key || result?.ok !== true || (result?.preview !== true && result?.dry !== true)) {
+    return null;
+  }
+  return {
+    key,
+    action,
+    terms: structuralTerms(action, params),
+    preview: sanitizeStrategyPreviewValue(result),
+    source: 'runtime-verified-structural-preview',
+    previewedAt,
+    previewVersion: version,
+  };
 }
 
 function chatMutationTerms(action, params = {}) {
@@ -595,6 +658,7 @@ class WakeRuntimeGuard {
     this.journalVersion = -1;
     this.masterVersion = -1;
     this.structuralPreview = null;
+    this.strategyCandidates = new Map();
     this.chatPreview = null;
     this.strategyCouncilRequirement = {
       required: false,
@@ -620,6 +684,7 @@ class WakeRuntimeGuard {
     this.strategyCouncilAttempted = false;
     this.strategyCouncilCompleted = false;
     this.strategyCouncilDecision = null;
+    this.strategyCandidates.clear();
     return this.strategyCouncilStatus();
   }
 
@@ -647,7 +712,58 @@ class WakeRuntimeGuard {
       target: selected.target == null ? null : String(selected.target).trim().toLowerCase(),
       consumed: false,
     } : null;
+    if (completion.ok) {
+      // A candidate quote informed the direction vote. It is never sufficient for execution:
+      // the selected action must be previewed again after the vote before final authorization.
+      this.structuralPreview = null;
+    }
     return completion;
+  }
+
+  prepareStrategyCouncil(args = {}) {
+    if (!Array.isArray(args?.options)) {
+      return { ok: true, strategyCandidates: [] };
+    }
+    const candidates = [];
+    const missing = [];
+    const seenDirectionKeys = new Set();
+    for (const option of args.options) {
+      const key = strategyOptionKey(option);
+      if (!key) continue;
+      if (seenDirectionKeys.has(key)) {
+        return {
+          ok: false,
+          guard: true,
+          reason: 'strategy options cannot reuse one executable action target with different labels',
+          duplicateDirection: key,
+        };
+      }
+      seenDirectionKeys.add(key);
+      const candidate = this.strategyCandidates.get(key);
+      if (!candidate || candidate.previewVersion !== this.mutationVersion) {
+        missing.push({
+          optionId: String(option?.id || '').trim() || null,
+          action: String(option?.action || '').trim().toLowerCase() || null,
+          buildingId: option?.buildingId == null ? null : Number(option.buildingId),
+          target: option?.target == null ? null : String(option.target).trim().toLowerCase(),
+        });
+        continue;
+      }
+      candidates.push({
+        ...candidate,
+        optionId: String(option?.id || '').trim(),
+      });
+    }
+    if (missing.length) {
+      return {
+        ok: false,
+        guard: true,
+        reason: 'every executable strategy option requires a successful same-wake read-only candidate preview',
+        requiredNextStep: 'run each missing structural action with confirm:false, then call strategy_council again',
+        missingCandidates: missing,
+      };
+    }
+    return { ok: true, strategyCandidates: candidates };
   }
 
   beforeStrategyCouncil() {
@@ -681,6 +797,7 @@ class WakeRuntimeGuard {
       currentWakeOrdinal: this.strategyCouncilRequirement.currentWakeOrdinal,
       wakeInterval: this.strategyCouncilRequirement.wakeInterval,
       materialChanges: this.strategyCouncilRequirement.materialChanges,
+      candidatePreviewCount: this.strategyCandidates.size,
       decision: this.strategyCouncilDecision,
     };
   }
@@ -694,18 +811,18 @@ class WakeRuntimeGuard {
         requiredTool: 'refresh_state',
       };
     }
-    if (STRATEGY_DIRECTION_ACTIONS.has(action) && params.confirm === false &&
-        options.councilRequired !== false) {
-      if (!this.strategyCouncilCompleted) {
+    if (STRATEGY_DIRECTION_ACTIONS.has(action) && options.councilRequired !== false) {
+      if (params.confirm === true && !this.strategyCouncilCompleted) {
         return {
           ok: false,
           guard: true,
-          reason: `${action} planning requires strategy_council to choose the direction before preview`,
+          reason: `${action} confirmation requires strategy_council to choose the direction`,
           requiredTool: 'strategy_council',
           strategyGovernance: this.strategyCouncilStatus(),
         };
       }
-      if (!strategyDecisionMatchesAction(this.strategyCouncilDecision, action, params)) {
+      if (this.strategyCouncilCompleted &&
+          !strategyDecisionMatchesAction(this.strategyCouncilDecision, action, params)) {
         return {
           ok: false,
           guard: true,
@@ -793,6 +910,15 @@ class WakeRuntimeGuard {
         councilAuthorized: false,
         councilReason: null,
       };
+      if (STRATEGY_DIRECTION_ACTIONS.has(action) && !this.strategyCouncilCompleted) {
+        const candidate = buildStrategyCandidate(
+          action,
+          params,
+          result,
+          this.mutationVersion,
+        );
+        if (candidate) this.strategyCandidates.set(candidate.key, candidate);
+      }
     }
     if (!actionRequiresRefresh(action, params, result)) return false;
     if (STRATEGY_DIRECTION_ACTIONS.has(action) && params?.confirm === true &&
@@ -827,6 +953,7 @@ class WakeRuntimeGuard {
     this.mutationVersion += 1;
     this.lastEvidenceChange = String(source || 'evidence');
     this.structuralPreview = null;
+    this.strategyCandidates.clear();
     this.chatPreview = null;
   }
 
@@ -923,6 +1050,9 @@ module.exports = {
   structuralTerms,
   structuralTermsAreNoRiskier,
   strategyDecisionMatchesAction,
+  strategyDirectionKey,
+  strategyOptionKey,
+  buildStrategyCandidate,
   validateCouncilAuthorization,
   validateStrategyCouncilCompletion,
   validateFinishSummary,

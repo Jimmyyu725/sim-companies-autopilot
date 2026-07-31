@@ -36,6 +36,20 @@ function sourceFresh(evidence, key, acceptedStatuses = ['ok'], maxAgeSeconds = 1
 
 function stateMetricAuthority(pointer, evidence) {
   if (evidence?.meta?.stateFreshness !== 'FRESH') return false;
+  if (pointerWithin(pointer, '/strategyCandidates')) {
+    const tokens = pointer.split('/');
+    const index = Number(tokens[2]);
+    const candidate = Number.isSafeInteger(index) ? evidence?.strategyCandidates?.[index] : null;
+    const previewPrefix = `/strategyCandidates/${index}/preview`;
+    return evidence?.meta?.strategyCandidates === 'VERIFIED' &&
+      candidate?.source === 'runtime-verified-structural-preview' &&
+      candidate?.preview?.ok === true &&
+      (candidate?.preview?.preview === true || candidate?.preview?.dry === true) &&
+      pointerWithin(pointer, previewPrefix) &&
+      Number.isFinite(candidate?.previewAgeSeconds) &&
+      candidate.previewAgeSeconds >= -30 &&
+      candidate.previewAgeSeconds <= 600;
+  }
   if (pointerWithin(pointer, '/company')) return sourceFresh(evidence, 'auth');
   if (pointerWithin(pointer, '/debt')) return sourceFresh(evidence, 'bonds');
   if (pointerWithin(pointer, '/slots')) return sourceFresh(evidence, 'auth') && sourceFresh(evidence, 'buildings');
@@ -102,6 +116,10 @@ function validateCouncilVote(role, vote, evidence) {
         throw new Error(`metric value does not match evidence at ${metric.pointer}`);
       }
       const isRoleEvidence = (ROLE_PREFIXES[role] || []).some(prefix => pointerWithin(metric.pointer, prefix));
+      const isStrategyCandidate = pointerWithin(metric.pointer, '/strategyCandidates');
+      if (isStrategyCandidate && !metricIsAuthoritative(metric.pointer, evidence)) {
+        throw new Error(`strategy candidate metric is not authoritative at ${metric.pointer}`);
+      }
       if (vote.verdict !== 'UNKNOWN' && isRoleEvidence && !metricIsAuthoritative(metric.pointer, evidence)) {
         throw new Error(`metric is not authoritative at ${metric.pointer}`);
       }

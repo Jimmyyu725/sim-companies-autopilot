@@ -69,7 +69,7 @@ artifacts. They are not part of either the active autopilot or the archived thre
 | `autopilot/deepseek-execution-prompt.js` | Small DeepSeek-specific protocol adapter. It adds no business authority and makes one-tool, refresh, evidence, retry, and close sequencing explicit. |
 | `autopilot/action-contracts.js` | Strict per-action schemas plus matching runtime validation. Do not rely on a hard-coded schema count; chat and other guarded capabilities evolve independently. |
 | `autopilot/failure-budget.js` | Per-target two-failure circuit breaker for one wake. |
-| `autopilot/runtime-guard.js` | Enforces refresh between mutations, requires a strategy Council direction before ordinary structural previews, and blocks finish until due strategy Council, refresh, journal, CURRENT checkpoint, and alarm requirements pass. If the model reaches its configured round boundary after every enforced close gate has already passed, the engines record a deterministic successful finish instead of overwriting the valid alarm with a five-minute failure retry; an incomplete close still fails safely. |
+| `autopilot/runtime-guard.js` | Enforces refresh between mutations, records same-wake read-only candidate previews for strategy comparison, requires a strategy Council direction before any structural confirmation, invalidates the selected candidate quote so execution needs a fresh post-vote preview, and blocks finish until due strategy Council, refresh, journal, CURRENT checkpoint, and alarm requirements pass. If the model reaches its configured round boundary after every enforced close gate has already passed, the engines record a deterministic successful finish instead of overwriting the valid alarm with a five-minute failure retry; an incomplete close still fails safely. |
 | `autopilot/building-utilization-policy.js` | Journal hard gate: fresh state may not contain an idle standard production/sales building, an unresolved standard sales building, or a completed-but-uncollected job; seasonal/free-and-locked buildings are excluded. Waiting for an upgrade, financing, or evidence is not an idle exception. |
 | `autopilot/building-page-activity.js` | Shared exact-page classifier for construction, active retail sale, enabled production/retail idle forms, and UNKNOWN generic busy text. Evidence is bound to the exact building ID, level, route, and freshness window. |
 | `autopilot/production-policy.js` | Duration limits, Mill micro-batch protection, deadline-bound `finishBefore` sizing, and a pre-browser guard that prevents non-Coffee bridges from consuming verified Power/Water Coffee reserves. |
@@ -406,10 +406,12 @@ function. Runtime validation repeats the schema checks before CDP starts.
   other REBUILD still requires council. While a campaign cycle is eligible, production on that exact
   target is refused so repeated council failures cannot starve the owner task.
 - Build, scrap, non-campaign REBUILD, bonds, upgrade, or robots require:
-  fresh state → explicit alternatives including `hold` → strategy Council direction →
-  `confirm:false` preview → final exact-term council → unchanged terms → confirmation →
-  fresh-state verification. Contract mutations retain preview plus exact-term council but need a
-  strategy vote only when they change portfolio direction.
+  fresh state → `confirm:false` candidate preview for every executable alternative →
+  explicit alternatives including `hold` → strategy Council direction →
+  fresh selected-action `confirm:false` preview → final exact-term council → unchanged terms →
+  confirmation → fresh-state verification. Candidate previews are verified comparison evidence,
+  never execution authorization. Contract mutations retain preview plus exact-term council but need
+  a strategy vote only when they change portfolio direction.
 - A strategy checkpoint is mandatory on first deployment, every twenty successful wakes after the
   prior decision, after twenty-four hours, or after a material strategic fingerprint change. The
   runtime blocks `journal` and `finish` until all three roles return validated recommendations and

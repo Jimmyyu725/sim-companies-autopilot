@@ -185,8 +185,9 @@ Each wake is one transaction:
    - **ALLOCATE** — upgrade, build, borrow/repay, install a robot, or enter/exit a line.
    A wake may contain all three lenses even though only one structural move is allowed.
 5. Name the current constraint and best opportunity. Generate 2–4 material alternatives. For an
-   allocation decision, give those alternatives plus `hold` to `strategy_council`; do not select
-   the winner before CFO, COO, and CMO vote from fresh evidence.
+   allocation decision, obtain a safe `confirm:false` quote for every executable structural
+   alternative, then give those alternatives plus `hold` to `strategy_council`; do not select the
+   winner before CFO, COO, and CMO vote from fresh evidence.
 6. Handle every confirmed-idle standard building, not only the one that caused the wake. Start
    useful work or start its approved structural action in this wake. When financing, evidence, or
    timing prevents the structural click, use `finishBefore` to bridge to the next exact checkpoint.
@@ -291,18 +292,23 @@ For a new build, scrap, non-campaign rebuild, bond change, robot change, discret
 a strategy-changing commitment:
 
 1. `refresh_state` and read the relevant live evidence.
-2. Frame two to five materially different directions, including exact `hold`, and call
-   `strategy_council`. CFO reads the live Finance page, balance sheet, income statement, cash flow,
-   recent cash flow, and bonds; COO reads slots, buildings, complete warehouse, stock, modifiers,
-   printed production rates, and target-building inspection; CMO reads retail, weather, key prices,
-   recent volume, and live market books.
-3. Proceed only with the selected action and target. If `hold` wins, make no structural move and
+2. Frame two to five materially different directions, including exact `hold`. Run each executable
+   build, upgrade, scrap, rebuild, bond, or robot alternative once with `confirm:false`. These
+   candidate previews collect live costs, downtime, cash effects, and target facts; they never
+   authorize execution.
+3. Call `strategy_council`. CFO reads the live Finance page, balance sheet, income statement, cash
+   flow, recent cash flow, bonds, and candidate costs; COO reads slots, buildings, complete
+   warehouse, stock, modifiers, printed production rates, target-building inspection, and candidate
+   downtime; CMO reads retail, weather, key prices, recent volume, live market books, and transition
+   implications.
+4. Proceed only with the selected action and target. If `hold` wins, make no structural move and
    keep every idle building useful until the next concrete checkpoint.
-4. Run the selected exact typed action with `confirm:false`.
-5. Call `council` with the previewed target and only relevant market kinds. This second review
+5. Run the selected exact typed action again with `confirm:false`. The pre-vote candidate quote is
+   deliberately invalidated when the direction is selected.
+6. Call `council` with the previewed target and only relevant market kinds. This second review
    authorizes exact spend, reserve, rate, quantity, specialization, and target terms. Missing, stale,
    contradictory, non-200, rejected, or UNKNOWN evidence cannot approve the action.
-6. Verify target and terms are unchanged, confirm, then `refresh_state` and verify the outcome.
+7. Verify target and terms are unchanged, confirm, then `refresh_state` and verify the outcome.
 
 Contract mutations use exact preview and the final `council` authorization, but do not require a
 portfolio-direction vote unless the contract itself changes strategy.

@@ -292,6 +292,59 @@ assert.equal(structural.beforeAction('build', buildConfirm, { councilRequired: t
 assert.match(structural.beforeAction('build', buildConfirm, { councilRequired: true }).reason,
   /requires a successful same-wake preview/);
 
+const safeStructuralRetry = new WakeRuntimeGuard();
+authorizeStrategy(safeStructuralRetry, {
+  id: 'build_farm',
+  label: 'Build a Farm.',
+  action: 'build',
+  buildingId: null,
+  target: 'farm',
+});
+const farmPreview = { building: 'Farm', maxCost: 20000, minCashAfter: 5000, confirm: false };
+const farmConfirm = { building: 'Farm', maxCost: 20000, minCashAfter: 5000, confirm: true };
+safeStructuralRetry.afterAction('build', farmPreview, {
+  ok: true, dry: true, preview: true, quoted: 7500,
+});
+assert.equal(safeStructuralRetry.noteCouncil(validCouncilResult(), {
+  proposal: 'Build one Farm within the previewed limits.',
+  buildingId: null,
+}).ok, true);
+assert.equal(safeStructuralRetry.beforeAction('build', farmConfirm, {
+  councilRequired: true,
+}), null);
+assert.equal(safeStructuralRetry.afterAction('build', farmConfirm, {
+  ok: false,
+  reason: 'construction confirmation scope is not unique',
+  safeToRetry: true,
+  mutationAttempted: false,
+}), true);
+assert.equal(safeStructuralRetry.strategyCouncilStatus().decision.consumed, false);
+assert.equal(safeStructuralRetry.beforeAction('build', farmConfirm, {
+  councilRequired: true,
+}).requiredTool, 'refresh_state');
+safeStructuralRetry.noteRefresh();
+safeStructuralRetry.afterAction('build', farmPreview, {
+  ok: true, dry: true, preview: true, quoted: 7500,
+});
+assert.equal(safeStructuralRetry.noteCouncil(validCouncilResult(), {
+  proposal: 'Build one Farm within the previewed limits.',
+  buildingId: null,
+}).ok, true);
+assert.equal(safeStructuralRetry.beforeAction('build', farmConfirm, {
+  councilRequired: true,
+}), null);
+safeStructuralRetry.afterAction('build', farmConfirm, {
+  ok: false,
+  reason: 'commit outcome is ambiguous',
+  mutationAttempted: true,
+  doNotRetry: true,
+});
+assert.equal(safeStructuralRetry.strategyCouncilStatus().decision.consumed, true);
+safeStructuralRetry.noteRefresh();
+assert.match(safeStructuralRetry.beforeAction('build', farmPreview, {
+  councilRequired: true,
+}).reason, /cannot be replayed this wake/);
+
 const missingDirection = new WakeRuntimeGuard();
 assert.equal(missingDirection.beforeAction('upgrade', {
   buildingId: 77,

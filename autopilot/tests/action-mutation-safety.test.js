@@ -55,6 +55,19 @@ test('build candidate preview reports affordability before enforcing confirmatio
   assert.match(source.slice(preview, maxCostGuard), /reserveSatisfied/);
 });
 
+test('build confirmation binds the current full-page construction panel without spending globally', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'actions', 'build.js'), 'utf8');
+  assert.match(source, /\/landscape\/buildings\/<kind>\//);
+  assert.match(source, /const constructionScopes/);
+  assert.match(source, /hasBuyMissing \|\| text\.includes\('REQUIRED MATERIALS'\)/);
+  assert.match(source, /exactBuildButtons\.length !== 1 \|\| innermostScopes\.length !== 1/);
+  const safeFailure = source.indexOf('safeToRetry: true');
+  const firstPersistentSpend = source.indexOf('priced[0].b.click()');
+  assert(safeFailure >= 0 && firstPersistentSpend > safeFailure,
+    'only the pre-spend scope failure may advertise a safe retry');
+  assert.match(source.slice(safeFailure - 300, safeFailure + 300), /mutationAttempted: false/);
+});
+
 test('confirmed rebuild refreshes authenticated Prospector evidence before claiming or clicking', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'act.js'), 'utf8');
   const start = source.indexOf("} else if (action === 'rebuild')");

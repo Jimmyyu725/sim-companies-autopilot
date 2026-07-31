@@ -203,6 +203,13 @@ function strategyDecisionMatchesAction(decision, action, params = {}) {
   return action === 'bonds';
 }
 
+function structuralAttemptIsExplicitlyRetrySafe(action, params = {}, result = {}) {
+  return STRATEGY_DIRECTION_ACTIONS.has(action) && params.confirm === true &&
+    result?.ok === false && result?.safeToRetry === true &&
+    result?.mutationAttempted === false && result?.commitClicked !== true &&
+    result?.doNotRetry !== true && result?.ambiguous !== true && !result?.err;
+}
+
 function strategyDirectionKey(action, params = {}) {
   const terms = structuralTerms(action, params);
   if (!terms || !STRATEGY_DIRECTION_ACTIONS.has(action)) return null;
@@ -854,6 +861,14 @@ class WakeRuntimeGuard {
           strategyGovernance: this.strategyCouncilStatus(),
         };
       }
+      if (this.strategyCouncilCompleted && this.strategyCouncilDecision?.consumed === true) {
+        return {
+          ok: false,
+          guard: true,
+          reason: `${action} direction was consumed by a prior persistent or ambiguous confirmation attempt; it cannot be replayed this wake`,
+          selectedDirection: this.strategyCouncilDecision,
+        };
+      }
       if (this.strategyCouncilCompleted &&
           !strategyDecisionMatchesAction(this.strategyCouncilDecision, action, params)) {
         return {
@@ -962,7 +977,8 @@ class WakeRuntimeGuard {
     }
     if (!actionRequiresRefresh(action, params, result)) return false;
     if (STRATEGY_DIRECTION_ACTIONS.has(action) && params?.confirm === true &&
-        this.strategyCouncilDecision) {
+        this.strategyCouncilDecision &&
+        !structuralAttemptIsExplicitlyRetrySafe(action, params, result)) {
       this.strategyCouncilDecision.consumed = true;
     }
     this.mutationVersion += 1;

@@ -13,7 +13,9 @@ const {
   buildWakeAlarm,
   councilRequiredForStructuralAction,
   isApprovedRollingMillUpgrade,
+  isOwnerAuthorizedAchievementBuild,
   isOwnerAuthorizedProspectorRebuild,
+  ownerAchievementBuildRequirement,
   validateCouncilAuthorization,
   validateStrategyCouncilCompletion,
   validateFinishSummary,
@@ -830,6 +832,10 @@ assert.deepEqual(activeOwnerAchievementSlotPolicy(achievementSlotDirective), {
   currentAchievement: 'Prospector',
   eligibleBuildings: ['quarry', 'mine', 'oil rig'],
   reservedFreeSlots: 2,
+  parallelizeWhenSafe: false,
+  targetCount: 0,
+  targetCapacity: null,
+  openTargetSlots: 0,
 });
 const reservedSlots = new WakeRuntimeGuard();
 assert.equal(reservedSlots.beforeAction('build', {
@@ -850,6 +856,57 @@ eligibleAchievementBuild.afterAction('build', quarryPreview, {
 assert.equal(eligibleAchievementBuild.beforeAction('build', {
   ...quarryPreview, confirm: true,
 }, { councilRequired: false, ownerDirective: achievementSlotDirective }), null);
+
+const parallelSlotDirective = JSON.parse(JSON.stringify(achievementSlotDirective));
+const parallelNow = Date.now();
+parallelSlotDirective.prospectorExperiment = {
+  status: 'waiting-construction',
+  building: 'Quarry',
+  buildingId: 99,
+  level: 1,
+  completesAt: new Date(parallelNow + 60e3).toISOString(),
+  campaign: {
+    ...parallelSlotDirective.prospectorExperiment.campaign,
+    slotPolicy: {
+      ...parallelSlotDirective.prospectorExperiment.campaign.slotPolicy,
+      parallelizeWhenSafe: true,
+    },
+  },
+};
+const parallelBuildState = {
+  t: new Date(parallelNow).toISOString(),
+  sources: { buildings: { status: 'ok', asOf: new Date(parallelNow).toISOString() } },
+  freeSlots: 2,
+  money: 120000,
+  config: { minCash: 800 },
+  buildings: [{ id: 99, name: 'Quarry', size: 1,
+    busy: { type: 'construction', expanding: true,
+      endsAt: new Date(parallelNow + 60e3).toISOString() } }],
+};
+assert.equal(isOwnerAuthorizedAchievementBuild(
+  parallelBuildState,
+  quarryPreview,
+  parallelSlotDirective,
+  parallelNow,
+), true);
+assert.equal(councilRequiredForStructuralAction(
+  'build', quarryPreview, parallelBuildState, parallelSlotDirective, parallelNow), false);
+assert.equal(ownerAchievementBuildRequirement(
+  parallelBuildState, parallelSlotDirective, parallelNow).requiredAction.building, 'Quarry');
+const parallelBuildGuard = new WakeRuntimeGuard();
+parallelBuildGuard.afterAction('build', quarryPreview, { ok: true, preview: true });
+assert.equal(parallelBuildGuard.beforeAction('build', {
+  ...quarryPreview, confirm: true,
+}, {
+  councilRequired: false,
+  ownerDirective: parallelSlotDirective,
+  state: parallelBuildState,
+}), null);
+parallelBuildGuard.afterAction('build', { ...quarryPreview, confirm: true }, {
+  ok: true,
+  ownerAchievementTargetRegistered: true,
+});
+assert.equal(parallelBuildGuard.ownerAchievementBuildCount, 1);
 const completedSlotDirective = JSON.parse(JSON.stringify(achievementSlotDirective));
 completedSlotDirective.prospectorExperiment.campaign.status = 'completed';
 assert.equal(activeOwnerAchievementSlotPolicy(completedSlotDirective), null);

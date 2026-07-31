@@ -137,6 +137,32 @@ test('all occupied standard buildings clear the gate', () => {
   assert.equal(gate, null);
 });
 
+test('idle Prospector pool targets stay reserved while ordinary idle buildings still block', () => {
+  const ownerDirective = {
+    status: 'pending',
+    prospectorExperiment: {
+      building: 'Quarry', buildingId: 10, level: 1, status: 'baseline-verified',
+      campaign: {
+        mode: 'repeat-until-achievement-complete', status: 'active',
+        targetCapacity: 2, activeTargetId: 'primary',
+        targets: [
+          { targetId: 'primary', building: 'Quarry', buildingId: 10, level: 1,
+            status: 'ready', completesAt: '2026-07-26T22:00:00.000Z' },
+        ],
+      },
+    },
+  };
+  assert.equal(buildingUtilizationJournalGate(state([
+    { id: 10, name: 'Quarry', size: 1, category: 'production', busy: null },
+  ]), NOW, { ownerDirective }), null);
+  const blocked = buildingUtilizationJournalGate(state([
+    { id: 10, name: 'Quarry', size: 1, category: 'production', busy: null },
+    { id: 11, name: 'Farm', size: 1, category: 'production', busy: null },
+  ]), NOW, { ownerDirective });
+  assert.deepEqual(blocked.reservedIdleBuildings.map(row => row.buildingId), [10]);
+  assert.deepEqual(blocked.idleBuildings.map(row => row.buildingId), [11]);
+});
+
 test('a completed but uncollected job cannot masquerade as occupied', () => {
   const gate = buildingUtilizationJournalGate(state([
     {

@@ -85,7 +85,9 @@ const {
 const {
   markOwnerBridgeStarted,
   PROSPECTOR_OVERVIEW_PATH,
+  isOwnerProspectorCampaignTarget,
   readPendingOwnerDirective,
+  recordOwnerProspectorBuildTarget,
   recordOwnerProspectorRebuildOutcome,
   refreshAndClaimOwnerProspectorRebuildAttempt,
 } = require(path.join(AUTOPILOT, 'owner-directive.js'));
@@ -609,6 +611,12 @@ if (action === 'produce') {
     refuse(productionResourceIdentity.reason, { productionResourceIdentity });
   }
   const directive = pendingOwnerDirective();
+  if (isOwnerProspectorCampaignTarget(directive, p.buildingId)) {
+    refuse('this building is reserved for the active Prospector target pool and cannot receive production', {
+      buildingId: Number(p.buildingId),
+      requiredNextStep: 'wait for construction or use the exact owner-authorized REBUILD cycle',
+    });
+  }
   if (directive?.action === 'fund-and-upgrade-building' &&
       Number(directive.buildingId) === Number(p.buildingId)) {
     const bridge = directive.bridgeProduction;
@@ -1185,7 +1193,27 @@ if (economicCommunicationRequired) {
       const verified = verifyNewBuildingStarted(beforeBuildings, afterBuildings, p.building);
       res = { ...res, ok: verified.ok, verified: verified.ok, doNotRetry: !verified.ok,
         newBuildingId: verified.buildingId || null,
+        constructionCompletesAt: verified.completesAt || null,
         reason: verified.ok ? undefined : `BUILD was clicked but construction was not authoritatively verified: ${verified.reason}` };
+      if (verified.ok) {
+        const registration = recordOwnerProspectorBuildTarget(
+          path.join(AUTOPILOT, 'OWNER-DIRECTIVE.json'),
+          {
+            verified: true,
+            building: p.building,
+            buildingId: verified.buildingId,
+            completesAt: verified.completesAt || null,
+          },
+        );
+        if (registration.applicable) {
+          res = {
+            ...res,
+            ownerAchievementTargetRegistered: registration.ok === true,
+            ownerAchievementRegistration: registration,
+            ...(!registration.ok ? { doNotRetry: true } : {}),
+          };
+        }
+      }
     }
   } else if (action === 'upgrade') {
     const beforeBuildings = p.confirm === true

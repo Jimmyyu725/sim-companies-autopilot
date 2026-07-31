@@ -2,6 +2,18 @@
 
 const fs = require('fs');
 const { randomUUID } = require('crypto');
+const {
+  activeProspectorTarget,
+  appendProspectorTarget,
+  completeProspectorTargets,
+  isOwnerProspectorCampaignTarget,
+  normalizeProspectorExperiment,
+  otherProspectorTargetBuildingIds,
+  poolIsConfigured,
+  prospectorCampaignTargetSummary,
+  synchronizeProspectorTargets,
+  updateProspectorTarget,
+} = require('./prospector-target-pool.js');
 const MAX_COMPLETION_STATE_AGE_MS = 5 * 60e3;
 const PROSPECTOR_OVERVIEW_PATH = '/api/v2/companies/me/achievements/';
 const PROSPECTOR_CAMPAIGN_MODE = 'repeat-until-achievement-complete';
@@ -330,7 +342,7 @@ function decoratePendingDirective(directive) {
       ...(completedUpgradeProgram ? { completedAction: directive.action } : {}),
       activeInstruction: `${completedUpgradeProgram
         ? 'The funded upgrade program is authoritatively complete. Do not preview or start another upgrade or upgrade bridge; '
-        : ''}Execute only the listed pending owner subtasks. The exact eligible owner-authorized Prospector REBUILD campaign is already strategically approved: after each replacement Quarry finishes, dry-preview it, confirm it without council re-review, verify exactly one counter increment, bind the replacement building ID, and repeat until stars equals starsMax. Do not start production on the campaign target once REBUILD is executable.`,
+        : ''}Execute only the listed pending owner subtasks. The exact eligible owner-authorized Prospector REBUILD campaign and target pool are already strategically approved. Enroll its reserved free slots one Quarry per wake until targetCapacity is reached. Independently track every enrolled target; whenever one is ready, dry-preview and confirm its REBUILD without council re-review, verify exactly one counter increment, bind only that target's replacement ID, and repeat until stars equals starsMax. Never start production on any enrolled target.`,
       pendingOwnerSubtasks: pendingSubtasks,
     };
   }
@@ -422,10 +434,12 @@ function findOwnerProspectorRecoveryCandidate(state, directive, now = Date.now()
   const experiment = directive.prospectorExperiment;
   const storedBuildingId = Number(experiment.buildingId);
   const expectedName = canonicalProspectorBuildingName(experiment.building);
+  const excludedBuildingIds = new Set(otherProspectorTargetBuildingIds(experiment));
   if (state.buildings.some(building => Number(building?.id) === storedBuildingId)) return null;
   const matches = state.buildings.filter(building =>
     canonicalProspectorBuildingName(building?.name) === expectedName &&
-    Number(building?.size) === 1 && building?.freeAndLocked !== true);
+    Number(building?.size) === 1 && building?.freeAndLocked !== true &&
+    !excludedBuildingIds.has(Number(building?.id)));
   if (matches.length !== 1) return null;
   const building = matches[0];
   const buildingId = Number(building?.id);
@@ -645,6 +659,19 @@ function recordOwnerProspectorOverview(directiveFile, observation, now = Date.no
     if (verified) delete nextExperiment.verificationError;
     resultStatus = nextExperiment.status;
   }
+  if (poolIsConfigured(nextExperiment)) {
+    nextExperiment = normalizeProspectorExperiment(nextExperiment);
+    if (resultStatus === 'completed') {
+      nextExperiment = completeProspectorTargets(nextExperiment);
+    } else if (nextExperiment?.rebuildAttempt?.status === 'verified' &&
+        nextExperiment.rebuildAttempt.targetId) {
+      nextExperiment = updateProspectorTarget(
+        nextExperiment,
+        nextExperiment.rebuildAttempt.targetId,
+        { status: 'waiting-construction' },
+      );
+    }
+  }
   writeJsonAtomic(directiveFile, { ...directive, prospectorExperiment: nextExperiment });
   return {
     recorded: true,
@@ -667,6 +694,7 @@ function authorizeOwnerProspectorRebuild(directive, buildingId, now = Date.now()
   const completionMs = Date.parse(experiment?.completesAt);
   const latestMs = Date.parse(latest?.observedAt);
   const campaign = isProspectorCampaign(experiment);
+  const poolTarget = activeProspectorTarget(experiment);
   const campaignActive = campaign && experiment?.campaign?.status === 'active';
   const activeAttempt = ['claimed', 'awaiting-counter'].includes(experiment?.rebuildAttempt?.status);
   const campaignEvidenceValid = !campaign || (campaignActive &&
@@ -687,8 +715,11 @@ function authorizeOwnerProspectorRebuild(directive, buildingId, now = Date.now()
     Number(latest?.current) === expectedBaseline && Number(latest?.target) === expectedTarget &&
     Number.isFinite(latestMs) && latestMs <= nowMs + 60e3 && nowMs - latestMs <= MAX_COMPLETION_STATE_AGE_MS &&
     campaignEvidenceValid && !activeAttempt;
-  return valid
-    ? { ok: true, baselineCurrent: expectedBaseline, baselineTarget: expectedTarget }
+  const poolTargetValid = !poolIsConfigured(experiment) ||
+    Number(poolTarget?.buildingId) === Number(buildingId);
+  return valid && poolTargetValid
+    ? { ok: true, baselineCurrent: expectedBaseline, baselineTarget: expectedTarget,
+      targetId: poolTarget?.targetId || null }
     : { ok: false, reason: 'fresh exact owner authorization for this Prospector REBUILD is unavailable' };
 }
 
@@ -707,6 +738,7 @@ function validateProspectorRecoveryTarget(directive, buildingId, targetEvidence,
   const experiment = directive.prospectorExperiment;
   const expectedName = canonicalProspectorBuildingName(experiment.building);
   const storedBuildingId = Number(experiment.buildingId);
+  const excludedBuildingIds = new Set(otherProspectorTargetBuildingIds(experiment));
   const id = Number(buildingId);
   if (!Number.isSafeInteger(id) || id <= 0 || id === storedBuildingId ||
       targetEvidence.buildings.some(building => Number(building?.id) === storedBuildingId)) {
@@ -714,7 +746,8 @@ function validateProspectorRecoveryTarget(directive, buildingId, targetEvidence,
   }
   const matches = targetEvidence.buildings.filter(building =>
     canonicalProspectorBuildingName(building?.name) === expectedName &&
-    Number(building?.size) === 1 && building?.freeAndLocked !== true);
+    Number(building?.size) === 1 && building?.freeAndLocked !== true &&
+    !excludedBuildingIds.has(Number(building?.id)));
   if (matches.length !== 1 || Number(matches[0]?.id) !== id) {
     return { ok: false, reason: 'the current level-1 campaign replacement is missing or ambiguous' };
   }
@@ -775,7 +808,7 @@ function reconcileOwnerProspectorRecoveryTarget(
   const experiment = directive.prospectorExperiment;
   const evidence = experiment.lastProgressEvidence;
   const previousBuildingId = Number(experiment.buildingId);
-  const nextExperiment = {
+  let nextExperiment = {
     ...experiment,
     status: 'baseline-verified',
     buildingId: Number(buildingId),
@@ -808,6 +841,17 @@ function reconcileOwnerProspectorRecoveryTarget(
       lastRecoveredAt: new Date(nowMs).toISOString(),
     },
   };
+  const recoveryTarget = activeProspectorTarget(experiment);
+  if (recoveryTarget) {
+    nextExperiment = updateProspectorTarget(nextExperiment, recoveryTarget.targetId, {
+      buildingId: Number(buildingId),
+      building: validation.building.name,
+      level: 1,
+      status: 'ready',
+      completesAt: new Date(nowMs).toISOString(),
+      lastRecoveredAt: new Date(nowMs).toISOString(),
+    });
+  }
   delete nextExperiment.verificationError;
   delete nextExperiment.verificationEvidence;
   delete nextExperiment.verifiedAt;
@@ -829,14 +873,21 @@ function claimOwnerProspectorRebuildAttempt(directiveFile, buildingId, now = Dat
   const authorization = authorizeOwnerProspectorRebuild(directive, buildingId, now);
   if (!authorization.ok) return authorization;
   const attemptId = randomUUID();
+  let nextExperiment = normalizeProspectorExperiment(directive.prospectorExperiment);
+  if (authorization.targetId) {
+    nextExperiment = updateProspectorTarget(nextExperiment, authorization.targetId, {
+      status: 'claimed',
+    });
+  }
   writeJsonAtomic(directiveFile, {
     ...directive,
     prospectorExperiment: {
-      ...directive.prospectorExperiment,
+      ...nextExperiment,
       rebuildAttempt: {
         attemptId,
         status: 'claimed',
         buildingId: Number(buildingId),
+        ...(authorization.targetId ? { targetId: authorization.targetId } : {}),
         baselineCurrent: authorization.baselineCurrent,
         baselineTarget: authorization.baselineTarget,
         claimedAt: new Date(Number(now)).toISOString(),
@@ -885,7 +936,7 @@ function refreshAndClaimOwnerProspectorRebuildAttempt(
 
 function recordOwnerProspectorRebuildOutcome(directiveFile, attemptId, result, now = Date.now()) {
   const directive = readJson(directiveFile);
-  const experiment = directive?.prospectorExperiment;
+  let experiment = directive?.prospectorExperiment;
   const attempt = experiment?.rebuildAttempt;
   if (!attempt || attempt.attemptId !== attemptId || attempt.status !== 'claimed') return false;
   const commitPossible = result?.commitClicked === true || result?.mutationAttempted === true;
@@ -908,6 +959,16 @@ function recordOwnerProspectorRebuildOutcome(directiveFile, attemptId, result, n
       rebuildCompletesAt: new Date(completesAtMs).toISOString(),
     } : {}),
   };
+  if (attempt.targetId) {
+    experiment = updateProspectorTarget(experiment, attempt.targetId, {
+      ...(verifiedReplacement ? { buildingId: rebuiltBuildingId } : {}),
+      status: commitPossible
+        ? (verifiedCompletion ? 'waiting-construction' : 'construction-unverified')
+        : 'ready',
+      completesAt: verifiedCompletion ? new Date(completesAtMs).toISOString() : null,
+      lastRebuiltAt: commitPossible ? new Date(Number(now)).toISOString() : null,
+    });
+  }
   writeJsonAtomic(directiveFile, {
     ...directive,
     prospectorExperiment: {
@@ -924,6 +985,32 @@ function recordOwnerProspectorRebuildOutcome(directiveFile, attemptId, result, n
   return true;
 }
 
+function recordOwnerProspectorBuildTarget(directiveFile, evidence, now = Date.now()) {
+  const directive = readJson(directiveFile);
+  if (directive?.schemaVersion !== 1 || directive?.status !== 'pending' ||
+      directive?.priority !== 'owner' || directive?.action !== OWNER_SUBTASK_ACTION) {
+    return { ok: false, applicable: false, reason: 'active owner directive is unavailable' };
+  }
+  const registration = appendProspectorTarget(
+    directive.prospectorExperiment,
+    evidence,
+    now,
+  );
+  if (!registration.ok) return registration;
+  writeJsonAtomic(directiveFile, {
+    ...directive,
+    prospectorExperiment: registration.experiment,
+  });
+  return {
+    ok: true,
+    applicable: true,
+    targetId: registration.target.targetId,
+    buildingId: registration.target.buildingId,
+    targetCount: registration.targetCount,
+    targetCapacity: registration.targetCapacity,
+  };
+}
+
 function synchronizeOwnerProspectorConstruction(directiveFile, state, now = Date.now()) {
   const directive = readJson(directiveFile);
   const experiment = directive?.prospectorExperiment;
@@ -937,6 +1024,23 @@ function synchronizeOwnerProspectorConstruction(directiveFile, state, now = Date
     Number.isFinite(sourceAtMs) && stateAtMs <= nowMs + 60e3 &&
     sourceAtMs <= nowMs + 60e3 && nowMs - stateAtMs <= MAX_COMPLETION_STATE_AGE_MS &&
     nowMs - sourceAtMs <= MAX_COMPLETION_STATE_AGE_MS;
+  if (poolIsConfigured(experiment)) {
+    if (directive?.schemaVersion !== 1 || directive?.status !== 'pending' ||
+        directive?.priority !== 'owner' || !ownerProspectorRootIsAuthorized(directive) ||
+        !isProspectorCampaign(experiment) || experiment?.campaign?.status !== 'active' ||
+        source?.status !== 'ok' || !stateIsFresh || !Array.isArray(state?.buildings)) {
+      return false;
+    }
+    const synchronized = synchronizeProspectorTargets(experiment, state, nowMs);
+    if (!synchronized.applicable) return false;
+    if (synchronized.changed) {
+      writeJsonAtomic(directiveFile, {
+        ...directive,
+        prospectorExperiment: synchronized.experiment,
+      });
+    }
+    return true;
+  }
   if (directive?.schemaVersion !== 1 || directive?.status !== 'pending' ||
       directive?.priority !== 'owner' || !ownerProspectorRootIsAuthorized(directive) ||
       !isProspectorCampaign(experiment) || experiment?.campaign?.status !== 'active' ||
@@ -1157,11 +1261,14 @@ module.exports = {
   markOwnerBridgeStarted,
   parseProspectorOverview,
   pendingOwnerSubtasks,
+  prospectorCampaignTargetSummary,
   programCompletionEvidenceIsValid,
   readPendingOwnerDirective,
   readPendingOwnerDirectiveForPrompt,
   recordOwnerProspectorRebuildOutcome,
+  recordOwnerProspectorBuildTarget,
   recordOwnerProspectorOverview,
   refreshAndClaimOwnerProspectorRebuildAttempt,
   synchronizeOwnerProspectorConstruction,
+  isOwnerProspectorCampaignTarget,
 };

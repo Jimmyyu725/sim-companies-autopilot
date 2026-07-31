@@ -3,6 +3,9 @@
 const {
   validatePageActivityInspection,
 } = require('./building-page-activity.js');
+const {
+  prospectorCampaignTargetSummary,
+} = require('./owner-directive.js');
 
 const MAX_STATE_AGE_SECONDS = 5 * 60;
 const MAX_FUTURE_SKEW_SECONDS = 30;
@@ -121,7 +124,7 @@ function inspectOperationalUtilization(state, nowMs = Date.now()) {
   };
 }
 
-function buildingUtilizationJournalGate(state, nowMs = Date.now()) {
+function buildingUtilizationJournalGate(state, nowMs = Date.now(), options = {}) {
   const inspection = inspectOperationalUtilization(state, nowMs);
   if (!inspection.ok) {
     return {
@@ -150,13 +153,25 @@ function buildingUtilizationJournalGate(state, nowMs = Date.now()) {
       })),
     };
   }
-  if (!inspection.idleBuildings.length && !inspection.completedBuildings.length) return null;
+  const targetIds = new Set(
+    prospectorCampaignTargetSummary(options?.ownerDirective).targets.map(
+      target => Number(target.buildingId),
+    ),
+  );
+  const reservedIdleBuildings = inspection.idleBuildings.filter(
+    building => targetIds.has(building.buildingId),
+  );
+  const idleBuildings = inspection.idleBuildings.filter(
+    building => !targetIds.has(building.buildingId),
+  );
+  if (!idleBuildings.length && !inspection.completedBuildings.length) return null;
 
   return {
     ok: false,
     guard: true,
     reason: 'cannot close this wake while a standard operational building is confirmed idle or its completed job remains uncollected. Collect completed work first, then start the next job. Waiting for an upgrade, bond proceeds, evidence, cash, or a preferred batch is not an exception: start the structural action now or place useful bridge work ending before the next checkpoint. If the game truly makes every order impossible, leave the wake incomplete so the safety retry records the blocker instead of declaring voluntary idle.',
-    idleBuildings: inspection.idleBuildings,
+    idleBuildings,
+    reservedIdleBuildings,
     completedBuildings: inspection.completedBuildings,
     requiredActions: [
       ...inspection.completedBuildings.map(building => ({
@@ -164,7 +179,7 @@ function buildingUtilizationJournalGate(state, nowMs = Date.now()) {
         tool: 'collect',
         checkpointField: null,
       })),
-      ...inspection.idleBuildings.map(building => ({
+      ...idleBuildings.map(building => ({
         buildingId: building.buildingId,
         tool: building.category === 'sales' ? 'sell' : 'produce',
         checkpointField: building.category === 'production' ? 'finishBefore' : null,

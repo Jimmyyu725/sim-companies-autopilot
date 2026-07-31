@@ -86,12 +86,14 @@ test('confirmed rebuild refreshes authenticated Prospector evidence before claim
   assert.match(branch, /idleEvidence:\s*idle\.evidence/);
 });
 
-test('both brain engines prioritize the exact owner Prospector rebuild over another bridge', () => {
+test('both brain engines reserve every owner Prospector pool target from production', () => {
   for (const filename of ['brain.js', 'brain56.js']) {
     const source = fs.readFileSync(path.join(__dirname, '..', filename), 'utf8');
     assert.match(source, /isOwnerAuthorizedProspectorRebuild\(/, filename);
-    assert.match(source, /action === 'produce' && ownerProspectorEligible/, filename);
-    assert.match(source, /priority over another production bridge/, filename);
+    assert.match(source, /isOwnerProspectorCampaignTarget\(/, filename);
+    assert.match(source, /action === 'produce' && ownerProspectorPoolTarget/, filename);
+    assert.match(source, /ownerAchievementBuildRequirement\(/, filename);
+    assert.match(source, /reserved for REBUILD and cannot receive production/, filename);
     assert.match(source, /ownerDirectivePriority:\s*true/, filename);
     assert.match(source, /councilRequired:\s*false/, filename);
     assert.match(source, /requiredNextAction:[\s\S]{0,180}confirm:\s*true/, filename);

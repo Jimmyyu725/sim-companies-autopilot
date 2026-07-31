@@ -12,12 +12,15 @@ const {
   claimOwnerProspectorRebuildAttempt,
   markOwnerBridgeStarted,
   parseProspectorOverview,
+  prospectorCampaignTargetSummary,
   readPendingOwnerDirective,
   readPendingOwnerDirectiveForPrompt,
+  recordOwnerProspectorBuildTarget,
   recordOwnerProspectorRebuildOutcome,
   recordOwnerProspectorOverview,
   refreshAndClaimOwnerProspectorRebuildAttempt,
   synchronizeOwnerProspectorConstruction,
+  isOwnerProspectorCampaignTarget,
 } = require('../owner-directive.js');
 
 function fixture({ level = 1, busy = null } = {}) {
@@ -543,6 +546,126 @@ test('verified replacement binds immediately and later state supplies a missing 
     persisted.prospectorExperiment.rebuildAttempt.rebuildCompletesAt,
     completesAt,
   );
+});
+
+test('parallel Prospector pool enrolls two slots and rotates independent rebuild targets', t => {
+  const files = fixture();
+  t.after(() => fs.rmSync(files.directory, { recursive: true, force: true }));
+  const now = Date.parse('2026-07-31T20:00:00.000Z');
+  const observedAt = new Date(now - 30e3).toISOString();
+  const directive = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
+  directive.action = OWNER_SUBTASK_ACTION;
+  directive.prospectorExperiment = {
+    status: 'waiting-construction',
+    building: 'Quarry',
+    buildingId: 99,
+    level: 1,
+    completesAt: new Date(now + 4 * 60 * 60e3).toISOString(),
+    expectedBaseline: 2,
+    expectedTarget: 10,
+    expectedIncrement: 1,
+    campaign: {
+      mode: 'repeat-until-achievement-complete',
+      status: 'active',
+      currentStars: 0,
+      starsMax: 7,
+      slotPolicy: {
+        status: 'active',
+        mode: 'reserve-all-free-standard-slots',
+        purpose: 'achievement-campaign',
+        eligibleBuildings: ['Quarry', 'Mine', 'Oil rig'],
+        reservedFreeSlots: 2,
+        parallelizeWhenSafe: true,
+      },
+    },
+    baselineProgress: {
+      path: PROSPECTOR_OVERVIEW_PATH, status: 200, observedAt,
+      current: 2, target: 10, stars: 0, starsMax: 7,
+    },
+    lastProgressEvidence: {
+      path: PROSPECTOR_OVERVIEW_PATH, status: 200, observedAt,
+      current: 2, target: 10, stars: 0, starsMax: 7,
+    },
+  };
+  fs.writeFileSync(files.directiveFile, JSON.stringify(directive));
+
+  const first = recordOwnerProspectorBuildTarget(files.directiveFile, {
+    verified: true,
+    building: 'Quarry',
+    buildingId: 100,
+    completesAt: new Date(now + 60 * 60e3).toISOString(),
+  }, now);
+  const second = recordOwnerProspectorBuildTarget(files.directiveFile, {
+    verified: true,
+    building: 'Quarry',
+    buildingId: 101,
+    completesAt: new Date(now + 5 * 60 * 60e3).toISOString(),
+  }, now + 1000);
+  assert.equal(first.ok, true);
+  assert.equal(second.ok, true);
+  let persisted = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
+  let summary = prospectorCampaignTargetSummary(persisted);
+  assert.equal(summary.targetCapacity, 3);
+  assert.equal(summary.targetCount, 3);
+  assert.equal(new Set(summary.targets.map(target => target.targetId)).size, 3);
+  assert.equal(isOwnerProspectorCampaignTarget(persisted, 100), true);
+  assert.equal(recordOwnerProspectorBuildTarget(files.directiveFile, {
+    verified: true, building: 'Quarry', buildingId: 103,
+  }, now + 2000).ok, false);
+
+  const readyAt = now + 2 * 60 * 60e3;
+  recordOwnerProspectorOverview(files.directiveFile, {
+    path: PROSPECTOR_OVERVIEW_PATH,
+    status: 200,
+    fetchedAt: new Date(readyAt - 1000).toISOString(),
+    data: prospectorOverview(2),
+  }, readyAt);
+  const state = {
+    t: new Date(readyAt).toISOString(),
+    sources: { buildings: { status: 'ok', asOf: new Date(readyAt).toISOString() } },
+    buildings: [
+      { id: 99, name: 'Quarry', size: 1, busy: { type: 'construction', expanding: true,
+        endsAt: new Date(now + 4 * 60 * 60e3).toISOString() } },
+      { id: 100, name: 'Quarry', size: 1, busy: null },
+      { id: 101, name: 'Quarry', size: 1, busy: { type: 'construction', expanding: true,
+        endsAt: new Date(now + 5 * 60 * 60e3).toISOString() } },
+    ],
+  };
+  assert.equal(synchronizeOwnerProspectorConstruction(files.directiveFile, state, readyAt), true);
+  persisted = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
+  assert.equal(persisted.prospectorExperiment.buildingId, 100);
+  assert.equal(persisted.prospectorExperiment.status, 'baseline-verified');
+
+  const claim = claimOwnerProspectorRebuildAttempt(files.directiveFile, 100, readyAt + 1000);
+  assert.equal(claim.ok, true);
+  assert.equal(recordOwnerProspectorRebuildOutcome(files.directiveFile, claim.attemptId, {
+    commitClicked: true,
+    verified: true,
+    rebuiltBuildingId: 102,
+    rebuildCompletesAt: new Date(now + 6 * 60 * 60e3).toISOString(),
+  }, readyAt + 2000), true);
+  const verifiedAt = readyAt + 60e3;
+  recordOwnerProspectorOverview(files.directiveFile, {
+    path: PROSPECTOR_OVERVIEW_PATH,
+    status: 200,
+    fetchedAt: new Date(verifiedAt).toISOString(),
+    data: prospectorOverview(3),
+  }, verifiedAt);
+  state.t = new Date(verifiedAt).toISOString();
+  state.sources.buildings.asOf = state.t;
+  state.buildings = [
+    state.buildings[0],
+    { id: 102, name: 'Quarry', size: 1, busy: { type: 'construction', expanding: true,
+      endsAt: new Date(now + 6 * 60 * 60e3).toISOString() } },
+    { id: 101, name: 'Quarry', size: 1, busy: null },
+  ];
+  synchronizeOwnerProspectorConstruction(files.directiveFile, state, verifiedAt);
+  persisted = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
+  summary = prospectorCampaignTargetSummary(persisted);
+  assert.equal(persisted.prospectorExperiment.buildingId, 101);
+  assert.equal(persisted.prospectorExperiment.status, 'baseline-verified');
+  assert.deepEqual(summary.targets.map(target => target.buildingId).sort((a, b) => a - b),
+    [99, 101, 102]);
 });
 
 test('continuous Prospector campaign never duplicates while its counter is unchanged', t => {

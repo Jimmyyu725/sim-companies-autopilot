@@ -65,15 +65,42 @@ if (money - cashNeeded < minCashAfter) {
 row.click();
 await sleep(3500);
 
-const dialogs = all('[role=dialog], [class*=odal], [class*=verlay]').filter(d =>
-  d.offsetParent !== null
-  && norm(d.innerText).toUpperCase().includes(building.toUpperCase())
-  && /BUY MISSING|BUILD|CONSTRUCT/i.test(norm(d.innerText)));
-const innermostDialogs = dialogs.filter(d => !dialogs.some(other => other !== d && d.contains(other)));
-if (innermostDialogs.length !== 1) return { ok: false,
-  reason: 'construction dialog is not unique; refusing to select spend/commit buttons',
-  dialogCount: innermostDialogs.length, ...info };
-const dlg = innermostDialogs[0];
+// The game currently navigates catalogue rows to /landscape/buildings/<kind>/ instead of opening
+// a modal. Older layouts still use a modal. Bind to the smallest visible scope containing the
+// exact build button plus BUY MISSING or REQUIRED MATERIALS, which works for both layouts without
+// falling back to page-global spend buttons.
+const buildLabels = new Set([
+  'BUILD ' + building.toUpperCase(),
+  'BUILD',
+  'BUILD NOW',
+  'CONSTRUCT',
+]);
+const exactBuildButtons = all('button').filter(button =>
+  button.offsetParent !== null && buildLabels.has(norm(button.innerText).toUpperCase()));
+const constructionScopes = [...new Set(exactBuildButtons.map(button => {
+  let scope = button.parentElement;
+  while (scope && scope !== document.body) {
+    const text = norm(scope.innerText).toUpperCase();
+    const buttons = all('button', scope).filter(candidate => candidate.offsetParent !== null);
+    const hasBuyMissing = buttons.some(candidate =>
+      /^BUY MISSING(?:\s|$)/i.test(norm(candidate.innerText)));
+    if (hasBuyMissing || text.includes('REQUIRED MATERIALS')) return scope;
+    scope = scope.parentElement;
+  }
+  return null;
+}).filter(Boolean))];
+const innermostScopes = constructionScopes.filter(scope =>
+  !constructionScopes.some(other => other !== scope && scope.contains(other)));
+if (exactBuildButtons.length !== 1 || innermostScopes.length !== 1) return { ok: false,
+  reason: 'construction confirmation scope is not unique; refusing to select spend/commit buttons',
+  safeToRetry: true,
+  mutationAttempted: false,
+  buildButtonCount: exactBuildButtons.length,
+  scopeCount: innermostScopes.length,
+  visibleButtons: all('button').filter(button => button.offsetParent !== null)
+    .map(button => norm(button.innerText)).filter(Boolean).slice(0, 16),
+  ...info };
+const dlg = innermostScopes[0];
 
 const dialogBtns = (label) => all('button', dlg)
   .filter(b => b.offsetParent !== null

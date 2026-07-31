@@ -10,6 +10,7 @@ const {
   aggregateStrategyDecision,
   attachAuthorizationPreviewEvidence,
   attachStrategyCandidateEvidence,
+  buildAuthoritativeCitationMenu,
   buildCouncilRequest,
   failClosedRoleVote,
   normalizeDeepSeekCouncilVote,
@@ -102,6 +103,96 @@ test('DeepSeek strategy contract explicitly requires arrays, citations, and digi
   assert.match(strategyRepairInstruction(
     'unknowns must not contain numeric claims; cite them through metrics',
   ), /Remove every digit character/);
+});
+
+test('authorization citation menu exposes verified result fields and exact role evidence only', () => {
+  const evidence = {
+    meta: {
+      collectedAt: AS_OF,
+      stateFreshness: 'FRESH',
+      authorizationPreview: 'VERIFIED',
+      portfolioInspection: 'OK',
+    },
+    sourceStatus: {
+      auth: { status: 'ok', asOf: AS_OF },
+    },
+    company: { cash: 41032, minCash: 5000 },
+    authorizationPreview: {
+      action: 'build',
+      terms: { building: 'farm', maxCost: 20000, minCashAfter: 5000 },
+      preview: {
+        ok: true,
+        dry: true,
+        preview: true,
+        quoted: 7794,
+        cashAfter: 33238,
+        affordability: {
+          withinMaxCost: true,
+          reserveSatisfied: true,
+          maxCost: 20000,
+          minCashAfter: 5000,
+        },
+      },
+      source: 'runtime-verified-structural-preview',
+      previewedAt: AS_OF,
+      previewAgeSeconds: 0,
+      previewVersion: 4,
+    },
+  };
+  const menu = buildAuthoritativeCitationMenu('CFO', evidence, 'authorization');
+  assert(menu.preview.some(row =>
+    row.pointer === '/authorizationPreview/preview/quoted' && row.value === 7794));
+  assert(menu.preview.some(row =>
+    row.pointer === '/authorizationPreview/preview/affordability/withinMaxCost' &&
+    row.value === true));
+  assert(menu.roleSpecific.some(row =>
+    row.pointer === '/company/cash' && row.value === 41032));
+  assert.equal(menu.preview.some(row => row.pointer.startsWith('/authorizationPreview/terms')), false);
+  assert.match(menu.rule, /Never cite \/authorizationPreview\/terms/);
+});
+
+test('CMO citation menu publishes the actual nested Grocery evidence path', () => {
+  const candidateComparison = Array.from({ length: 5 }, (_, index) => ({
+    optionId: `candidate_${index}`,
+    evidenceStatus: 'MEASURED_BASELINE',
+    profitPerHour: 1000 + index,
+    paybackHours: 20 + index,
+    sustainableUnitsPerHour: 30 + index,
+    downtimeHours: index,
+  }));
+  const evidence = {
+    meta: {
+      collectedAt: AS_OF,
+      stateFreshness: 'FRESH',
+      portfolioInspection: 'OK',
+    },
+    groceryRetailEvidence: {
+      status: 'ACTIVE_ORDER',
+      activeOrder: { profitPerHour: 6374.1, profitPerUnit: 14.2 },
+    },
+    decisionModel: {
+      status: 'COMPLETE',
+      coffeeChain: {
+        retailEvidence: {
+          status: 'ACTIVE_ORDER',
+          activeOrder: { profitPerHour: 6374.1 },
+        },
+        current: {
+          retail: { evidenceStatus: 'ACTIVE_ORDER', profitPerHour: 6374.1 },
+        },
+      },
+      candidateComparison,
+    },
+  };
+  const menu = buildAuthoritativeCitationMenu('CMO', evidence, 'authorization');
+  assert(menu.roleSpecific.some(row =>
+    row.pointer === '/groceryRetailEvidence/activeOrder/profitPerHour' &&
+    row.value === 6374.1));
+  assert(menu.roleSpecific.some(row =>
+    row.pointer === '/decisionModel/coffeeChain/retailEvidence/status' &&
+    row.value === 'ACTIVE_ORDER'));
+  assert.equal(menu.roleSpecific.some(row =>
+    row.pointer === '/decisionModel/retailEvidence/status'), false);
 });
 
 test('DeepSeek council adapter repairs only qualitative shape and leaves evidence metrics intact', () => {
@@ -346,6 +437,65 @@ test('a deterministic validation failure gets one feedback-bound repair attempt'
   assert.match(audit.validationError, /does not match evidence/);
   assert.equal(JSON.stringify(audit).includes('test-only'), false);
   assert.equal(JSON.stringify(audit).includes('AUTOMATIC CFO EVIDENCE'), false);
+});
+
+test('authorization repair gives DeepSeek an exact preview and role citation menu', async () => {
+  let calls = 0;
+  let secondRequest;
+  const baseEvidence = {
+    ok: true,
+    meta: { collectedAt: AS_OF, stateFreshness: 'FRESH' },
+    roles: { CFO: CFO_EVIDENCE },
+  };
+  const evidence = attachAuthorizationPreviewEvidence(baseEvidence, {
+    action: 'build',
+    terms: { building: 'farm', maxCost: 20000, minCashAfter: 5000 },
+    preview: {
+      ok: true,
+      dry: true,
+      preview: true,
+      quoted: 7794,
+      cashAfter: 33238,
+      affordability: { withinMaxCost: true, reserveSatisfied: true },
+    },
+    source: 'runtime-verified-structural-preview',
+    previewedAt: AS_OF,
+    previewVersion: 4,
+  });
+  const invalid = {
+    ...approvedVote(),
+    metrics: [
+      { pointer: '/authorizationPreview/terms/maxCost', value: 20000 },
+      { pointer: '/company/cash', value: 41032 },
+    ],
+  };
+  const repaired = {
+    ...approvedVote(),
+    metrics: [
+      { pointer: '/authorizationPreview/preview/quoted', value: 7794 },
+      { pointer: '/company/cash', value: 41032 },
+    ],
+  };
+  const vote = await reviewCouncilRole({
+    ...ROLE_ARGS,
+    evidence,
+  }, dependencies({
+    provider: 'deepseek',
+    fetch: async (_url, request) => {
+      calls += 1;
+      if (calls === 2) secondRequest = JSON.parse(request.body);
+      return responseFor(calls === 1 ? invalid : repaired);
+    },
+  }));
+
+  assert.equal(calls, 2);
+  assert.equal(vote.status, 'VALIDATED');
+  assert.equal(vote.verdict, 'APPROVE');
+  assert.match(secondRequest.messages[0].content, /Never cite \/authorizationPreview\/terms/);
+  assert.match(secondRequest.messages[1].content, /AUTHORITATIVE CITATION MENU/);
+  assert.match(secondRequest.messages[1].content, /\/authorizationPreview\/preview\/quoted/);
+  assert.match(secondRequest.messages[1].content, /\/company\/cash/);
+  assert.match(secondRequest.messages[1].content, /Those are requested limits, not measured results/);
 });
 
 test('two invalid votes remain INVALID_EVIDENCE and are never promoted to approval', async () => {

@@ -445,16 +445,22 @@ function validateStrategyCouncilCompletion(result, requirements = {}) {
   if (votes.length !== 3 || !['CFO', 'COO', 'CMO'].every(role => roles.has(role))) {
     return { ok: false, reason: 'strategy council did not return all three roles' };
   }
+  const decision = result?.decision;
+  const optionId = String(decision?.optionId || '').trim();
   const invalid = votes.find(vote => vote?.status !== 'VALIDATED' ||
     vote?.verdict !== 'RECOMMEND' || !String(vote?.optionId || '').trim());
+  if (decision?.method === 'safety_hold') {
+    if (decision?.status !== 'DECIDED' || optionId !== 'hold' || !invalid) {
+      return { ok: false, reason: 'strategy council safety hold is inconsistent with its votes' };
+    }
+    return { ok: true, optionId: 'hold', method: 'safety_hold' };
+  }
   if (invalid) {
     return {
       ok: false,
       reason: `${invalid?.role || 'council'} did not provide a validated recommendation`,
     };
   }
-  const decision = result?.decision;
-  const optionId = String(decision?.optionId || '').trim();
   if (decision?.status !== 'DECIDED' || !optionId) {
     return { ok: false, reason: 'strategy council did not reach a decision' };
   }

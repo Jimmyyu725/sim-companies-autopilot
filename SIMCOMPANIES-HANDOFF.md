@@ -92,7 +92,7 @@ artifacts. They are not part of either the active autopilot or the archived thre
 | `autopilot/exchange-sale-safety.js` | Final execution-layer guard for fresh state/plan, available stock, Transport, exact five-minute inspection match, and positive game-form profit. |
 | `autopilot/mill-upgrade-policy.js` | Pure deterministic Pareto comparison of evidence-backed Mill upgrade candidates; ranks merit without using current cash. |
 | `autopilot/council-evidence.js` | Shared read-only collector that gives CFO/COO/CMO separate live finance, operations/P1, and retail/order-book evidence packs before deliberation. |
-| `autopilot/council.js` | Runs CFO/COO/CMO independently in two modes: strategy selection among explicit options and exact-term authorization after preview. A two-vote strategy majority wins; a valid three-way tie selects `hold`. It follows the active main-brain provider: DeepSeek V4 Pro Max during the trial and OpenAI Luna High after rollback. Council requests have no client-side elapsed-time limit; API/JSON failures remain `UNKNOWN`, one provider-reported timeout or invalid vote may receive one retry, and a non-sensitive per-role audit is written to `council-audit.jsonl`. |
+| `autopilot/council.js` | Runs CFO/COO/CMO independently in two modes: strategy selection among explicit options and exact-term authorization after preview. A two-vote strategy majority wins; a valid three-way tie selects `hold`. If any strategy role remains unavailable after its bounded repair, aggregation records a conservative `safety_hold`: it satisfies the checkpoint without authorizing any structural action. It follows the active main-brain provider: DeepSeek V4 Pro Max during the trial and OpenAI Luna High after rollback. Council requests have no client-side elapsed-time limit; API/JSON failures remain `UNKNOWN`, one provider-reported timeout or invalid vote may receive one retry, and a non-sensitive per-role audit is written to `council-audit.jsonl`. |
 | `autopilot/council-governance.js` | Requires a strategy decision on first deployment, every twenty successful wakes after the prior decision, after twenty-four hours, or after a material level/slot/debt/building/modifier/strategic-question change. Writes ignored idempotent `strategy-council-history.jsonl`. |
 | `autopilot/council-verdict.js` | Validates exact authorization votes and strategy recommendations against exact evidence values, supplied option IDs, authoritative role sources, and freshness. |
 | `autopilot/api-result.js` | Adds source/status/time plus explicit pagination and truncation metadata to generic API reads. |
@@ -414,9 +414,10 @@ function. Runtime validation repeats the schema checks before CDP starts.
   a strategy vote only when they change portfolio direction.
 - A strategy checkpoint is mandatory on first deployment, every twenty successful wakes after the
   prior decision, after twenty-four hours, or after a material strategic fingerprint change. The
-  runtime blocks `journal` and `finish` until all three roles return validated recommendations and
-  deterministic aggregation records the result. A completed decision cannot be rerolled in the
-  same wake.
+  runtime blocks `journal` and `finish` until deterministic aggregation records either three usable
+  recommendations or a conservative `safety_hold` after a role remains unavailable. A safety hold
+  never authorizes build, upgrade, scrap, rebuild, bonds, robots, or pivot. A completed decision
+  cannot be rerolled in the same wake.
 - Council requests isolate CFO/COO/CMO failures and have no client-side or whole-wake elapsed-time
   limit. The full-wake lock prevents overlap while all roles finish. Provider-reported
   timeout/API/JSON failures stay UNKNOWN; one provider-reported timeout or invalid vote may receive

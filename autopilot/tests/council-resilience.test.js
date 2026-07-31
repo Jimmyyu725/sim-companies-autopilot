@@ -11,11 +11,13 @@ const {
   attachStrategyCandidateEvidence,
   buildCouncilRequest,
   failClosedRoleVote,
+  normalizeDeepSeekCouncilVote,
   prepareEvidenceView,
   reviewCouncilRole,
   runCouncil,
   runStrategyCouncil,
   strategyRepairInstruction,
+  strategyCouncilToolParameters,
   validateStrategyCouncilArgs,
   writeCouncilAudit,
 } = require('../council.js');
@@ -99,6 +101,46 @@ test('DeepSeek strategy contract explicitly requires arrays, citations, and digi
   assert.match(strategyRepairInstruction(
     'unknowns must not contain numeric claims; cite them through metrics',
   ), /Remove every digit character/);
+});
+
+test('DeepSeek council adapter repairs only qualitative shape and leaves evidence metrics intact', () => {
+  const vote = normalizeDeepSeekCouncilVote({
+    verdict: 'RECOMMEND',
+    optionId: 'hold',
+    summary: 'Cash 41032 supports holding for 1 wake.',
+    metrics: [{ pointer: '/company/cash', value: 41032 }],
+    unknowns: 'Building 71 is still busy.',
+    conditions: null,
+  });
+  assert.equal(/\d/u.test(vote.summary), false);
+  assert.equal(/\d/u.test(vote.unknowns[0]), false);
+  assert.deepEqual(vote.conditions, []);
+  assert.deepEqual(vote.metrics, [{ pointer: '/company/cash', value: 41032 }]);
+  assert.equal(vote.verdict, 'RECOMMEND');
+  assert.equal(vote.optionId, 'hold');
+});
+
+test('DeepSeek council role normalizes qualitative format before deterministic validation', async () => {
+  const vote = await reviewCouncilRole(ROLE_ARGS, dependencies({
+    provider: 'deepseek',
+    fetch: async () => responseFor({
+      ...approvedVote(),
+      summary: 'Cash 41032 supports the proposal.',
+      unknowns: 'No material issue 1 remains.',
+      conditions: null,
+    }),
+  }));
+  assert.equal(vote.status, 'VALIDATED');
+  assert.equal(vote.verdict, 'APPROVE');
+  assert.equal(/\d/u.test(vote.summary), false);
+  assert.equal(/\d/u.test(vote.unknowns[0]), false);
+  assert.deepEqual(vote.conditions, []);
+  assert.deepEqual(vote.metrics, [{ pointer: '/company/cash', value: 41032 }]);
+});
+
+test('strategy council tool schema stays compatible with the OpenAI Responses API', () => {
+  const serialized = JSON.stringify(strategyCouncilToolParameters);
+  assert.equal(serialized.includes('"uniqueItems"'), false);
 });
 
 test('council failures redact provider credentials before returning or auditing them', () => {
@@ -370,6 +412,33 @@ test('strategy council arguments require a canonical hold option and bound targe
   assert.match(duplicateTarget.reason, /duplicate one executable action target/);
 });
 
+test('strategy council runtime rejects duplicate market kinds without schema-only enforcement', () => {
+  const checked = validateStrategyCouncilArgs({
+    question: 'Which capital direction best advances sustainable profit?',
+    context: '',
+    focusBuildingId: null,
+    marketKinds: [1, 1],
+    options: [
+      {
+        id: 'hold',
+        label: 'Keep the current portfolio.',
+        action: 'hold',
+        buildingId: null,
+        target: null,
+      },
+      {
+        id: 'build_farm',
+        label: 'Build a Farm.',
+        action: 'build',
+        buildingId: null,
+        target: 'farm',
+      },
+    ],
+  });
+  assert.equal(checked.ok, false);
+  assert.match(checked.reason, /duplicate/u);
+});
+
 test('strategy role chooses independently from the supplied options', async () => {
   let requestedBody;
   const vote = await reviewCouncilRole({
@@ -428,14 +497,30 @@ test('strategy council majority decides and a valid three-way tie holds', () => 
   assert.equal(tie.method, 'hold_tiebreak');
 });
 
-test('strategy council stays incomplete when any role is unknown', () => {
+test('strategy council safely holds when any role is unavailable', () => {
   const decision = aggregateStrategyDecision([
     { role: 'CFO', status: 'VALIDATED', verdict: 'RECOMMEND', optionId: 'upgrade_mill' },
     { role: 'COO', status: 'VALIDATED', verdict: 'RECOMMEND', optionId: 'upgrade_mill' },
     { role: 'CMO', status: 'API_ERROR', verdict: 'UNKNOWN', optionId: null },
   ], STRATEGY_OPTIONS);
-  assert.equal(decision.status, 'INCOMPLETE');
-  assert.equal(decision.optionId, null);
+  assert.equal(decision.status, 'DECIDED');
+  assert.equal(decision.optionId, 'hold');
+  assert.equal(decision.method, 'safety_hold');
+  assert.deepEqual(decision.unavailableRoles, ['CMO']);
+  assert.deepEqual(decision.tally, { upgrade_mill: 2 });
+  assert.equal(validateStrategyCouncilCompletion({
+    evidence: {
+      stateFreshness: 'FRESH',
+      financePage: 200,
+      buildingInspection: 'NOT_REQUESTED',
+    },
+    council: [
+      { role: 'CFO', status: 'VALIDATED', verdict: 'RECOMMEND', optionId: 'upgrade_mill' },
+      { role: 'COO', status: 'VALIDATED', verdict: 'RECOMMEND', optionId: 'upgrade_mill' },
+      { role: 'CMO', status: 'API_ERROR', verdict: 'UNKNOWN', optionId: null },
+    ],
+    decision,
+  }).ok, true);
 });
 
 test('strategy council collects once, reviews all roles, and returns a validated decision', async () => {

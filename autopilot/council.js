@@ -50,7 +50,6 @@ const strategyCouncilToolParameters = {
       type: 'array',
       minItems: 1,
       maxItems: 10,
-      uniqueItems: true,
       items: { type: 'integer', minimum: 1 },
     },
     options: {
@@ -228,6 +227,34 @@ function strategyRepairInstruction(feedback) {
     return 'Return at least one metrics entry copied from an exact automatic-evidence pointer and primitive value.';
   }
   return 'Correct only the named validation defect while preserving the complete required JSON shape.';
+}
+
+function normalizeDeepSeekCouncilVote(vote) {
+  if (!vote || typeof vote !== 'object' || Array.isArray(vote)) return vote;
+  const qualitativeText = value => {
+    if (typeof value !== 'string') return value;
+    return value
+      .replace(/\S*\d\S*/gu, 'the cited metric')
+      .replace(/\s+/gu, ' ')
+      .trim();
+  };
+  const qualitativeList = value => {
+    if (value === null) return [];
+    if (typeof value === 'string') {
+      const normalized = qualitativeText(value);
+      return normalized ? [normalized] : [];
+    }
+    if (!Array.isArray(value)) return value;
+    return value
+      .map(qualitativeText)
+      .filter(item => typeof item === 'string' && item.length > 0);
+  };
+  return {
+    ...vote,
+    summary: qualitativeText(vote.summary),
+    unknowns: qualitativeList(vote.unknowns),
+    conditions: qualitativeList(vote.conditions),
+  };
 }
 
 function collectEvidence(args, brainDir, simDir) {
@@ -436,6 +463,9 @@ async function reviewCouncilRole({ role, system, evidence, args, apiKey, brainDi
       let parsed;
       try { parsed = JSON.parse(content); }
       catch (error) { throw new Error(`Council ${role} vote JSON was invalid: ${error.message || error}`); }
+      if (councilProvider === 'deepseek') {
+        parsed = normalizeDeepSeekCouncilVote(parsed);
+      }
       const validated = reviewType === 'strategy'
         ? validateStrategyCouncilVote(role, parsed, evidenceView, optionIds)
         : validateCouncilVote(role, parsed, evidenceView);
@@ -519,12 +549,16 @@ function validateStrategyCouncilArgs(args) {
         (!Number.isSafeInteger(focusBuildingId) || focusBuildingId <= 0)) {
       throw new Error('focusBuildingId must be a positive integer or null');
     }
-    const marketKinds = [...new Set((Array.isArray(args.marketKinds)
+    const requestedMarketKinds = (Array.isArray(args.marketKinds)
       ? args.marketKinds
-      : []).map(Number))];
+      : []).map(Number);
+    const marketKinds = [...new Set(requestedMarketKinds)];
     if (marketKinds.length < 1 || marketKinds.length > 10 ||
         marketKinds.some(kind => !Number.isSafeInteger(kind) || kind <= 0)) {
       throw new Error('marketKinds must contain one to ten unique positive integers');
+    }
+    if (marketKinds.length !== requestedMarketKinds.length) {
+      throw new Error('marketKinds must not contain duplicate values');
     }
     if (!Array.isArray(args.options) || args.options.length < 2 || args.options.length > 5) {
       throw new Error('options must contain two to five choices');
@@ -600,15 +634,32 @@ function aggregateStrategyDecision(votes, options) {
     return { status: 'INCOMPLETE', optionId: null, method: null, tally: {},
       reason: 'strategy council did not return all three roles' };
   }
+  const tally = {};
+  for (const vote of normalizedVotes) {
+    if (vote?.status === 'VALIDATED' && vote?.verdict === 'RECOMMEND' &&
+        optionIds.has(vote?.optionId)) {
+      tally[vote.optionId] = (tally[vote.optionId] || 0) + 1;
+    }
+  }
   const invalid = normalizedVotes.find(vote => vote?.status !== 'VALIDATED' ||
     vote?.verdict !== 'RECOMMEND' || !optionIds.has(vote?.optionId));
   if (invalid) {
+    if (optionIds.has('hold')) {
+      return {
+        status: 'DECIDED',
+        optionId: 'hold',
+        method: 'safety_hold',
+        tally,
+        unavailableRoles: normalizedVotes
+          .filter(vote => vote?.status !== 'VALIDATED' ||
+            vote?.verdict !== 'RECOMMEND' || !optionIds.has(vote?.optionId))
+          .map(vote => vote?.role)
+          .filter(role => roles.includes(role)),
+        reason: 'one or more council roles were unavailable; no structural action is authorized',
+      };
+    }
     return { status: 'INCOMPLETE', optionId: null, method: null, tally: {},
       reason: `${invalid?.role || 'council'} did not provide a validated recommendation` };
-  }
-  const tally = {};
-  for (const vote of normalizedVotes) {
-    tally[vote.optionId] = (tally[vote.optionId] || 0) + 1;
   }
   const ranked = Object.entries(tally).sort((left, right) =>
     right[1] - left[1] || left[0].localeCompare(right[0]));
@@ -706,6 +757,7 @@ module.exports = {
   failClosedRoleVote,
   isTimeoutError,
   normalizeStrategyCandidates,
+  normalizeDeepSeekCouncilVote,
   prepareEvidenceView,
   redactSecrets,
   resolveCouncilProvider,

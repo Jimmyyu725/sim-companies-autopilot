@@ -2,7 +2,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { validateCouncilVote } = require('../council-verdict.js');
+const {
+  validateCouncilVote,
+  validateStrategyCouncilVote,
+} = require('../council-verdict.js');
 
 const asOf = '2026-07-26T04:00:00.000Z';
 const evidence = {
@@ -59,4 +62,33 @@ test('requires each non-unknown role vote to cite authoritative role evidence', 
   }, evidence);
   assert.equal(result.ok, false);
   assert.match(result.value.unknowns[0], /role-specific metric/);
+});
+
+test('accepts a strategy recommendation only for an exact supplied option', () => {
+  const result = validateStrategyCouncilVote('CFO', {
+    verdict: 'RECOMMEND',
+    optionId: 'upgrade_mill',
+    summary: 'The financing evidence supports the investment direction.',
+    metrics: [{ pointer: '/company/cash', value: 38107 }],
+    unknowns: [],
+    conditions: ['Preserve the operating reserve.'],
+  }, evidence, ['hold', 'upgrade_mill']);
+  assert.equal(result.ok, true);
+  assert.equal(result.value.status, 'VALIDATED');
+  assert.equal(result.value.verdict, 'RECOMMEND');
+  assert.equal(result.value.optionId, 'upgrade_mill');
+});
+
+test('rejects strategy recommendations outside the supplied option set', () => {
+  const result = validateStrategyCouncilVote('CFO', {
+    verdict: 'RECOMMEND',
+    optionId: 'invented_pivot',
+    summary: 'The financing evidence supports the investment direction.',
+    metrics: [{ pointer: '/company/cash', value: 38107 }],
+    unknowns: [],
+    conditions: [],
+  }, evidence, ['hold', 'upgrade_mill']);
+  assert.equal(result.ok, false);
+  assert.equal(result.value.verdict, 'UNKNOWN');
+  assert.equal(result.value.optionId, null);
 });

@@ -184,8 +184,9 @@ Each wake is one transaction:
    - **OPTIMIZE** — rebalance duration, price, surplus route, or the active bottleneck.
    - **ALLOCATE** — upgrade, build, borrow/repay, install a robot, or enter/exit a line.
    A wake may contain all three lenses even though only one structural move is allowed.
-5. Name the current constraint and best opportunity. Generate 2–4 material alternatives, compare
-   them using the CEO criteria, and choose the smallest action that advances the objective.
+5. Name the current constraint and best opportunity. Generate 2–4 material alternatives. For an
+   allocation decision, give those alternatives plus `hold` to `strategy_council`; do not select
+   the winner before CFO, COO, and CMO vote from fresh evidence.
 6. Handle every confirmed-idle standard building, not only the one that caused the wake. Start
    useful work or start its approved structural action in this wake. When financing, evidence, or
    timing prevents the structural click, use `finishBefore` to bridge to the next exact checkpoint.
@@ -207,6 +208,7 @@ within the allowed window.
 Routine execution must not silently become permanent strategy. Run a deeper portfolio review when
 any of these occurs:
 
+- twenty successful wakes have completed since the last recorded strategy Council decision;
 - a slot is gained or the company reaches a new level;
 - a material modifier, recipe, demand, price, or debt condition changes;
 - the baseline underperforms or leaves material capacity idle across representative periods;
@@ -217,6 +219,10 @@ At a strategy checkpoint, compare continuing Coffee, improving its bottleneck, a
 credible expansion or pivot. A plan must include live slots, capex, capacity, input sourcing,
 working capital, downtime, debt service, demand depth, conservative net profit, payback, downside,
 and an exit criterion. It may use only part of a chain if market sourcing is more capital-efficient.
+Call `strategy_council` with two to five explicit options, including the exact `hold` option. CFO,
+COO, and CMO vote independently. A two-vote majority selects the direction; a valid three-way tie
+selects `hold`. Any invalid, missing, or UNKNOWN vote leaves the checkpoint incomplete. The runtime
+will not allow `journal` to close a required checkpoint without a validated decision.
 
 Free slots are strategic options. Compare adding parallel capacity, upgrading existing capacity,
 testing a new line, and holding a slot for a near-term unlock. Do not assume “higher level” or “more
@@ -281,14 +287,25 @@ Robots require measured payback and the structural protocol.
 
 ## 8. Capital and structural protocol
 
-For a new build, scrap, bond change, robot change, contract mutation, discretionary upgrade, or a
-strategy-changing commitment:
+For a new build, scrap, non-campaign rebuild, bond change, robot change, discretionary upgrade, or
+a strategy-changing commitment:
 
 1. `refresh_state` and read the relevant live evidence.
-2. Run the exact typed action with `confirm:false`.
-3. Call `council` with the target building and only relevant market kinds. Missing, stale,
+2. Frame two to five materially different directions, including exact `hold`, and call
+   `strategy_council`. CFO reads the live Finance page, balance sheet, income statement, cash flow,
+   recent cash flow, and bonds; COO reads slots, buildings, complete warehouse, stock, modifiers,
+   printed production rates, and target-building inspection; CMO reads retail, weather, key prices,
+   recent volume, and live market books.
+3. Proceed only with the selected action and target. If `hold` wins, make no structural move and
+   keep every idle building useful until the next concrete checkpoint.
+4. Run the selected exact typed action with `confirm:false`.
+5. Call `council` with the previewed target and only relevant market kinds. This second review
+   authorizes exact spend, reserve, rate, quantity, specialization, and target terms. Missing, stale,
    contradictory, non-200, rejected, or UNKNOWN evidence cannot approve the action.
-4. Verify target and terms are unchanged, confirm, then `refresh_state` and verify the outcome.
+6. Verify target and terms are unchanged, confirm, then `refresh_state` and verify the outcome.
+
+Contract mutations use exact preview and the final `council` authorization, but do not require a
+portfolio-direction vote unless the contract itself changes strategy.
 
 Every exact Prospector REBUILD cycle named by the active owner campaign is already approved and does
 not need stochastic council re-review. This exception applies only to the campaign's current

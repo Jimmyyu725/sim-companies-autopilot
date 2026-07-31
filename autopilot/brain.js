@@ -13,7 +13,16 @@ const {
   validateActionParams,
 } = require(path.join(BRAIN, 'action-contracts.js'));
 const { FailureBudget, isActionFailure } = require(path.join(BRAIN, 'failure-budget.js'));
-const { runCouncil } = require(path.join(BRAIN, 'council.js'));
+const {
+  runCouncil,
+  runStrategyCouncil,
+  strategyCouncilToolParameters,
+} = require(path.join(BRAIN, 'council.js'));
+const {
+  HISTORY_BASENAME: STRATEGY_COUNCIL_HISTORY,
+  loadStrategyCouncilRequirement,
+  recordStrategyCouncilDecision,
+} = require(path.join(BRAIN, 'council-governance.js'));
 const { compareMillUpgradeCandidates } = require(path.join(BRAIN, 'mill-upgrade-policy.js'));
 const {
   WakeRuntimeGuard,
@@ -21,6 +30,7 @@ const {
   buildWakeAlarm,
   councilRequiredForStructuralAction,
   isOwnerAuthorizedProspectorRebuild,
+  validateStrategyCouncilCompletion,
   validateFinishSummary,
   buildAutomaticFinishOnExhaustion,
 } = require(path.join(BRAIN, 'runtime-guard.js'));
@@ -86,6 +96,7 @@ const readOwnerDirectiveFile = () => {
 const ACTION_SET = new Set(ACTION_NAMES);
 const failureBudget = new FailureBudget(2);
 const runtimeGuard = new WakeRuntimeGuard();
+let strategyCouncilGovernance = { required: false, status: 'not_required', reasons: [] };
 const ownerUpgradeBridgeAuthorizations = new Set();
 const UTILITY_KINDS = Object.freeze([1, 2]);
 
@@ -309,7 +320,8 @@ const TOOLS = [
   { type: 'function', function: { name: 'inspect_building', description: 'P1 read-only inspection of one building page. Returns live printed level, production rates and wages; optionally quote one product quantity without starting it. Use null for both product and qty when no quote is needed.', parameters: { type: 'object', additionalProperties: false, properties: { buildingId: { type: 'integer', minimum: 1 }, product: { type: ['string', 'null'] }, qty: { type: ['number', 'null'], exclusiveMinimum: 0 } }, required: ['buildingId', 'product', 'qty'] } } },
   { type: 'function', function: { name: 'inspect_exchange_sale', description: 'Read-only exchange-sale inspection. Verifies the current deterministic reserve, live book, 4% fee and Transport, then fills but never submits the exact UI form. Use qty:null for the maximum currently safe quantity. A confirmed exchange_sell must exactly match this result within five minutes.', strict: true, parameters: { type: 'object', additionalProperties: false, properties: { kind: { type: 'integer', minimum: 1 }, qty: { type: ['integer', 'null'], minimum: 1 } }, required: ['kind', 'qty'] } } },
   { type: 'function', function: { name: 'rank_mill_upgrades', description: 'Compare two or three evidence-backed next-step Mill upgrades without considering current cash. Returns a unique recommendation only when one candidate Pareto-dominates all alternatives on added rate, cost, downtime, and downtime output loss.', parameters: { type: 'object', additionalProperties: false, properties: { candidates: { type: 'array', minItems: 2, maxItems: 3, items: { type: 'object', additionalProperties: false, properties: { buildingId: { type: 'integer', minimum: 1 }, currentLevel: { type: 'integer', minimum: 1, maximum: 2 }, currentRate: { type: 'number', exclusiveMinimum: 0 }, productionIncreasePct: { type: 'number', exclusiveMinimum: 0 }, cashCost: { type: 'number', exclusiveMinimum: 0 }, downtimeHours: { type: 'number', exclusiveMinimum: 0 }, evidenceAsOf: { type: 'string', minLength: 1 } }, required: ['buildingId', 'currentLevel', 'currentRate', 'productionIncreasePct', 'cashCost', 'downtimeHours', 'evidenceAsOf'] } } }, required: ['candidates'] } } },
-  { type: 'function', function: { name: 'council', description: 'CFO/COO/CMO automatically collect role-specific live evidence, then independently review. Required for ordinary structural actions; the approved rolling Mill plan and each exact cycle of the pending owner Prospector campaign are narrow exceptions.', parameters: { type: 'object', additionalProperties: false, properties: { proposal: { type: 'string', description: 'The concrete proposal with numbers' }, context: { type: 'string', description: 'Optional supporting context; automatic evidence remains authoritative' }, buildingId: { type: ['integer', 'null'], minimum: 1 }, marketKinds: { type: 'array', minItems: 1, maxItems: 5, items: { type: 'integer', minimum: 1 } } }, required: ['proposal', 'context', 'buildingId', 'marketKinds'] } } },
+  { type: 'function', function: { name: 'strategy_council', description: 'CFO/COO/CMO independently choose among two to five explicit strategic options using fresh finance, operations, and market evidence. Include the exact hold option. Runtime requires this at least every twenty successful wakes, daily, and after material strategic changes.', strict: true, parameters: strategyCouncilToolParameters } },
+  { type: 'function', function: { name: 'council', description: 'After an exact structural preview, CFO/COO/CMO independently authorize its final terms. Required for every structural confirmation except the exact owner-authorized Prospector REBUILD campaign.', parameters: { type: 'object', additionalProperties: false, properties: { proposal: { type: 'string', description: 'The concrete proposal with numbers' }, context: { type: 'string', description: 'Optional supporting context; automatic evidence remains authoritative' }, buildingId: { type: ['integer', 'null'], minimum: 1 }, marketKinds: { type: 'array', minItems: 1, maxItems: 5, items: { type: 'integer', minimum: 1 } } }, required: ['proposal', 'context', 'buildingId', 'marketKinds'] } } },
 ];
 
 function runAction(action, rawParams) {
@@ -478,6 +490,44 @@ async function runTool(name, args) {
       }
     }
     if (name === 'rank_mill_upgrades') return compareMillUpgradeCandidates(args?.candidates);
+    if (name === 'strategy_council') {
+      const sequencingBlock = runtimeGuard.beforeStrategyCouncil();
+      if (sequencingBlock) return sequencingBlock;
+      const result = await runStrategyCouncil({
+        args,
+        apiKey: KEY,
+        brainDir: BRAIN,
+        simDir: SIM,
+      });
+      const completion = validateStrategyCouncilCompletion(result, {
+        buildingInspectionRequired: args?.focusBuildingId != null,
+      });
+      if (!completion.ok) {
+        runtimeGuard.noteStrategyCouncil(result, args);
+        return {
+          strategyGovernance: runtimeGuard.strategyCouncilStatus(),
+          completion,
+          ...result,
+        };
+      }
+      const history = recordStrategyCouncilDecision(
+        path.join(BRAIN, STRATEGY_COUNCIL_HISTORY),
+        {
+          wakeId: process.env.WAKE_ID,
+          result,
+          args,
+          snapshot: strategyCouncilGovernance.snapshot,
+          requirement: strategyCouncilGovernance,
+        },
+      );
+      const tracked = runtimeGuard.noteStrategyCouncil(result, args);
+      return {
+        strategyGovernance: runtimeGuard.strategyCouncilStatus(),
+        completion: tracked,
+        historyRecorded: history.ok,
+        ...result,
+      };
+    }
     if (name === 'council') {
       // Bind exact preview terms into what the reviewers see even when the model's prose omits a
       // cap, rate, quantity, or specialization. Target authorization still uses the original args.
@@ -714,6 +764,22 @@ async function main() {
   const stateObject = JSON.parse(fs.readFileSync(path.join(BRAIN, '.state.json'), 'utf8'));
   const state = JSON.stringify(stateObject);
   const current = readCurrentMemory(path.join(BRAIN, 'CURRENT.json'));
+  strategyCouncilGovernance = loadStrategyCouncilRequirement({
+    brainDir: BRAIN,
+    state: stateObject,
+    current,
+  });
+  runtimeGuard.configureStrategyCouncil(strategyCouncilGovernance);
+  const strategyGovernancePrompt = JSON.stringify({
+    required: strategyCouncilGovernance.required,
+    status: strategyCouncilGovernance.status,
+    reasons: strategyCouncilGovernance.reasons,
+    materialChanges: strategyCouncilGovernance.materialChanges,
+    completedWakesSinceDecision: strategyCouncilGovernance.completedWakesSinceDecision,
+    currentWakeOrdinal: strategyCouncilGovernance.currentWakeOrdinal,
+    wakeInterval: strategyCouncilGovernance.wakeInterval,
+    lastDecisionAt: strategyCouncilGovernance.lastDecisionAt,
+  });
   const ownerDirective = readPendingOwnerDirectiveForPrompt(
     path.join(BRAIN, 'OWNER-DIRECTIVE.json'),
     path.join(BRAIN, '.state.json'),
@@ -722,13 +788,16 @@ async function main() {
   try { wakeReason = JSON.parse(fs.readFileSync(path.join(BRAIN, '.last-wake.json'), 'utf8')).reason || ''; } catch (e) {}
   const messages = [
     { role: 'system', content: system },
-    { role: 'user', content: `WAKE ${new Date().toISOString()}${DRY ? ' (DRY RUN — plan and narrate, act is a no-op)' : ''}.\nYOU WERE WOKEN BECAUSE: ${wakeReason||"(scheduled check)"}\nPENDING OWNER DIRECTIVE (highest priority; execute safely and keep pending until verified complete):\n${ownerDirective ? JSON.stringify(ownerDirective) : '(none)'}\nCURRENT MEMORY (authoritative cross-wake plan; current state still wins if newer):\n${current ? JSON.stringify(current) : '(missing — create it with master this wake)'}\n\nCurrent state:\n${state}` },
+    { role: 'user', content: `WAKE ${new Date().toISOString()}${DRY ? ' (DRY RUN — plan and narrate, act is a no-op)' : ''}.\nYOU WERE WOKEN BECAUSE: ${wakeReason||"(scheduled check)"}\nSTRATEGY COUNCIL GOVERNANCE (runtime-enforced; when required, call strategy_council with explicit alternatives including hold before journal):\n${strategyGovernancePrompt}\nPENDING OWNER DIRECTIVE (highest priority; execute safely and keep pending until verified complete):\n${ownerDirective ? JSON.stringify(ownerDirective) : '(none)'}\nCURRENT MEMORY (authoritative cross-wake plan; current state still wins if newer):\n${current ? JSON.stringify(current) : '(missing — create it with master this wake)'}\n\nCurrent state:\n${state}` },
   ];
   // Wake transcript — the brain's visible thinking and every action. The runner mirrors operating
   // journals to the configured Windows log destination.
   const DIARY = [
     `\n════ WAKE ${new Date().toISOString()} (${PROVIDER}/${MODEL} · ${EFFORT}${DRY ? ' DRY' : ''}) ════`,
     formatWakeSnapshot(stateObject, wakeReason),
+    `🏛️ STRATEGY COUNCIL: ${strategyCouncilGovernance.required
+      ? `required (${strategyCouncilGovernance.reasons.join(', ')})`
+      : `not required (wake ${strategyCouncilGovernance.currentWakeOrdinal}/${strategyCouncilGovernance.wakeInterval})`}`,
   ];
   // One file PER WAKE (owner: unique names, Chicago timestamp to the second). Runner exports
   // DIARY_FILE and pushes the same file; fallback keeps a per-wake name if env is absent.

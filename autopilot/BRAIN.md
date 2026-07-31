@@ -92,6 +92,12 @@ and the next test in the decision brief.
   campaign is already approved and needs no council re-review, but every individual cycle still
   requires fresh state, exact UI evidence, a one-use claim, and post-click verification. Stop only
   when authenticated `stars == starsMax`; do not produce on an executable campaign target.
+- While that campaign carries an active `reserve-all-free-standard-slots` owner policy, reserve
+  every free standard slot for its listed Quarry, Mine, or Oil rig targets. Read-only previews of
+  other builds remain available for portfolio comparison, but never confirm one until authenticated
+  campaign completion releases the policy or the owner changes it. An eligible achievement build
+  still requires the normal exact preview, strategy selection, Council authorization, and spend
+  limits; the reservation is not permission to build blindly.
 - Execute at most one structural move at a time.
 
 Everything under `legacy/` is history only. It is never current evidence for prices, demand, slots,

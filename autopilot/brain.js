@@ -366,6 +366,7 @@ function runAction(action, rawParams) {
     };
   }
   const sequencingBlock = runtimeGuard.beforeAction(action, checked.params, {
+    ownerDirective: ownerDirectiveForAction,
     councilRequired: councilRequiredForStructuralAction(
       action,
       checked.params,

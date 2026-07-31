@@ -97,6 +97,8 @@ test('both brain engines prioritize the exact owner Prospector rebuild over anot
     assert.match(source, /requiredNextAction:[\s\S]{0,180}confirm:\s*true/, filename);
     assert.match(source,
       /councilRequiredForStructuralAction\([\s\S]{0,180}ownerDirectiveForAction/, filename);
+    assert.match(source,
+      /runtimeGuard\.beforeAction\([\s\S]{0,180}ownerDirective:\s*ownerDirectiveForAction/, filename);
   }
 });
 

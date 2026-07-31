@@ -3,9 +3,10 @@
 // navigate inside the same CDP eval races the page teardown.
 // Params: window.__buy = { kind, quantity?, maxSpend, ask? }.
 //
-// Verified interaction (grapes + water, 2026-07-22): the BUY button is labelled just "BUY";
-// a plain .click() is sometimes swallowed on a freshly-rendered SPA page, so dispatch a
-// real MouseEvent. Confirm the fill via the resources API, never by reading text.
+// The button starts as "BUY" and, after quantity entry, includes the live total and unit price.
+// Bind it to the exact form containing the unique Quantity input. A plain .click() is sometimes
+// swallowed on a freshly-rendered SPA page, so dispatch a real MouseEvent. Confirm the fill via
+// the resources API, never by reading text.
 const { kind, quantity: exactQuantity, maxSpend, ask: askHint, minCashAfter } = window.__buy;
 
 const qtyInputs = all('input').filter(i => i.offsetParent !== null
@@ -45,10 +46,13 @@ if (!Number.isSafeInteger(enteredQty) || enteredQty !== qty) {
            plannedQty: qty, enteredQty: qtyInput.value, plan };
 }
 
-const buyButtons = all('button').filter(b => b.offsetParent !== null
-  && /^BUY$/i.test(norm(b.innerText)));
+const buyForm = qtyInput.closest('form');
+if (!buyForm) return { ok: false, reason: 'market Quantity input has no containing form', qty, plan };
+const buyButtons = all('button', buyForm).filter(b => b.offsetParent !== null
+  && /^BUY(?:\s|$)/i.test(norm(b.innerText)));
 if (buyButtons.length !== 1) return { ok: false, reason: 'visible BUY button is not unique',
-  count: buyButtons.length, qty, plan };
+  count: buyButtons.length, labels: buyButtons.map(button => norm(button.innerText).slice(0, 120)),
+  qty, plan };
 const btn = buyButtons[0];
 const buttonDisabled = btn.disabled
   || String(btn.getAttribute('aria-disabled')).toLowerCase() === 'true'

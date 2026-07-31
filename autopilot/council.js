@@ -39,6 +39,15 @@ const STRATEGY_ACTIONS = new Set([
   'pivot',
   'other',
 ]);
+const AUTHORIZATION_ACTIONS = new Set([
+  'build',
+  'upgrade',
+  'scrap',
+  'rebuild',
+  'bonds',
+  'robots',
+  'contract_send',
+]);
 const strategyCouncilToolParameters = {
   type: 'object',
   additionalProperties: false,
@@ -50,7 +59,6 @@ const strategyCouncilToolParameters = {
       type: 'array',
       minItems: 1,
       maxItems: 10,
-      uniqueItems: true,
       items: { type: 'integer', minimum: 1 },
     },
     options: {
@@ -213,6 +221,76 @@ function attachStrategyCandidateEvidence(evidence, candidates) {
   };
 }
 
+function normalizeAuthorizationPreview(preview, collectedAt) {
+  if (!preview || preview.source !== 'runtime-verified-structural-preview' ||
+      !AUTHORIZATION_ACTIONS.has(String(preview.action || '').trim().toLowerCase()) ||
+      !preview.terms || typeof preview.terms !== 'object' ||
+      !preview.preview || typeof preview.preview !== 'object' ||
+      preview.preview.ok !== true ||
+      (preview.preview.preview !== true && preview.preview.dry !== true)) {
+    return null;
+  }
+  const previewedAt = String(preview.previewedAt || '');
+  const previewAgeSeconds = Math.round(
+    (Date.parse(collectedAt) - Date.parse(previewedAt)) / 1000,
+  );
+  if (!Number.isFinite(previewAgeSeconds) ||
+      previewAgeSeconds < -30 || previewAgeSeconds > 600) {
+    return null;
+  }
+  return {
+    action: String(preview.action).trim().toLowerCase(),
+    terms: preview.terms,
+    preview: preview.preview,
+    source: preview.source,
+    previewedAt,
+    previewAgeSeconds,
+    previewVersion: Number.isSafeInteger(Number(preview.previewVersion))
+      ? Number(preview.previewVersion)
+      : null,
+  };
+}
+
+function attachAuthorizationPreviewEvidence(evidence, preview) {
+  if (!preview) return evidence;
+  const collectedAt = evidence?.meta?.collectedAt || new Date().toISOString();
+  const normalized = normalizeAuthorizationPreview(preview, collectedAt);
+  const status = normalized ? 'VERIFIED' : 'UNKNOWN';
+  const meta = {
+    ...(evidence?.meta || { status: 'UNKNOWN' }),
+    authorizationPreview: status,
+  };
+  const roles = {};
+  for (const [role, roleEvidence] of Object.entries(evidence?.roles || {})) {
+    const { meta: roleMeta, ...rest } = roleEvidence || {};
+    roles[role] = {
+      meta: {
+        ...(roleMeta || meta),
+        authorizationPreview: status,
+      },
+      authorizationPreview: normalized || 'UNKNOWN',
+      ...rest,
+    };
+  }
+  return {
+    ...(evidence || {}),
+    meta,
+    roles,
+  };
+}
+
+function staleEvidenceGuard(evidence, reviewType) {
+  if (evidence?.meta?.stateFreshness === 'FRESH') return null;
+  return {
+    ok: false,
+    guard: true,
+    reason: `${reviewType === 'strategy' ? 'strategy council' : 'council'} state evidence is stale; refresh before asking advisors`,
+    requiredTool: 'refresh_state',
+    evidence: evidence?.meta || { status: 'UNKNOWN' },
+    council: [],
+  };
+}
+
 function strategyRepairInstruction(feedback) {
   const value = String(feedback || '');
   if (/unknowns has invalid type/u.test(value)) {
@@ -228,6 +306,34 @@ function strategyRepairInstruction(feedback) {
     return 'Return at least one metrics entry copied from an exact automatic-evidence pointer and primitive value.';
   }
   return 'Correct only the named validation defect while preserving the complete required JSON shape.';
+}
+
+function normalizeDeepSeekCouncilVote(vote) {
+  if (!vote || typeof vote !== 'object' || Array.isArray(vote)) return vote;
+  const qualitativeText = value => {
+    if (typeof value !== 'string') return value;
+    return value
+      .replace(/\S*\d\S*/gu, 'the cited metric')
+      .replace(/\s+/gu, ' ')
+      .trim();
+  };
+  const qualitativeList = value => {
+    if (value === null) return [];
+    if (typeof value === 'string') {
+      const normalized = qualitativeText(value);
+      return normalized ? [normalized] : [];
+    }
+    if (!Array.isArray(value)) return value;
+    return value
+      .map(qualitativeText)
+      .filter(item => typeof item === 'string' && item.length > 0);
+  };
+  return {
+    ...vote,
+    summary: qualitativeText(vote.summary),
+    unknowns: qualitativeList(vote.unknowns),
+    conditions: qualitativeList(vote.conditions),
+  };
 }
 
 function collectEvidence(args, brainDir, simDir) {
@@ -389,7 +495,9 @@ async function reviewCouncilRole({ role, system, evidence, args, apiKey, brainDi
       const systemContent = `${system} ${reviewInstruction} Use only the automatic evidence below as facts. ` +
         'If a required field is missing, stale, contradictory, or non-200, use UNKNOWN and do not infer a number. ' +
         'Every metric must cite an exact RFC 6901 pointer and copy its primitive value exactly. ' +
-        `Put no digits in summary, unknowns, or conditions; numeric facts belong only in metrics.${councilProvider === 'deepseek'
+        `Put no digits in summary, unknowns, or conditions; numeric facts belong only in metrics.${reviewType === 'authorization'
+          ? ' The exact runtime-verified proposal quote is under /authorizationPreview/preview. A non-UNKNOWN verdict must cite any material preview term used plus at least one authoritative role-specific metric.'
+          : ''}${councilProvider === 'deepseek'
           ? ` ${reviewType === 'strategy'
             ? DEEPSEEK_STRATEGY_JSON_INSTRUCTION
             : DEEPSEEK_COUNCIL_JSON_INSTRUCTION}`
@@ -436,6 +544,9 @@ async function reviewCouncilRole({ role, system, evidence, args, apiKey, brainDi
       let parsed;
       try { parsed = JSON.parse(content); }
       catch (error) { throw new Error(`Council ${role} vote JSON was invalid: ${error.message || error}`); }
+      if (councilProvider === 'deepseek') {
+        parsed = normalizeDeepSeekCouncilVote(parsed);
+      }
       const validated = reviewType === 'strategy'
         ? validateStrategyCouncilVote(role, parsed, evidenceView, optionIds)
         : validateCouncilVote(role, parsed, evidenceView);
@@ -484,7 +595,13 @@ async function reviewCouncilRole({ role, system, evidence, args, apiKey, brainDi
 async function runCouncil({ args, apiKey, brainDir, simDir }, dependencies = {}) {
   const normalizedArgs = args || {};
   const evidenceCollector = dependencies.collectEvidence || collectEvidence;
-  const evidence = evidenceCollector(normalizedArgs, brainDir, simDir);
+  const collectedEvidence = evidenceCollector(normalizedArgs, brainDir, simDir);
+  const evidence = attachAuthorizationPreviewEvidence(
+    collectedEvidence,
+    normalizedArgs.authorizationPreview,
+  );
+  const stale = staleEvidenceGuard(evidence, 'authorization');
+  if (stale) return stale;
   const roleReviewer = dependencies.reviewRole || reviewCouncilRole;
   const votes = await Promise.all(ROLES.map(async ([role, system]) => {
     try {
@@ -519,12 +636,16 @@ function validateStrategyCouncilArgs(args) {
         (!Number.isSafeInteger(focusBuildingId) || focusBuildingId <= 0)) {
       throw new Error('focusBuildingId must be a positive integer or null');
     }
-    const marketKinds = [...new Set((Array.isArray(args.marketKinds)
+    const requestedMarketKinds = (Array.isArray(args.marketKinds)
       ? args.marketKinds
-      : []).map(Number))];
+      : []).map(Number);
+    const marketKinds = [...new Set(requestedMarketKinds)];
     if (marketKinds.length < 1 || marketKinds.length > 10 ||
         marketKinds.some(kind => !Number.isSafeInteger(kind) || kind <= 0)) {
       throw new Error('marketKinds must contain one to ten unique positive integers');
+    }
+    if (marketKinds.length !== requestedMarketKinds.length) {
+      throw new Error('marketKinds must not contain duplicate values');
     }
     if (!Array.isArray(args.options) || args.options.length < 2 || args.options.length > 5) {
       throw new Error('options must contain two to five choices');
@@ -600,15 +721,32 @@ function aggregateStrategyDecision(votes, options) {
     return { status: 'INCOMPLETE', optionId: null, method: null, tally: {},
       reason: 'strategy council did not return all three roles' };
   }
+  const tally = {};
+  for (const vote of normalizedVotes) {
+    if (vote?.status === 'VALIDATED' && vote?.verdict === 'RECOMMEND' &&
+        optionIds.has(vote?.optionId)) {
+      tally[vote.optionId] = (tally[vote.optionId] || 0) + 1;
+    }
+  }
   const invalid = normalizedVotes.find(vote => vote?.status !== 'VALIDATED' ||
     vote?.verdict !== 'RECOMMEND' || !optionIds.has(vote?.optionId));
   if (invalid) {
+    if (optionIds.has('hold')) {
+      return {
+        status: 'DECIDED',
+        optionId: 'hold',
+        method: 'safety_hold',
+        tally,
+        unavailableRoles: normalizedVotes
+          .filter(vote => vote?.status !== 'VALIDATED' ||
+            vote?.verdict !== 'RECOMMEND' || !optionIds.has(vote?.optionId))
+          .map(vote => vote?.role)
+          .filter(role => roles.includes(role)),
+        reason: 'one or more council roles were unavailable; no structural action is authorized',
+      };
+    }
     return { status: 'INCOMPLETE', optionId: null, method: null, tally: {},
       reason: `${invalid?.role || 'council'} did not provide a validated recommendation` };
-  }
-  const tally = {};
-  for (const vote of normalizedVotes) {
-    tally[vote.optionId] = (tally[vote.optionId] || 0) + 1;
   }
   const ranked = Object.entries(tally).sort((left, right) =>
     right[1] - left[1] || left[0].localeCompare(right[0]));
@@ -670,6 +808,19 @@ async function runStrategyCouncil({
     buildingId: normalizedArgs.focusBuildingId,
   }, brainDir, simDir);
   const evidence = attachStrategyCandidateEvidence(collectedEvidence, strategyCandidates);
+  const stale = staleEvidenceGuard(evidence, 'strategy');
+  if (stale) {
+    return {
+      ...stale,
+      decision: {
+        status: 'INCOMPLETE',
+        optionId: null,
+        method: null,
+        tally: {},
+        reason: stale.reason,
+      },
+    };
+  }
   const roleReviewer = dependencies.reviewRole || reviewCouncilRole;
   const votes = await Promise.all(ROLES.map(async ([role, system]) => {
     try {
@@ -700,12 +851,15 @@ module.exports = {
   ROLES,
   STRATEGY_ACTIONS,
   aggregateStrategyDecision,
+  attachAuthorizationPreviewEvidence,
   attachStrategyCandidateEvidence,
   buildCouncilRequest,
   collectEvidence,
   failClosedRoleVote,
   isTimeoutError,
   normalizeStrategyCandidates,
+  normalizeAuthorizationPreview,
+  normalizeDeepSeekCouncilVote,
   prepareEvidenceView,
   redactSecrets,
   resolveCouncilProvider,
@@ -715,6 +869,7 @@ module.exports = {
   runWithRetry,
   strategyRepairInstruction,
   strategyCouncilToolParameters,
+  staleEvidenceGuard,
   validateStrategyCouncilArgs,
   writeCouncilAudit,
   writeCouncilUsage,

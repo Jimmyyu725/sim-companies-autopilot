@@ -25,6 +25,14 @@ test('read-only lists do not turn failed APIs into authoritative empty arrays', 
   assert.doesNotMatch(auctions, /buildingAuctions\)\s*\|\|\s*\[\]/);
 });
 
+test('exchange BUY binds the dynamic price label to the exact quantity form', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'actions', 'buy.js'), 'utf8');
+  assert.match(source, /qtyInput\.closest\('form'\)/);
+  assert.match(source, /all\('button', buyForm\)/);
+  assert.match(source, /\^BUY\(\?:\\s\|\$\)/);
+  assert.doesNotMatch(source, /\^BUY\$\/i/);
+});
+
 test('rebuild dry preview never clicks a UI control and confirmation clicks at most twice', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'actions', 'rebuild.js'), 'utf8');
   const previewBranch = source.slice(source.indexOf('if (confirm !== true)'), source.indexOf('opener.click()'));

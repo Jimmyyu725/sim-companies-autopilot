@@ -153,3 +153,58 @@ test('accepts fresh runtime candidate quotes but rejects uncited proposal terms 
   assert.equal(rejected.ok, false);
   assert.match(rejected.value.unknowns[0], /not authoritative/);
 });
+
+test('accepts a fresh runtime authorization quote with separate role evidence', () => {
+  const authorizationEvidence = {
+    ...evidence,
+    meta: {
+      ...evidence.meta,
+      authorizationPreview: 'VERIFIED',
+    },
+    authorizationPreview: {
+      action: 'build',
+      terms: { building: 'farm', maxCost: 20000, minCashAfter: 5000 },
+      preview: {
+        ok: true,
+        dry: true,
+        preview: true,
+        quoted: 7794,
+        cashAfter: 30313,
+      },
+      source: 'runtime-verified-structural-preview',
+      previewedAt: asOf,
+      previewAgeSeconds: 0,
+      previewVersion: 3,
+    },
+  };
+  const accepted = validateCouncilVote('CFO', {
+    verdict: 'APPROVE',
+    summary: 'The verified quote and available liquidity support proceeding.',
+    metrics: [{
+      pointer: '/authorizationPreview/preview/quoted',
+      value: 7794,
+    }, {
+      pointer: '/company/cash',
+      value: 38107,
+    }],
+    unknowns: [],
+    conditions: [],
+  }, authorizationEvidence);
+  assert.equal(accepted.ok, true);
+
+  const termsOnly = validateCouncilVote('CFO', {
+    verdict: 'APPROVE',
+    summary: 'The requested spending cap supports proceeding.',
+    metrics: [{
+      pointer: '/authorizationPreview/terms/maxCost',
+      value: 20000,
+    }, {
+      pointer: '/company/cash',
+      value: 38107,
+    }],
+    unknowns: [],
+    conditions: [],
+  }, authorizationEvidence);
+  assert.equal(termsOnly.ok, false);
+  assert.match(termsOnly.value.unknowns[0], /not authoritative/);
+});

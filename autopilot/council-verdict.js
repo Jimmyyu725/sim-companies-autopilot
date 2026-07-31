@@ -50,6 +50,17 @@ function stateMetricAuthority(pointer, evidence) {
       candidate.previewAgeSeconds >= -30 &&
       candidate.previewAgeSeconds <= 600;
   }
+  if (pointerWithin(pointer, '/authorizationPreview')) {
+    const preview = evidence?.authorizationPreview;
+    return evidence?.meta?.authorizationPreview === 'VERIFIED' &&
+      preview?.source === 'runtime-verified-structural-preview' &&
+      preview?.preview?.ok === true &&
+      (preview?.preview?.preview === true || preview?.preview?.dry === true) &&
+      pointerWithin(pointer, '/authorizationPreview/preview') &&
+      Number.isFinite(preview?.previewAgeSeconds) &&
+      preview.previewAgeSeconds >= -30 &&
+      preview.previewAgeSeconds <= 600;
+  }
   if (pointerWithin(pointer, '/company')) return sourceFresh(evidence, 'auth');
   if (pointerWithin(pointer, '/debt')) return sourceFresh(evidence, 'bonds');
   if (pointerWithin(pointer, '/slots')) return sourceFresh(evidence, 'auth') && sourceFresh(evidence, 'buildings');
@@ -117,8 +128,13 @@ function validateCouncilVote(role, vote, evidence) {
       }
       const isRoleEvidence = (ROLE_PREFIXES[role] || []).some(prefix => pointerWithin(metric.pointer, prefix));
       const isStrategyCandidate = pointerWithin(metric.pointer, '/strategyCandidates');
+      const isAuthorizationPreview = pointerWithin(
+        metric.pointer, '/authorizationPreview');
       if (isStrategyCandidate && !metricIsAuthoritative(metric.pointer, evidence)) {
         throw new Error(`strategy candidate metric is not authoritative at ${metric.pointer}`);
+      }
+      if (isAuthorizationPreview && !metricIsAuthoritative(metric.pointer, evidence)) {
+        throw new Error(`authorization preview metric is not authoritative at ${metric.pointer}`);
       }
       if (vote.verdict !== 'UNKNOWN' && isRoleEvidence && !metricIsAuthoritative(metric.pointer, evidence)) {
         throw new Error(`metric is not authoritative at ${metric.pointer}`);

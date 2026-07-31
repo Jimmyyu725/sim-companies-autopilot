@@ -70,6 +70,10 @@ const MAX_TOKENS = boundedInteger(process.env.BRAIN_MAX_TOKENS, 1024, 384000, 32
 const MAX_ROUNDS = boundedInteger(process.env.BRAIN_MAX_ROUNDS, 1, 50, 30);
 const REQUEST_TIMEOUT_MS = boundedInteger(
   process.env.BRAIN_REQUEST_TIMEOUT_MS, 1000, 600000, 180000);
+const REQUEST_MAX_ATTEMPTS = boundedInteger(
+  process.env.BRAIN_REQUEST_MAX_ATTEMPTS, 1, 3, 2);
+const REQUEST_RETRY_DELAY_MS = boundedInteger(
+  process.env.BRAIN_REQUEST_RETRY_DELAY_MS, 0, 10000, 750);
 const DRY = process.env.BRAIN_DRY === '1';
 const CHAT_MODE = resolveChatMode();
 const KEY = PROVIDER === 'deepseek'
@@ -540,6 +544,13 @@ async function runTool(name, args) {
       // Bind exact preview terms into what the reviewers see even when the model's prose omits a
       // cap, rate, quantity, or specialization. Target authorization still uses the original args.
       const reviewArgs = runtimeGuard.bindCouncilArgs(args);
+      if (!reviewArgs.authorizationPreview) {
+        return {
+          ok: false,
+          guard: true,
+          reason: 'council requires a current runtime-verified structural preview; rerun the exact action with confirm:false first',
+        };
+      }
       const result = await runCouncil({ args: reviewArgs, apiKey: KEY, brainDir: BRAIN, simDir: SIM });
       const structuralAuthorization = runtimeGuard.noteCouncil(result, args);
       return structuralAuthorization ? { structuralAuthorization, ...result } : result;
@@ -731,37 +742,100 @@ function buildMultiToolRejections(toolCalls) {
   }));
 }
 
+function isRetryableChatTransportError(error) {
+  const name = String(error?.name || '').toLowerCase();
+  const message = String(error?.message || error || '').toLowerCase();
+  const code = String(error?.code || error?.cause?.code || '').toUpperCase();
+  return name === 'aborterror' ||
+    name === 'timeouterror' ||
+    (name === 'typeerror' && /\bfetch failed\b/u.test(message)) ||
+    /\btimeout\b|timed out|socket hang up|connection reset|network error/u.test(message) ||
+    [
+      'ECONNRESET',
+      'ECONNREFUSED',
+      'EHOSTUNREACH',
+      'ENETUNREACH',
+      'ENOTFOUND',
+      'EAI_AGAIN',
+      'ETIMEDOUT',
+      'UND_ERR_CONNECT_TIMEOUT',
+      'UND_ERR_HEADERS_TIMEOUT',
+      'UND_ERR_SOCKET',
+    ].includes(code);
+}
+
+function isRetryableChatStatus(status) {
+  const value = Number(status);
+  return value === 408 || value === 429 || (value >= 500 && value <= 599);
+}
+
 async function chat(messages, {
   fetchImpl = globalThis.fetch,
   forcedToolName = null,
-} = {}) {
-  let res;
-  try {
-    res = await fetchImpl(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
-      body: JSON.stringify(buildChatCompletionRequest({ messages, forcedToolName })),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-  } catch (error) {
-    throw new Error(`${PROVIDER} request failed: ${redactSecrets(error.message || error)}`);
-  }
-  let payload;
-  try { payload = await res.json(); }
-  catch (_) { throw new Error(`${PROVIDER} returned non-JSON HTTP ${res.status}`); }
-  if (!res.ok || payload?.error) {
-    const detail = payload?.error?.message || payload?.message || `HTTP ${res.status}`;
-    throw new Error(`${PROVIDER} API error: ${redactSecrets(detail)}`);
-  }
-  const message = payload?.choices?.[0]?.message;
-  if (!message || typeof message !== 'object') {
-    throw new Error(`${PROVIDER} response did not contain choices[0].message`);
-  }
-  fs.appendFileSync(
+  maxAttempts = REQUEST_MAX_ATTEMPTS,
+  retryDelayMs = REQUEST_RETRY_DELAY_MS,
+  sleepImpl = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)),
+  usageWriter = usage => fs.appendFileSync(
     path.join(BRAIN, 'usage.jsonl'),
-    `${JSON.stringify(normalizeChatUsage(PROVIDER, payload))}\n`,
-  );
-  return message;
+    `${JSON.stringify(usage)}\n`,
+  ),
+} = {}) {
+  const attempts = boundedInteger(maxAttempts, 1, 3, REQUEST_MAX_ATTEMPTS);
+  const baseDelayMs = boundedInteger(retryDelayMs, 0, 10000, REQUEST_RETRY_DELAY_MS);
+  const request = {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
+    body: JSON.stringify(buildChatCompletionRequest({ messages, forcedToolName })),
+  };
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const retry = async reason => {
+      if (attempt >= attempts) return false;
+      const delayMs = Math.min(10000, baseDelayMs * attempt);
+      log('MODEL_REQUEST_RETRY', `${PROVIDER} attempt ${attempt}/${attempts}`,
+        redactSecrets(reason));
+      if (delayMs > 0) await sleepImpl(delayMs);
+      return true;
+    };
+    let res;
+    try {
+      res = await fetchImpl(API_URL, {
+        ...request,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+    } catch (error) {
+      if (isRetryableChatTransportError(error) &&
+          await retry(error.message || error)) {
+        continue;
+      }
+      throw new Error(`${PROVIDER} request failed: ${redactSecrets(error.message || error)}`);
+    }
+    let payload;
+    try {
+      payload = await res.json();
+    } catch (_) {
+      if ((isRetryableChatStatus(res.status) || Number(res.status) === 200) &&
+          await retry(`non-JSON HTTP ${res.status}`)) {
+        continue;
+      }
+      throw new Error(`${PROVIDER} returned non-JSON HTTP ${res.status}`);
+    }
+    if (!res.ok || payload?.error) {
+      const detail = payload?.error?.message || payload?.message || `HTTP ${res.status}`;
+      if (isRetryableChatStatus(res.status) &&
+          await retry(`HTTP ${res.status}: ${detail}`)) {
+        continue;
+      }
+      throw new Error(`${PROVIDER} API error: ${redactSecrets(detail)}`);
+    }
+    const message = payload?.choices?.[0]?.message;
+    if (!message || typeof message !== 'object') {
+      if (await retry('response did not contain choices[0].message')) continue;
+      throw new Error(`${PROVIDER} response did not contain choices[0].message`);
+    }
+    usageWriter(normalizeChatUsage(PROVIDER, payload));
+    return message;
+  }
+  throw new Error(`${PROVIDER} request failed after bounded retries`);
 }
 
 async function main() {
@@ -938,7 +1012,10 @@ module.exports = {
   deepSeekMultiToolRecovery,
   buildIncompleteLoopRetryAlarm,
   buildMultiToolRejections,
+  chat,
   createUtilityExchangeReviews,
+  isRetryableChatStatus,
+  isRetryableChatTransportError,
   normalizeDeepSeekToolArguments,
   normalizeChatUsage,
   redactSecrets,

@@ -244,11 +244,27 @@ function sanitizeStrategyPreviewValue(value, depth = 0) {
 
 function buildStrategyCandidate(action, params, result, version, previewedAt = new Date().toISOString()) {
   const key = strategyDirectionKey(action, params);
-  if (!key || result?.ok !== true || (result?.preview !== true && result?.dry !== true)) {
+  const preview = buildStructuralPreviewEvidence(
+    action, params, result, version, previewedAt);
+  if (!key || !preview) return null;
+  return {
+    key,
+    ...preview,
+  };
+}
+
+function buildStructuralPreviewEvidence(
+  action,
+  params,
+  result,
+  version,
+  previewedAt = new Date().toISOString(),
+) {
+  if (!STRUCTURAL_ACTIONS.has(action) || result?.ok !== true ||
+      (result?.preview !== true && result?.dry !== true)) {
     return null;
   }
   return {
-    key,
     action,
     terms: structuralTerms(action, params),
     preview: sanitizeStrategyPreviewValue(result),
@@ -445,16 +461,22 @@ function validateStrategyCouncilCompletion(result, requirements = {}) {
   if (votes.length !== 3 || !['CFO', 'COO', 'CMO'].every(role => roles.has(role))) {
     return { ok: false, reason: 'strategy council did not return all three roles' };
   }
+  const decision = result?.decision;
+  const optionId = String(decision?.optionId || '').trim();
   const invalid = votes.find(vote => vote?.status !== 'VALIDATED' ||
     vote?.verdict !== 'RECOMMEND' || !String(vote?.optionId || '').trim());
+  if (decision?.method === 'safety_hold') {
+    if (decision?.status !== 'DECIDED' || optionId !== 'hold' || !invalid) {
+      return { ok: false, reason: 'strategy council safety hold is inconsistent with its votes' };
+    }
+    return { ok: true, optionId: 'hold', method: 'safety_hold' };
+  }
   if (invalid) {
     return {
       ok: false,
       reason: `${invalid?.role || 'council'} did not provide a validated recommendation`,
     };
   }
-  const decision = result?.decision;
-  const optionId = String(decision?.optionId || '').trim();
   if (decision?.status !== 'DECIDED' || !optionId) {
     return { ok: false, reason: 'strategy council did not reach a decision' };
   }
@@ -501,6 +523,9 @@ function bindStructuralPreviewToCouncilArgs(preview, args = {}) {
   return {
     ...args,
     proposal: `${String(args.proposal || '').trim()}\n\nRUNTIME-BOUND PREVIEW TERMS: ${boundTerms}`.trim(),
+    authorizationPreview: preview.evidence?.previewVersion === preview.version
+      ? preview.evidence
+      : null,
   };
 }
 
@@ -903,10 +928,17 @@ class WakeRuntimeGuard {
     }
     if (STRUCTURAL_ACTIONS.has(action) && params?.confirm === false &&
         result?.ok === true && (result.preview === true || result.dry === true)) {
+      const evidence = buildStructuralPreviewEvidence(
+        action,
+        params,
+        result,
+        this.mutationVersion,
+      );
       this.structuralPreview = {
         action,
         terms: structuralTerms(action, params),
         version: this.mutationVersion,
+        evidence,
         councilAuthorized: false,
         councilReason: null,
       };
@@ -1038,6 +1070,7 @@ module.exports = {
   bindStructuralPreviewToCouncilArgs,
   buildAutomaticFinishOnExhaustion,
   buildSafetyRetryAlarm,
+  buildStructuralPreviewEvidence,
   buildWakeAlarm,
   chatMutationTerms,
   chatPreviewEvidenceIsExact,

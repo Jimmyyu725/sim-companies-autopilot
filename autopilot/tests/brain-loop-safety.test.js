@@ -197,3 +197,62 @@ test('chat engine rejects an entire multi-tool turn and returns one result for e
     'inspect_building',
   );
 });
+
+test('chat engine retries one transient fetch failure with an identical read-only request', async () => {
+  const engine = ENGINES[1][1];
+  const requests = [];
+  const delays = [];
+  const message = await engine.chat([{ role: 'user', content: 'test' }], {
+    fetchImpl: async (_url, request) => {
+      requests.push({
+        body: request.body,
+        authorization: request.headers.Authorization,
+      });
+      if (requests.length === 1) {
+        const error = new TypeError('fetch failed');
+        error.cause = { code: 'ECONNRESET' };
+        throw error;
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { role: 'assistant', content: 'recovered' } }],
+          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+        }),
+      };
+    },
+    maxAttempts: 2,
+    retryDelayMs: 10,
+    sleepImpl: async delay => { delays.push(delay); },
+    usageWriter: () => {},
+  });
+
+  assert.equal(requests.length, 2);
+  assert.deepEqual(requests[0], requests[1]);
+  assert.deepEqual(delays, [10]);
+  assert.equal(message.content, 'recovered');
+});
+
+test('chat engine does not retry a non-transient client error', async () => {
+  const engine = ENGINES[1][1];
+  let calls = 0;
+  await assert.rejects(
+    engine.chat([{ role: 'user', content: 'test' }], {
+      fetchImpl: async () => {
+        calls += 1;
+        return {
+          ok: false,
+          status: 400,
+          json: async () => ({ error: { message: 'invalid request' } }),
+        };
+      },
+      maxAttempts: 2,
+      retryDelayMs: 0,
+      sleepImpl: async () => {},
+      usageWriter: () => {},
+    }),
+    /API error: invalid request/u,
+  );
+  assert.equal(calls, 1);
+});

@@ -216,6 +216,23 @@ requiredStrategy.configureStrategyCouncil({
   currentWakeOrdinal: 20,
   wakeInterval: 20,
 });
+const narrowRequiredOptions = requiredStrategy.prepareStrategyCouncil({
+  options: [
+    { id: 'hold', action: 'hold', buildingId: null, target: null },
+    { id: 'build_farm', action: 'build', buildingId: null, target: 'farm' },
+    { id: 'robot_farm', action: 'robots', buildingId: 1, target: 'farm' },
+  ],
+});
+assert.equal(narrowRequiredOptions.ok, false);
+assert.match(narrowRequiredOptions.reason, /non-baseline expansion or pivot/u);
+const broadRequiredOptions = requiredStrategy.prepareStrategyCouncil({
+  options: [
+    { id: 'hold', action: 'hold', buildingId: null, target: null },
+    { id: 'tools_pilot', action: 'pivot', buildingId: null, target: 'tools' },
+  ],
+});
+assert.equal(broadRequiredOptions.ok, true);
+assert.deepEqual(broadRequiredOptions.strategyCandidates, []);
 requiredStrategy.noteRefresh();
 requiredStrategy.noteAlarm();
 assert.equal(requiredStrategy.beforeJournal().requiredTool, 'strategy_council');
@@ -406,6 +423,13 @@ const candidateOptions = [
     action: 'upgrade',
     buildingId: 77,
     target: 'mill',
+  },
+  {
+    id: 'tools_pilot',
+    label: 'Measure a bounded Tools expansion pilot.',
+    action: 'pivot',
+    buildingId: null,
+    target: 'tools',
   },
 ];
 const preparedCandidates = candidateStrategy.prepareStrategyCouncil({

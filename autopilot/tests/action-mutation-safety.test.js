@@ -99,3 +99,12 @@ test('both brain engines prioritize the exact owner Prospector rebuild over anot
       /councilRequiredForStructuralAction\([\s\S]{0,180}ownerDirectiveForAction/, filename);
   }
 });
+
+test('both brain engines require non-baseline comparison at portfolio checkpoints', () => {
+  for (const filename of ['brain.js', 'brain56.js']) {
+    const source = fs.readFileSync(path.join(__dirname, '..', filename), 'utf8');
+    assert.match(source, /named expansion or pivot outside the current Coffee baseline/u, filename);
+    assert.match(source, /at least one named non-baseline expansion or pivot/u, filename);
+    assert.doesNotMatch(source, /every owned Coffee-chain building/u, filename);
+  }
+});

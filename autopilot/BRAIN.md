@@ -223,7 +223,10 @@ and an exit criterion. It may use only part of a chain if market sourcing is mor
 Call `strategy_council` with two to five explicit options, including the exact `hold` option. CFO,
 COO, and CMO vote independently. A two-vote majority selects the direction; a valid three-way tie
 selects `hold`. Any invalid, missing, or UNKNOWN vote leaves the checkpoint incomplete. The runtime
-will not allow `journal` to close a required checkpoint without a validated decision.
+will not allow `journal` to close a required checkpoint without a validated decision. It also
+rejects a required checkpoint whose option set stays entirely inside the current Coffee baseline:
+name at least one concrete non-baseline build or `pivot` target. This forces comparison, not action;
+weak or incomplete outside evidence should make Council choose `hold` and schedule a bounded test.
 
 Free slots are strategic options. Compare adding parallel capacity, upgrading existing capacity,
 testing a new line, and holding a slot for a near-term unlock. Do not assume “higher level” or “more
@@ -297,14 +300,13 @@ a strategy-changing commitment:
    candidate previews collect live costs, downtime, cash effects, and target facts; they never
    authorize execution.
 3. Call `strategy_council`. CFO reads the live Finance page, balance sheet, income statement, cash
-   flow, recent cash flow, bonds, and candidate costs; COO reads slots, buildings, complete
-   warehouse, stock, modifiers, and fresh printed rates for every owned Farm, Mill, Grocery store,
-   Power plant, and Water reservoir plus the focus target; CMO reads the active Grocery order or
-   fresh idle-store price/profit curve, weather, key prices, recent volume, live market books, and
-   transition implications. All three receive the same automatic `decisionModel`: current and
-   post-modifier chain bottlenecks plus each candidate's measured cost, projected capacity, slot
-   use, downtime loss, incremental retail contribution, and payback. Respect its evidence status
-   and caveats; `PARTIAL` or an absent value is unknown, never zero.
+   flow, recent cash flow, bonds, and candidate costs; COO reads slots, every owned building, the
+   complete warehouse, stock, modifiers, fresh printed rates, and each proposed target; CMO reads
+   relevant retail, exchange, contract, weather, price, volume, and live order-book evidence for
+   both the current line and proposed alternatives. All three receive the same automatic
+   `decisionModel`: current and post-modifier baseline bottlenecks plus each candidate's measured
+   cost, projected capacity, slot use, downtime loss, incremental contribution, and payback.
+   Respect its evidence status and caveats; `PARTIAL` or an absent value is unknown, never zero.
 4. Proceed only with the selected action and target. If `hold` wins, make no structural move and
    keep every idle building useful until the next concrete checkpoint.
 5. Run the selected exact typed action again with `confirm:false`. The pre-vote candidate quote is

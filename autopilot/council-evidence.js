@@ -18,7 +18,6 @@ const {
   summarizeStateAuthority,
 } = require('./council-evidence-helpers.js');
 const {
-  PORTFOLIO_BUILDING_NAMES,
   buildCouncilDecisionModel,
   compactBuildingInspection,
   selectPortfolioBuildings,
@@ -167,11 +166,9 @@ function collectPortfolioInspections(state, focusBuildingId) {
     const fresh = compact.ok === true && ageSeconds != null && ageSeconds >= -30 && ageSeconds <= 180;
     return { ...compact, fresh, ageSeconds };
   });
-  const portfolioTargets = targets.filter(target =>
-    PORTFOLIO_BUILDING_NAMES.has(String(target.name || '').trim().toLowerCase()));
+  const portfolioTargets = targets;
   const freshPortfolioIds = new Set(inspections
-    .filter(inspection => inspection.fresh === true &&
-      PORTFOLIO_BUILDING_NAMES.has(String(inspection.name || '').trim().toLowerCase()))
+    .filter(inspection => inspection.fresh === true)
     .map(inspection => Number(inspection.buildingId)));
   const missingPortfolioIds = portfolioTargets
     .map(target => Number(target.buildingId))

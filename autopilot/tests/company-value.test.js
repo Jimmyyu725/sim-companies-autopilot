@@ -192,6 +192,88 @@ test('requests quality prices only for inventory that is not WIP', () => {
   });
 });
 
+test('quantifies immaterial inventory fallback exposure', () => {
+  const valuation = valueInventoryLots([
+    { kind: 119, quality: 2, amount: 1000, location: 'warehouse' },
+    {
+      kind: 2,
+      quality: 0,
+      amount: 1,
+      location: 'warehouse',
+      sourcingUnitCost: 1,
+    },
+  ], {
+    qualityMarketPrices: {
+      119: {
+        2: {
+          liquidationUnitValue: 40,
+          basis: 'current-quality-best-ask',
+        },
+      },
+    },
+  });
+
+  assert.equal(valuation.total, 40001);
+  assert.equal(valuation.lowConfidenceValue, 1);
+  assert.equal(valuation.lowConfidenceSharePct, 0);
+});
+
+test('keeps confidence medium when fallback inventory value is immaterial', () => {
+  const result = calculateCompanyValue({
+    capturedAt: '2026-07-31T04:00:00Z',
+    balanceSheet: {
+      date: '2026-07-31T01:00:00Z',
+      cash: 1000,
+      cashReservedForOrders: 0,
+      accountsReceivable: 0,
+      materials: 0,
+      research: 0,
+      workInProcess: 0,
+      finishedGoods: 0,
+      valuationAllowance: 0,
+      deposits: 0,
+      investmentInBonds: 0,
+      buildings: 0,
+      constructionInProgress: 0,
+      patents: 0,
+      bondsPayable: 0,
+    },
+    liveCash: 1000,
+    liveBondsPayable: 0,
+    buildings: [],
+    warehouse: [
+      { kind: 119, quality: 2, amount: 1000 },
+      { kind: 2, quality: 0, amount: 1, cost: { market: 1 } },
+    ],
+    marketOrders: [],
+    outgoingContracts: [],
+    resourceDefinitions: {
+      29: { isResearch: true, improvesQualityOf: [119] },
+    },
+    researchProgress: [],
+    patentRequirements: [12],
+    patentValuesByResearchKind: { 29: 100 },
+    referencePriceResult: { prices: {}, window: null },
+    qualityMarketPriceResult: {
+      prices: {
+        119: {
+          2: {
+            liquidationUnitValue: 40,
+            basis: 'current-quality-best-ask',
+          },
+        },
+      },
+      issues: [],
+    },
+    tickerPrices: {},
+  });
+
+  assert.equal(result.realtimeEstimate.status, 'estimated');
+  assert.equal(result.realtimeEstimate.confidence, 'medium');
+  assert.equal(result.realtimeEstimate.inventory.lowConfidenceValue, 1);
+  assert.equal(result.realtimeEstimate.inventory.lowConfidenceSharePct, 0);
+});
+
 test('reconstructs live patent value from cumulative quality thresholds and current progress', () => {
   const result = calculatePatentAssets([
     { quality: 2, kind: 119, patents: 1, patentsNeeded: 500 },
@@ -268,6 +350,7 @@ test('calculates a live estimate using current patents instead of the daily pate
   assert.equal(result.realtimeEstimate.total, 450);
   assert.equal(result.realtimeEstimate.deltaFromOfficial, 300);
   assert.equal(result.realtimeEstimate.components.inventory, 10);
+  assert.equal(result.realtimeEstimate.confidence, 'low');
   assert.equal(result.realtimeEstimate.components.accountsReceivable, 20);
   assert.equal(result.realtimeEstimate.components.patents, 200);
   assert.equal(result.realtimeEstimate.patents.patentCount, 2);

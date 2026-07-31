@@ -1,6 +1,7 @@
 'use strict';
 
 const INVENTORY_LIQUIDATION_FACTOR = 0.85;
+const MATERIAL_LOW_CONFIDENCE_INVENTORY_PCT = 1;
 
 function finiteNumber(value) {
   if ((typeof value !== 'number' && typeof value !== 'string')
@@ -689,6 +690,11 @@ function valueInventoryLots(lots, {
     byKindQuality[kindQualityKey].bases.add(basis);
   }
 
+  const lowConfidenceValue = sum(
+    Object.entries(valueByBasis)
+      .filter(([basis]) => basis.includes('fallback') || basis.includes('thin'))
+      .map(([, value]) => value),
+  );
   return {
     total: roundMoney(total),
     byLocation: Object.fromEntries(
@@ -711,6 +717,10 @@ function valueInventoryLots(lots, {
     valueByBasis: Object.fromEntries(
       Object.entries(valueByBasis).map(([basis, value]) => [basis, roundMoney(value)]),
     ),
+    lowConfidenceValue: roundMoney(lowConfidenceValue),
+    lowConfidenceSharePct: total > 0
+      ? Math.round(lowConfidenceValue / total * 10000) / 100
+      : 0,
     knownAmount: roundMoney(knownAmount),
     unknownAmount: roundMoney(unknownAmount),
     coveragePct: knownAmount + unknownAmount > 0
@@ -870,10 +880,8 @@ function calculateCompanyValue({
     patentAssets.total,
   ]);
   const total = currentAssets + nonCurrentAssets - liabilities;
-  const lowConfidenceBases = valuationBases.filter(basis => basis.includes('fallback')
-    || basis.includes('thin'));
   const confidence = inventoryValue.coveragePct < 90 || buildingAssets.issues.length
-    || lowConfidenceBases.length
+    || inventoryValue.lowConfidenceSharePct >= MATERIAL_LOW_CONFIDENCE_INVENTORY_PCT
     ? 'low'
     : 'medium';
   const officialSnapshotAgeSeconds = (() => {
@@ -949,6 +957,8 @@ function calculateCompanyValue({
         byKind: inventoryValue.byKind,
         byKindQuality: inventoryValue.byKindQuality,
         valueByBasis: inventoryValue.valueByBasis,
+        lowConfidenceValue: inventoryValue.lowConfidenceValue,
+        lowConfidenceSharePct: inventoryValue.lowConfidenceSharePct,
         knownAmount: inventoryValue.knownAmount,
         unknownAmount: inventoryValue.unknownAmount,
         coveragePct: inventoryValue.coveragePct,

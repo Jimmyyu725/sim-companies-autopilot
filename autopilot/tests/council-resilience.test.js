@@ -563,6 +563,25 @@ test('strategy council arguments require a canonical hold option and bound targe
   assert.equal(valid.ok, true);
   assert.equal(valid.value.options[1].buildingId, 71);
 
+  const unnamedPivot = validateStrategyCouncilArgs({
+    question: 'Choose a direction.',
+    context: '',
+    focusBuildingId: null,
+    marketKinds: [66],
+    options: [
+      STRATEGY_OPTIONS[0],
+      {
+        id: 'new_line',
+        label: 'Explore a different industry.',
+        action: 'pivot',
+        buildingId: null,
+        target: null,
+      },
+    ],
+  });
+  assert.equal(unnamedPivot.ok, false);
+  assert.match(unnamedPivot.reason, /concrete target/u);
+
   const missingHold = validateStrategyCouncilArgs({
     question: 'Choose a direction.',
     context: '',

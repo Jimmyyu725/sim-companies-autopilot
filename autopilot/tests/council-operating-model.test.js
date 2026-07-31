@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const {
   buildCouncilDecisionModel,
   buildCoffeeOperatingModel,
+  compactBuildingInspection,
   parseDurationHours,
   retailEvidenceFromState,
   selectPortfolioBuildings,
@@ -69,12 +70,28 @@ const inspections = [
   { ok: true, buildingId: 17, name: 'Grocery store', level: 2, products: [] },
 ];
 
-test('Council portfolio selection includes the focus plus every Coffee-chain building', () => {
+test('Council portfolio selection includes every standard owned building', () => {
+  const complete = selectPortfolioBuildings(state);
+  assert.equal(complete.length, 9);
+  assert(complete.some(row => row.buildingId === 18 && row.name === 'Quarry'));
+
   const selected = selectPortfolioBuildings(state, 18);
   assert.equal(selected[0].buildingId, 18);
   assert.equal(selected.length, 9);
   assert.deepEqual(new Set(selected.slice(1).map(row => row.buildingId)),
     new Set([10, 11, 12, 13, 14, 15, 16, 17]));
+});
+
+test('Council keeps measured non-Coffee product rates in portfolio evidence', () => {
+  const quarry = compactBuildingInspection({
+    ok: true,
+    buildingId: 18,
+    level: 1,
+    products: [product(14, 1172.19)],
+  }, buildings.find(building => building.id === 18));
+  assert.equal(quarry.products.length, 1);
+  assert.equal(quarry.products[0].kind, 14);
+  assert.equal(quarry.products[0].productionPerHour, 1172.19);
 });
 
 test('active Grocery order yields an exact current retail point', () => {

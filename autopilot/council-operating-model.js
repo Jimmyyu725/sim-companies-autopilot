@@ -1,7 +1,8 @@
 'use strict';
 
-// Build a compact, deterministic Coffee operating model for Council. The model intentionally
-// separates measured values from bounded projections. It never turns an absent value into zero.
+// Build compact portfolio evidence plus a deterministic Coffee-baseline operating model for
+// Council. Measured values remain separate from bounded projections, and missing values never
+// become zero.
 
 const COFFEE_KINDS = Object.freeze({
   power: 1,
@@ -67,7 +68,7 @@ function selectPortfolioBuildings(state, focusBuildingId = null, limit = 24) {
   }
   for (const building of buildings) {
     if (building?.freeAndLocked === true) continue;
-    if (PORTFOLIO_BUILDING_NAMES.has(normalizedName(building?.name))) add(building);
+    add(building);
   }
   return selected;
 }
@@ -77,7 +78,8 @@ function compactBuildingInspection(raw, stateBuilding = null) {
   const level = Number(raw?.level ?? stateBuilding?.size);
   const products = Array.isArray(raw?.products)
     ? raw.products
-      .filter(product => Object.values(COFFEE_KINDS).includes(Number(product?.kind)))
+      .filter(product => Number.isSafeInteger(Number(product?.kind)) && Number(product.kind) > 0)
+      .slice(0, 24)
       .map(product => ({
         kind: Number(product.kind),
         name: String(product.name || 'UNKNOWN').slice(0, 80),

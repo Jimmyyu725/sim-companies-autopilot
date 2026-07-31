@@ -50,6 +50,14 @@ const STRATEGY_DIRECTION_ACTIONS = new Set([
   'bonds',
   'robots',
 ]);
+const CURRENT_BASELINE_BUILD_TARGETS = new Set([
+  'farm',
+  'mill',
+  'grocery',
+  'grocery store',
+  'power plant',
+  'water reservoir',
+]);
 const STRATEGY_PREVIEW_OMIT_KEYS = new Set([
   'after',
   'buttons',
@@ -230,6 +238,14 @@ function strategyOptionKey(option = {}) {
     return strategyDirectionKey(action, { buildingId: option.buildingId });
   }
   return action === 'bonds' ? action : null;
+}
+
+function isNonBaselinePortfolioOption(option = {}) {
+  const action = String(option?.action || '').trim().toLowerCase();
+  const target = String(option?.target || '').trim().toLowerCase();
+  if (!target) return false;
+  if (action === 'pivot') return true;
+  return action === 'build' && !CURRENT_BASELINE_BUILD_TARGETS.has(target);
 }
 
 function sanitizeStrategyPreviewValue(value, depth = 0) {
@@ -764,6 +780,16 @@ class WakeRuntimeGuard {
     if (!Array.isArray(args?.options)) {
       return { ok: true, strategyCandidates: [] };
     }
+    if (this.strategyCouncilRequirement.required &&
+        !args.options.some(isNonBaselinePortfolioOption)) {
+      return {
+        ok: false,
+        guard: true,
+        reason: 'a required portfolio strategy checkpoint must compare at least one named non-baseline expansion or pivot option',
+        requiredNextStep: 'add a pivot option with a concrete target, or preview a build outside the current Coffee baseline; Council may still select hold',
+        currentBaselineBuildTargets: [...CURRENT_BASELINE_BUILD_TARGETS],
+      };
+    }
     const candidates = [];
     const missing = [];
     const seenDirectionKeys = new Set();
@@ -1109,6 +1135,7 @@ module.exports = {
   structuralTermsAreNoRiskier,
   strategyDecisionMatchesAction,
   strategyDirectionKey,
+  isNonBaselinePortfolioOption,
   strategyOptionKey,
   buildStrategyCandidate,
   validateCouncilAuthorization,

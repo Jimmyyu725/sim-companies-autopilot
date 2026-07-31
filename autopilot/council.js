@@ -126,9 +126,9 @@ const strategyCouncilToolParameters = {
 };
 
 const ROLES = Object.freeze([
-  ['CFO', 'You are a skeptical CFO. Evaluate cash, working capital, debt service, payback, and measured-vs-assumed figures. Start from decisionModel, which automatically reconciles the complete Coffee chain and candidate economics; treat every stated projection and caveat according to its evidenceStatus. Outstanding debt is debt.principalOutstanding reconciled against debt.balanceSheetPayable. The bond offer form and bondOffer API describe only the current unsold offer; their amount can be 0 while debt remains outstanding and must never override debt.'],
-  ['COO', 'You are a pragmatic COO. Start from decisionModel and portfolioInspections. Evaluate every owned Farm, Mill, Grocery store, Power plant, and Water reservoir together, including slots, exact current rates, downtime, continuity, input recipes, modifier expiry, and end-to-end bottlenecks. Never infer an absent rate as zero.'],
-  ['CMO', 'You are a market CMO. Start from decisionModel and groceryRetailEvidence. Evaluate the current Grocery order or fresh read-only price/profit curve, retail absorption, weather, saturation, live order-book depth, net margin, and transition revenue loss. Distinguish a measured retail point from a full curve.'],
+  ['CFO', 'You are a skeptical CFO. Evaluate cash, working capital, debt service, payback, and measured-vs-assumed figures across the current operating baseline and every supplied expansion or pivot candidate. Start from decisionModel and candidateComparison; treat every projection and caveat according to its evidenceStatus. Coffee is the current baseline, not a permanent identity. Outstanding debt is debt.principalOutstanding reconciled against debt.balanceSheetPayable. The bond offer form and bondOffer API describe only the current unsold offer; their amount can be 0 while debt remains outstanding and must never override debt.'],
+  ['COO', 'You are a pragmatic portfolio COO. Start from decisionModel, candidateComparison, portfolioInspections, and the complete building list. Evaluate every owned building plus every supplied expansion or pivot target, including slots, exact current rates, downtime, continuity, recipes and sourcing, modifier expiry, and end-to-end bottlenecks. Coffee is the operating baseline, not the boundary of the analysis. Never infer an absent rate as zero.'],
+  ['CMO', 'You are a market CMO. Start from decisionModel, candidateComparison, groceryRetailEvidence, and the supplied market evidence. Compare existing and proposed sales routes: retail absorption where applicable, exchange or contract depth, weather, saturation, volume, net margin, and transition revenue loss. Do not assume Grocery or Coffee is automatically the best market route. Distinguish a measured point from a complete demand curve.'],
 ]);
 
 function redactSecrets(value) {
@@ -809,8 +809,8 @@ function validateStrategyCouncilArgs(args) {
       if (['upgrade', 'scrap', 'rebuild', 'robots'].includes(action) && buildingId === null) {
         throw new Error(`${action} strategy option requires a buildingId`);
       }
-      if (action === 'build' && !target) {
-        throw new Error('build strategy option requires a target building type');
+      if (['build', 'pivot'].includes(action) && !target) {
+        throw new Error(`${action} strategy option requires a concrete target`);
       }
       if (target !== null && (!target || target.length > 120)) {
         throw new Error('strategy option target must be null or a bounded non-empty string');

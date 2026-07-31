@@ -166,6 +166,120 @@ function derivePreviousDayReferencePrices(volumeText, statementDate, aggregateVo
   };
 }
 
+function qualityPriceKey(kind, quality) {
+  const normalizedKind = positiveInteger(kind);
+  const normalizedQuality = nonNegativeInteger(quality);
+  return normalizedKind == null || normalizedQuality == null
+    ? null
+    : `${normalizedKind}:${normalizedQuality}`;
+}
+
+function inventoryAmountsByQuality(lots) {
+  const amounts = {};
+  for (const lot of lots || []) {
+    if (lot?.location === 'work-in-process') continue;
+    const key = qualityPriceKey(lot?.kind, lot?.quality);
+    const amount = nonNegativeNumber(lot?.amount);
+    if (key == null || amount == null || amount <= 0) continue;
+    amounts[key] = (amounts[key] || 0) + amount;
+  }
+  return Object.fromEntries(
+    Object.entries(amounts).map(([key, amount]) => [key, roundMoney(amount)]),
+  );
+}
+
+function deriveQualityMarketPrices(marketSummaries, requiredAmounts = {}, {
+  capturedAt = null,
+  minimumOrderCount = 3,
+} = {}) {
+  const summariesByKind = {};
+  for (const summary of marketSummaries || []) {
+    const kind = positiveInteger(summary?.kind);
+    if (kind == null || Number(summary?.status) !== 200 || !Array.isArray(summary?.qualities)) continue;
+    const qualities = {};
+    for (const row of summary.qualities) {
+      const quality = nonNegativeInteger(row?.quality);
+      const bestAsk = nonNegativeNumber(row?.bestAsk);
+      const listedUnits = nonNegativeNumber(row?.listedUnits);
+      const orderCount = nonNegativeInteger(row?.orderCount);
+      if (quality == null || bestAsk == null || bestAsk <= 0
+          || listedUnits == null || orderCount == null || orderCount <= 0) continue;
+      qualities[quality] = { quality, bestAsk, listedUnits, orderCount };
+    }
+    if (Object.keys(qualities).length) summariesByKind[kind] = qualities;
+  }
+
+  const prices = {};
+  const issues = [];
+  const requiredKeys = Object.keys(requiredAmounts || {});
+  for (const key of requiredKeys) {
+    const match = key.match(/^([1-9]\d*):(\d+)$/);
+    const requiredAmount = nonNegativeNumber(requiredAmounts[key]);
+    if (!match || requiredAmount == null || requiredAmount <= 0) continue;
+    const kind = Number(match[1]);
+    const quality = Number(match[2]);
+    const qualities = summariesByKind[kind] || {};
+    const exact = qualities[quality] || null;
+    const liquid = row => row && row.orderCount >= minimumOrderCount && row.listedUnits > 0;
+    let marketUnitValue = null;
+    let basis = null;
+    let evidence = null;
+
+    if (liquid(exact) && exact.listedUnits >= requiredAmount) {
+      marketUnitValue = exact.bestAsk;
+      basis = 'current-quality-best-ask';
+      evidence = { ...exact };
+    } else {
+      const lower = Object.values(qualities)
+        .filter(row => row.quality < quality && liquid(row))
+        .sort((a, b) => b.quality - a.quality)[0] || null;
+      const upper = Object.values(qualities)
+        .filter(row => row.quality > quality && liquid(row))
+        .sort((a, b) => a.quality - b.quality)[0] || null;
+      if (lower && upper) {
+        const weight = (quality - lower.quality) / (upper.quality - lower.quality);
+        marketUnitValue = lower.bestAsk + (upper.bestAsk - lower.bestAsk) * weight;
+        basis = 'current-quality-interpolated-best-ask';
+        evidence = {
+          requiredQuality: quality,
+          lowerQuality: lower.quality,
+          lowerBestAsk: lower.bestAsk,
+          upperQuality: upper.quality,
+          upperBestAsk: upper.bestAsk,
+          exactQualityListedUnits: exact?.listedUnits || 0,
+          exactQualityOrderCount: exact?.orderCount || 0,
+        };
+      } else if (exact && exact.listedUnits >= requiredAmount) {
+        marketUnitValue = exact.bestAsk;
+        basis = 'current-quality-thin-best-ask';
+        evidence = { ...exact };
+      }
+    }
+
+    if (marketUnitValue == null) {
+      issues.push(`No liquid quality-specific market proxy for resource ${key}.`);
+      continue;
+    }
+    if (!prices[kind]) prices[kind] = {};
+    prices[kind][quality] = {
+      marketUnitValue,
+      liquidationUnitValue: marketUnitValue * INVENTORY_LIQUIDATION_FACTOR,
+      basis,
+      evidence,
+    };
+  }
+
+  return {
+    status: Object.keys(prices).length ? 'estimated' : 'unavailable',
+    asOf: capturedAt,
+    prices,
+    requiredPairs: requiredKeys.length,
+    pricedPairs: sum(Object.values(prices).map(qualities => Object.keys(qualities).length)),
+    issues,
+    methodology: 'Live quality-specific best asks multiplied by 85%; illiquid qualities are interpolated between liquid adjacent qualities.',
+  };
+}
+
 function resourceSourcingUnitCost(resource) {
   const amount = nonNegativeNumber(resource?.amount);
   if (amount == null || amount <= 0 || !resource?.cost || typeof resource.cost !== 'object') return null;
@@ -197,7 +311,7 @@ function isBuyOrder(row) {
     || ['buy', 'bid', 'purchase'].includes(side);
 }
 
-function addLot(lots, issues, lot) {
+function addLot(lots, issues, limitations, lot) {
   const kind = positiveInteger(lot.kind);
   const amount = nonNegativeNumber(lot.amount);
   if (kind == null || amount == null) {
@@ -206,9 +320,22 @@ function addLot(lots, issues, lot) {
   }
   if (amount <= 0) return;
   const qualityNumber = finiteNumber(lot.quality);
+  let quality = Number.isSafeInteger(qualityNumber) && qualityNumber >= 0
+    ? qualityNumber
+    : null;
+  if (quality == null && lot.assumeQualityZero === true) {
+    quality = 0;
+    limitations.push(
+      `${lot.location || 'inventory'} does not expose quality; Q0 was used conservatively.`,
+    );
+  }
+  if (quality == null) {
+    issues.push(`Ignored ${lot.location || 'inventory'} lot with unknown quality.`);
+    return;
+  }
   lots.push({
     kind,
-    quality: Number.isSafeInteger(qualityNumber) && qualityNumber >= 0 ? qualityNumber : 0,
+    quality,
     amount,
     location: lot.location || 'unknown',
     sourcingUnitCost: nonNegativeNumber(lot.sourcingUnitCost),
@@ -224,8 +351,9 @@ function collectInventoryLots({
 }) {
   const lots = [];
   const issues = [];
+  const limitations = [];
   for (const resource of rowsFrom(warehouse, ['resources', 'data', 'results'])) {
-    addLot(lots, issues, {
+    addLot(lots, issues, limitations, {
       kind: resource?.kind,
       quality: resource?.quality,
       amount: resource?.amount,
@@ -236,7 +364,7 @@ function collectInventoryLots({
 
   for (const order of rowsFrom(marketOrders, ['orders', 'marketOrders', 'data', 'results'])) {
     if (isBuyOrder(order)) continue;
-    addLot(lots, issues, {
+    addLot(lots, issues, limitations, {
       kind: order?.kind ?? order?.resource?.kind,
       quality: order?.quality ?? order?.resource?.quality,
       amount: order?.amount ?? order?.quantity ?? order?.resource?.amount,
@@ -248,7 +376,7 @@ function collectInventoryLots({
     outgoingContracts,
     ['outgoingContracts', 'contracts', 'data', 'results'],
   )) {
-    addLot(lots, issues, {
+    addLot(lots, issues, limitations, {
       kind: contract?.kind ?? contract?.resource?.kind,
       quality: contract?.quality ?? contract?.resource?.quality,
       amount: contract?.amount ?? contract?.quantity ?? contract?.resource?.amount,
@@ -267,33 +395,26 @@ function collectInventoryLots({
         issues.push(`Building ${building?.id ?? 'unknown'} has malformed production amount.`);
       } else {
         const available = Math.min(total, availableRaw || 0);
-        addLot(lots, issues, {
+        addLot(lots, issues, limitations, {
           kind: production.kind,
           quality: production.quality,
           amount: available,
           location: 'production-ready',
         });
         const remainingOutput = Math.max(0, total - available);
-        const recipe = resourceDefinitions?.[production.kind]?.producedFrom;
-        const recipeRows = recipe && typeof recipe === 'object'
-          ? Object.entries(recipe).filter(([, multiplier]) => finiteNumber(multiplier) > 0)
-          : [];
-        if (recipeRows.length) {
-          for (const [inputKind, multiplier] of recipeRows) {
-            addLot(lots, issues, {
-              kind: inputKind,
+        if (remainingOutput > 0) {
+          const unitCost = nonNegativeNumber(production.unitCost);
+          if (unitCost == null) {
+            issues.push(`Building ${building?.id ?? 'unknown'} lacks live WIP unit cost.`);
+          } else {
+            addLot(lots, issues, limitations, {
+              kind: production.kind,
               quality: production.quality,
-              amount: remainingOutput * Number(multiplier),
+              amount: remainingOutput,
               location: 'work-in-process',
+              sourcingUnitCost: unitCost,
             });
           }
-        } else {
-          addLot(lots, issues, {
-            kind: production.kind,
-            quality: production.quality,
-            amount: remainingOutput,
-            location: 'work-in-process',
-          });
         }
       }
     }
@@ -308,11 +429,12 @@ function collectInventoryLots({
       if (remainingProfit == null || price == null || price <= 0) {
         issues.push(`Building ${building?.id ?? 'unknown'} has malformed remaining retail inventory.`);
       } else {
-        addLot(lots, issues, {
+        addLot(lots, issues, limitations, {
           kind: sale.kind,
           quality: sale.quality,
           amount: remainingProfit / price,
           location: 'retail',
+          assumeQualityZero: true,
         });
       }
     }
@@ -321,6 +443,7 @@ function collectInventoryLots({
     lots,
     accountsReceivable: roundMoney(accountsReceivable),
     issues,
+    limitations: [...new Set(limitations)],
   };
 }
 
@@ -493,11 +616,14 @@ function calculatePatentAssets(researchProgress, {
 }
 
 function valueInventoryLots(lots, {
+  qualityMarketPrices = {},
   referencePrices = {},
   tickerPrices = {},
 } = {}) {
   const byLocation = {};
   const byKind = {};
+  const byKindQuality = {};
+  const valueByBasis = {};
   const issues = [];
   let total = 0;
   let knownAmount = 0;
@@ -505,20 +631,33 @@ function valueInventoryLots(lots, {
   let qualityLots = 0;
 
   for (const lot of lots || []) {
+    const qualityMarket = qualityMarketPrices?.[lot.kind]?.[lot.quality];
     const reference = referencePrices?.[lot.kind]?.liquidationUnitValue;
     const ticker = positiveInteger(lot.kind) != null
       ? nonNegativeNumber(tickerPrices?.[lot.kind])
       : null;
     const sourceCost = nonNegativeNumber(lot.sourcingUnitCost);
-    let unitValue = nonNegativeNumber(reference);
-    let basis = 'previous-day-vwap-85pct';
-    if (unitValue == null && ticker != null && ticker > 0) {
+    let unitValue = null;
+    let basis = null;
+    if (lot.location === 'work-in-process' && sourceCost != null) {
+      unitValue = sourceCost;
+      basis = 'live-production-unit-cost';
+    }
+    if (unitValue == null) {
+      unitValue = nonNegativeNumber(qualityMarket?.liquidationUnitValue);
+      basis = unitValue == null ? null : String(qualityMarket?.basis || 'current-quality-market-85pct');
+    }
+    if (unitValue == null && Number(lot.quality) === 0 && ticker != null && ticker > 0) {
       unitValue = ticker * INVENTORY_LIQUIDATION_FACTOR;
       basis = 'current-ticker-85pct-fallback';
     }
     if (unitValue == null && sourceCost != null) {
       unitValue = sourceCost;
       basis = 'recorded-sourcing-cost-fallback';
+    }
+    if (unitValue == null) {
+      unitValue = nonNegativeNumber(reference);
+      basis = unitValue == null ? null : 'previous-day-local-blended-vwap-85pct-fallback';
     }
     if (lot.quality > 0) qualityLots++;
     if (unitValue == null) {
@@ -530,10 +669,24 @@ function valueInventoryLots(lots, {
     total += value;
     knownAmount += lot.amount;
     byLocation[lot.location] = (byLocation[lot.location] || 0) + value;
+    valueByBasis[basis] = (valueByBasis[basis] || 0) + value;
     if (!byKind[lot.kind]) byKind[lot.kind] = { amount: 0, value: 0, bases: new Set() };
     byKind[lot.kind].amount += lot.amount;
     byKind[lot.kind].value += value;
     byKind[lot.kind].bases.add(basis);
+    const kindQualityKey = qualityPriceKey(lot.kind, lot.quality);
+    if (!byKindQuality[kindQualityKey]) {
+      byKindQuality[kindQualityKey] = {
+        kind: lot.kind,
+        quality: lot.quality,
+        amount: 0,
+        value: 0,
+        bases: new Set(),
+      };
+    }
+    byKindQuality[kindQualityKey].amount += lot.amount;
+    byKindQuality[kindQualityKey].value += value;
+    byKindQuality[kindQualityKey].bases.add(basis);
   }
 
   return {
@@ -546,6 +699,18 @@ function valueInventoryLots(lots, {
       value: roundMoney(entry.value),
       valuationBases: [...entry.bases],
     }])),
+    byKindQuality: Object.fromEntries(
+      Object.entries(byKindQuality).map(([key, entry]) => [key, {
+        kind: entry.kind,
+        quality: entry.quality,
+        amount: roundMoney(entry.amount),
+        value: roundMoney(entry.value),
+        valuationBases: [...entry.bases],
+      }]),
+    ),
+    valueByBasis: Object.fromEntries(
+      Object.entries(valueByBasis).map(([basis, value]) => [basis, roundMoney(value)]),
+    ),
     knownAmount: roundMoney(knownAmount),
     unknownAmount: roundMoney(unknownAmount),
     coveragePct: knownAmount + unknownAmount > 0
@@ -570,6 +735,7 @@ function calculateCompanyValue({
   patentRequirements,
   patentValuesByResearchKind,
   referencePriceResult,
+  qualityMarketPriceResult,
   tickerPrices,
 }) {
   const official = summarizeOfficialBalanceSheet(balanceSheet);
@@ -581,6 +747,7 @@ function calculateCompanyValue({
     resourceDefinitions,
   });
   const inventoryValue = valueInventoryLots(inventory.lots, {
+    qualityMarketPrices: qualityMarketPriceResult?.prices,
     referencePrices: referencePriceResult?.prices,
     tickerPrices,
   });
@@ -592,7 +759,9 @@ function calculateCompanyValue({
   });
   const limitations = [
     ...inventory.issues,
+    ...inventory.limitations,
     ...inventoryValue.issues,
+    ...(qualityMarketPriceResult?.issues || []),
     ...buildingAssets.issues,
     ...patentAssets.issues,
   ];
@@ -615,7 +784,7 @@ function calculateCompanyValue({
 
   if (official.status !== 'ok') {
     return {
-      methodVersion: 2,
+      methodVersion: 3,
       capturedAt,
       official,
       realtimeEstimate: {
@@ -631,7 +800,7 @@ function calculateCompanyValue({
   const liabilities = nonNegativeNumber(liveBondsPayable);
   if (cash == null || liabilities == null) {
     return {
-      methodVersion: 2,
+      methodVersion: 3,
       capturedAt,
       official,
       realtimeEstimate: {
@@ -649,7 +818,7 @@ function calculateCompanyValue({
       gaps.push(`${inventoryValue.unknownAmount} inventory units lack valuation evidence.`);
     }
     return {
-      methodVersion: 2,
+      methodVersion: 3,
       capturedAt,
       official,
       realtimeEstimate: {
@@ -673,9 +842,19 @@ function calculateCompanyValue({
   if (carried.deposits > 0 || carried.investmentInBonds > 0) {
     limitations.push('Deposits or bond investments are carried from the daily statement.');
   }
-  if (inventoryValue.qualityLots > 0) {
-    limitations.push('Tracked VWAP blends qualities, so quality-specific inventory values are approximate.');
+  const valuationBases = Object.keys(inventoryValue.valueByBasis);
+  if (valuationBases.some(basis => basis.includes('interpolated'))) {
+    limitations.push('Illiquid exact-quality order books were interpolated between adjacent liquid qualities.');
   }
+  if (valuationBases.some(basis => basis.includes('thin'))) {
+    limitations.push('Some exact-quality order books were thin relative to the inventory being valued.');
+  }
+  if (valuationBases.some(basis => basis.includes('local-blended'))) {
+    limitations.push('Some inventory used the local all-quality VWAP fallback.');
+  }
+  limitations.push(
+    'Official daily per-quality reference prices are not exposed by a reliable live feed; live quality-specific market proxies are used.',
+  );
 
   const currentAssets = sum([
     cash,
@@ -691,11 +870,41 @@ function calculateCompanyValue({
     patentAssets.total,
   ]);
   const total = currentAssets + nonCurrentAssets - liabilities;
+  const lowConfidenceBases = valuationBases.filter(basis => basis.includes('fallback')
+    || basis.includes('thin'));
   const confidence = inventoryValue.coveragePct < 90 || buildingAssets.issues.length
+    || lowConfidenceBases.length
     ? 'low'
     : 'medium';
+  const officialSnapshotAgeSeconds = (() => {
+    const capturedMs = Date.parse(capturedAt);
+    const officialMs = Date.parse(official.asOf);
+    return Number.isFinite(capturedMs) && Number.isFinite(officialMs)
+      ? Math.max(0, Math.round((capturedMs - officialMs) / 1000))
+      : null;
+  })();
+  const componentDifference = {
+    cash: roundMoney(cash - official.components.cash),
+    cashReservedForOrders: roundMoney(
+      carried.cashReservedForOrders - official.components.cashReservedForOrders,
+    ),
+    accountsReceivable: roundMoney(
+      inventory.accountsReceivable - official.components.accountsReceivable,
+    ),
+    inventory: roundMoney(inventoryValue.total - official.components.inventory),
+    buildings: roundMoney(buildingAssets.buildings - official.components.buildings),
+    constructionInProgress: roundMoney(
+      buildingAssets.constructionInProgress - official.components.constructionInProgress,
+    ),
+    deposits: roundMoney(carried.deposits - official.components.deposits),
+    investmentInBonds: roundMoney(
+      carried.investmentInBonds - official.components.investmentInBonds,
+    ),
+    patents: roundMoney(patentAssets.total - official.components.patents),
+    bondsPayable: roundMoney(liabilities - official.components.bondsPayable),
+  };
   return {
-    methodVersion: 2,
+    methodVersion: 3,
     capturedAt,
     official,
     realtimeEstimate: {
@@ -703,6 +912,15 @@ function calculateCompanyValue({
       asOf: capturedAt,
       total: roundMoney(total),
       deltaFromOfficial: roundMoney(total - official.total),
+      comparisonToOfficialSnapshot: {
+        officialAsOf: official.asOf,
+        snapshotAgeSeconds: officialSnapshotAgeSeconds,
+        totalDifference: roundMoney(total - official.total),
+        includesPostSnapshotActivity: officialSnapshotAgeSeconds == null
+          ? null
+          : officialSnapshotAgeSeconds > 0,
+        componentDifference,
+      },
       currentAssets: roundMoney(currentAssets),
       nonCurrentAssets: roundMoney(nonCurrentAssets),
       liabilities: roundMoney(liabilities),
@@ -728,6 +946,9 @@ function calculateCompanyValue({
       inventory: {
         total: inventoryValue.total,
         byLocation: inventoryValue.byLocation,
+        byKind: inventoryValue.byKind,
+        byKindQuality: inventoryValue.byKindQuality,
+        valueByBasis: inventoryValue.valueByBasis,
         knownAmount: inventoryValue.knownAmount,
         unknownAmount: inventoryValue.unknownAmount,
         coveragePct: inventoryValue.coveragePct,
@@ -736,11 +957,13 @@ function calculateCompanyValue({
       limitations: [...new Set(limitations)],
       methodology: {
         equation: 'current assets + non-current assets - liabilities',
-        inventory: 'Previous-day tracked VWAP × 85%, with current ticker and recorded cost fallbacks.',
+        inventory: 'Live quality-specific market proxy × 85%; WIP uses the live production unit cost; local VWAP, ticker, and recorded cost are explicit fallbacks.',
         buildings: 'Base reference value × completed levels; one base level moves to construction in progress while building.',
         patents: 'Cumulative completed-quality requirements plus current live progress, multiplied by the official fixed value for each research category.',
         carriedDailyFields: Object.keys(carried),
         referencePriceWindow: referencePriceResult?.window || null,
+        qualityMarketAsOf: qualityMarketPriceResult?.asOf || null,
+        qualityMarketMethodology: qualityMarketPriceResult?.methodology || null,
       },
     },
   };
@@ -752,8 +975,11 @@ module.exports = {
   calculateCompanyValue,
   calculatePatentAssets,
   collectInventoryLots,
+  deriveQualityMarketPrices,
   derivePreviousDayReferencePrices,
+  inventoryAmountsByQuality,
   previousUtcDayWindow,
+  qualityPriceKey,
   resourceSourcingUnitCost,
   summarizeOfficialBalanceSheet,
   valueInventoryLots,

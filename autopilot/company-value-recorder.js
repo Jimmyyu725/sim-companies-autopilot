@@ -33,6 +33,14 @@ function formatMoney(value) {
     : `$${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 }
 
+function formatAge(seconds) {
+  const value = finiteNumber(seconds);
+  if (value == null || value < 0) return 'unknown age';
+  if (value < 120) return `${Math.round(value)} seconds old`;
+  if (value < 7200) return `${Math.round(value / 60)} minutes old`;
+  return `${Math.round(value / 3600 * 10) / 10} hours old`;
+}
+
 function parseHistory(text) {
   return String(text || '').split('\n').filter(Boolean).flatMap(line => {
     try {
@@ -59,6 +67,10 @@ function diarySection(record) {
     ].join('\n');
   }
   const direction = record.deltaFromOfficial > 0 ? '+' : '';
+  const snapshotAge = formatAge(record.officialSnapshotAgeSeconds);
+  const inventoryMethod = record.methodVersion >= 3
+    ? 'quality-specific live market proxies × 85%; WIP uses live production unit cost'
+    : 'the prior UTC day tracked VWAP × 85%';
   return [
     '',
     marker,
@@ -66,9 +78,10 @@ function diarySection(record) {
     `- Real-time estimate: ${formatMoney(record.estimate)} as of ${record.estimateAsOf}.`,
     `- Official daily value: ${formatMoney(record.official?.total)}`
       + (record.official?.asOf ? ` as of ${record.official.asOf}.` : '.'),
-    `- Change since official snapshot: ${direction}${formatMoney(record.deltaFromOfficial)}.`,
+    `- Estimated difference versus the older official snapshot: ${direction}${formatMoney(record.deltaFromOfficial)}`
+      + ` (official snapshot is ${snapshotAge}; this includes real activity after that timestamp and remaining estimation error).`,
     `- Confidence: ${record.confidence}; inventory coverage: ${record.inventoryCoveragePct}%.`,
-    '- Method: current assets + non-current assets - liabilities; inventory uses the prior UTC day tracked VWAP × 85%.',
+    `- Method: current assets + non-current assets - liabilities; inventory uses ${inventoryMethod}.`,
     record.limitations.length
       ? `- Limitations: ${record.limitations.join(' ')}`
       : '- Limitations: none reported by the estimator.',
@@ -102,7 +115,10 @@ function recordCompanyValue({
     && estimate?.status === 'estimated'
     && estimateValue != null;
   const record = {
-    schemaVersion: 1,
+    schemaVersion: 2,
+    methodVersion: Number.isSafeInteger(Number(state?.companyValue?.methodVersion))
+      ? Number(state.companyValue.methodVersion)
+      : null,
     wakeId,
     startedAt: cleanText(startedAt, null),
     recordedAt,
@@ -117,11 +133,18 @@ function recordCompanyValue({
       asOf: official.asOf || null,
     },
     deltaFromOfficial: available ? finiteNumber(estimate.deltaFromOfficial) : null,
+    officialSnapshotAgeSeconds: available
+      ? finiteNumber(estimate.comparisonToOfficialSnapshot?.snapshotAgeSeconds)
+      : null,
+    comparisonToOfficialSnapshot: available
+      ? estimate.comparisonToOfficialSnapshot || null
+      : null,
     confidence: available ? estimate.confidence || 'unknown' : null,
     inventoryCoveragePct: available
       ? finiteNumber(estimate.inventory?.coveragePct)
       : null,
     components: available ? estimate.components || null : null,
+    inventoryValueByBasis: available ? estimate.inventory?.valueByBasis || null : null,
     limitations: available && Array.isArray(estimate.limitations)
       ? estimate.limitations.map(value => cleanText(value, '')).filter(Boolean).slice(0, 20)
       : [],

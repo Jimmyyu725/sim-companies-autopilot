@@ -15,9 +15,9 @@ function resolvePointer(value, pointer) {
 }
 
 const ROLE_PREFIXES = Object.freeze({
-  CFO: Object.freeze(['/company', '/debt', '/financePage', '/statements']),
-  COO: Object.freeze(['/slots', '/buildings', '/warehouse', '/stock', '/modifiers', '/printedRates', '/buildingInspection']),
-  CMO: Object.freeze(['/weather', '/retail', '/keyPrices', '/volume1h', '/volume1hMeta', '/marketBooks']),
+  CFO: Object.freeze(['/decisionModel', '/company', '/debt', '/financePage', '/statements']),
+  COO: Object.freeze(['/decisionModel', '/slots', '/buildings', '/warehouse', '/stock', '/modifiers', '/printedRates', '/buildingInspection', '/portfolioInspections']),
+  CMO: Object.freeze(['/decisionModel', '/groceryRetailEvidence', '/weather', '/retail', '/keyPrices', '/volume1h', '/volume1hMeta', '/marketBooks']),
 });
 
 function pointerWithin(pointer, prefix) {
@@ -83,6 +83,42 @@ function stateMetricAuthority(pointer, evidence) {
 function metricIsAuthoritative(pointer, evidence) {
   const stateAuthority = stateMetricAuthority(pointer, evidence);
   if (stateAuthority !== null) return stateAuthority;
+  if (pointerWithin(pointer, '/decisionModel')) {
+    if (evidence?.meta?.stateFreshness !== 'FRESH' ||
+        evidence?.meta?.portfolioInspection !== 'OK' ||
+        evidence?.decisionModel?.status !== 'COMPLETE') return false;
+    if (pointerWithin(pointer, '/decisionModel/candidateComparison')) {
+      const index = Number(pointer.split('/')[3]);
+      const row = Number.isSafeInteger(index)
+        ? evidence?.decisionModel?.candidateComparison?.[index]
+        : null;
+      return row?.evidenceStatus === 'MEASURED_BASELINE' ||
+        row?.evidenceStatus === 'MEASURED_WITH_LINEAR_LEVEL_PROJECTION';
+    }
+    if (pointerWithin(pointer, '/decisionModel/coffeeChain/retailEvidence') ||
+        pointerWithin(pointer, '/decisionModel/coffeeChain/current/retail')) {
+      return ['ACTIVE_ORDER', 'LIVE_CURVE'].includes(
+        evidence?.decisionModel?.coffeeChain?.retailEvidence?.status);
+    }
+    if (pointerWithin(pointer, '/decisionModel/coffeeChain/warehouseAvailable')) {
+      return evidence?.meta?.warehouseComplete === true;
+    }
+    return [
+      '/decisionModel/coffeeChain/current',
+      '/decisionModel/coffeeChain/afterKnownProductionModifiers',
+      '/decisionModel/coffeeChain/currentFarmAllocation',
+      '/decisionModel/coffeeChain/modifierExpiries',
+    ].some(prefix => pointerWithin(pointer, prefix));
+  }
+  if (pointerWithin(pointer, '/portfolioInspections')) {
+    const index = Number(pointer.split('/')[2]);
+    const row = Number.isSafeInteger(index) ? evidence?.portfolioInspections?.[index] : null;
+    return evidence?.meta?.portfolioInspection === 'OK' && row?.ok === true && row?.fresh === true;
+  }
+  if (pointerWithin(pointer, '/groceryRetailEvidence')) {
+    return evidence?.meta?.stateFreshness === 'FRESH' &&
+      ['ACTIVE_ORDER', 'LIVE_CURVE'].includes(evidence?.groceryRetailEvidence?.status);
+  }
   if (pointerWithin(pointer, '/financePage')) return Number(evidence?.financePage?.status) === 200;
   if (pointerWithin(pointer, '/buildingInspection')) {
     return evidence?.meta?.buildingInspection === 'OK' && evidence?.buildingInspection?.ok === true;

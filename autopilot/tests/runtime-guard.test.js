@@ -34,6 +34,7 @@ function validCouncilResult(verdict = 'APPROVE', buildingInspection = 'NOT_REQUE
       stateFreshness: 'FRESH',
       financePage: 200,
       buildingInspection,
+      portfolioInspection: 'OK',
     },
     council: ['CFO', 'COO', 'CMO'].map(role => ({
       role,
@@ -56,6 +57,7 @@ function authorizeStrategy(guard, selectedOption, otherOption = {
       stateFreshness: 'FRESH',
       financePage: 200,
       buildingInspection: selectedOption.buildingId == null ? 'NOT_REQUESTED' : 'OK',
+      portfolioInspection: 'OK',
     },
     council: ['CFO', 'COO', 'CMO'].map(role => ({
       role,
@@ -447,6 +449,29 @@ assert.match(changedRobotSpend.beforeAction('robots', {
 const invalidCouncil = validCouncilResult('APPROVE', 'OK');
 invalidCouncil.council[1].verdict = 'REJECT';
 assert.equal(validateCouncilAuthorization(invalidCouncil).ok, false);
+const partialPortfolioCouncil = validCouncilResult('APPROVE', 'OK');
+partialPortfolioCouncil.evidence.portfolioInspection = 'PARTIAL';
+assert.equal(validateCouncilAuthorization(partialPortfolioCouncil, {
+  portfolioInspectionRequired: true,
+}).ok, false);
+const partialPortfolioStrategy = {
+  evidence: {
+    stateFreshness: 'FRESH',
+    financePage: 200,
+    buildingInspection: 'NOT_REQUESTED',
+    portfolioInspection: 'PARTIAL',
+  },
+  council: ['CFO', 'COO', 'CMO'].map(role => ({
+    role,
+    status: 'VALIDATED',
+    verdict: 'RECOMMEND',
+    optionId: 'hold',
+  })),
+  decision: { status: 'DECIDED', optionId: 'hold', method: 'majority', tally: { hold: 3 } },
+};
+assert.equal(validateStrategyCouncilCompletion(partialPortfolioStrategy, {
+  portfolioInspectionRequired: true,
+}).ok, false);
 const invalidCouncilGuard = new WakeRuntimeGuard();
 authorizeStrategy(invalidCouncilGuard, {
   id: 'scrap_building',

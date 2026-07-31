@@ -653,7 +653,11 @@ test('verified strategy candidates are injected ahead of each bounded role evide
     simDir: '/not-used',
     strategyCandidates: [candidate],
   }, {
-    collectEvidence: () => baseEvidence,
+    collectEvidence: collectorArgs => {
+      assert.equal(collectorArgs.reviewType, 'strategy');
+      assert.equal(collectorArgs.strategyCandidates[0].preview.cashCost, 12500);
+      return baseEvidence;
+    },
     reviewRole: async ({ role, evidence }) => {
       seen.push(evidence.roles[role].strategyCandidates[0].optionId);
       return {

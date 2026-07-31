@@ -208,3 +208,93 @@ test('accepts a fresh runtime authorization quote with separate role evidence', 
   assert.equal(termsOnly.ok, false);
   assert.match(termsOnly.value.unknowns[0], /not authoritative/);
 });
+
+test('all roles may cite the complete shared operating model but not a partial projection', () => {
+  const modelEvidence = {
+    meta: {
+      collectedAt: asOf,
+      stateFreshness: 'FRESH',
+      portfolioInspection: 'OK',
+    },
+    decisionModel: {
+      status: 'COMPLETE',
+      coffeeChain: {
+        current: { sustainablePowderPerHour: 164.8 },
+        retailEvidence: { status: 'ACTIVE_ORDER' },
+      },
+      candidateComparison: [{
+        optionId: 'build_farm',
+        evidenceStatus: 'MEASURED_WITH_LINEAR_LEVEL_PROJECTION',
+        paybackHours: 13.7,
+      }],
+    },
+  };
+  for (const role of ['CFO', 'COO', 'CMO']) {
+    const result = validateCouncilVote(role, {
+      verdict: 'APPROVE',
+      summary: 'The complete automatic operating model supports proceeding.',
+      metrics: [{
+        pointer: '/decisionModel/candidateComparison/0/paybackHours',
+        value: 13.7,
+      }],
+      unknowns: [],
+      conditions: [],
+    }, modelEvidence);
+    assert.equal(result.ok, true, role);
+  }
+
+  const partial = structuredClone(modelEvidence);
+  partial.decisionModel.candidateComparison[0].evidenceStatus = 'PARTIAL';
+  assert.equal(validateCouncilVote('CFO', {
+    verdict: 'APPROVE',
+    summary: 'The incomplete projection supports proceeding.',
+    metrics: [{
+      pointer: '/decisionModel/candidateComparison/0/paybackHours',
+      value: 13.7,
+    }],
+    unknowns: [],
+    conditions: [],
+  }, partial).ok, false);
+
+  const methodologyOnly = structuredClone(modelEvidence);
+  methodologyOnly.decisionModel.projectionMethod = { capacity: 'linear measured rate' };
+  assert.equal(validateCouncilVote('CFO', {
+    verdict: 'APPROVE',
+    summary: 'A methodology label alone supports proceeding.',
+    metrics: [{
+      pointer: '/decisionModel/projectionMethod/capacity',
+      value: 'linear measured rate',
+    }],
+    unknowns: [],
+    conditions: [],
+  }, methodologyOnly).ok, false);
+});
+
+test('COO and CMO may cite their fresh portfolio and Grocery evidence', () => {
+  const roleEvidence = {
+    meta: {
+      collectedAt: asOf,
+      stateFreshness: 'FRESH',
+      portfolioInspection: 'OK',
+    },
+    portfolioInspections: [{ ok: true, fresh: true, name: 'Farm', level: 3 }],
+    groceryRetailEvidence: {
+      status: 'ACTIVE_ORDER',
+      activeOrder: { profitPerHour: 6374.1 },
+    },
+  };
+  assert.equal(validateCouncilVote('COO', {
+    verdict: 'APPROVE',
+    summary: 'Fresh portfolio capacity evidence supports proceeding.',
+    metrics: [{ pointer: '/portfolioInspections/0/level', value: 3 }],
+    unknowns: [],
+    conditions: [],
+  }, roleEvidence).ok, true);
+  assert.equal(validateCouncilVote('CMO', {
+    verdict: 'APPROVE',
+    summary: 'Fresh Grocery economics support proceeding.',
+    metrics: [{ pointer: '/groceryRetailEvidence/activeOrder/profitPerHour', value: 6374.1 }],
+    unknowns: [],
+    conditions: [],
+  }, roleEvidence).ok, true);
+});

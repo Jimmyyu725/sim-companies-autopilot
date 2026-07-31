@@ -245,6 +245,14 @@ test('build proof requires one exact new building in construction', () => {
     ...before,
     { id: 2, name: 'Quarry', busy: { category: 'construction' } },
   ], 'Quarry'), { ok: true, buildingId: 2 });
+  assert.deepEqual(verifyNewBuildingStarted(before, [
+    ...before,
+    { id: 3, name: 'Quarry', busy: {
+      category: 'construction', endsAt: '2026-07-27T12:00:00.000Z',
+    } },
+  ], 'Quarry'), {
+    ok: true, buildingId: 3, completesAt: '2026-07-27T12:00:00.000Z',
+  });
   assert.equal(verifyNewBuildingStarted(before, [...before, { id: 2, name: 'Quarry', busy: null }], 'Quarry').ok, false);
   assert.equal(verifyNewBuildingStarted(before, [
     ...before,

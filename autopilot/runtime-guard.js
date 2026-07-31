@@ -2,6 +2,7 @@
 
 const {
   findOwnerProspectorRecoveryCandidate,
+  prospectorCampaignTargetSummary,
 } = require('./owner-directive.js');
 
 const MUTATING_ACTIONS = new Set([
@@ -115,11 +116,16 @@ function activeOwnerAchievementSlotPolicy(directive) {
     Number.isSafeInteger(Number(configuredReservedSlots)) && Number(configuredReservedSlots) >= 0
     ? Number(configuredReservedSlots)
     : null;
+  const targetSummary = prospectorCampaignTargetSummary(directive);
   return {
     mode: ACHIEVEMENT_SLOT_POLICY_MODE,
     currentAchievement: String(policy.currentAchievement || 'Prospector').trim(),
     eligibleBuildings,
     reservedFreeSlots,
+    parallelizeWhenSafe: policy.parallelizeWhenSafe === true,
+    targetCount: targetSummary.targetCount,
+    targetCapacity: targetSummary.targetCapacity,
+    openTargetSlots: targetSummary.openTargetSlots,
   };
 }
 
@@ -669,10 +675,61 @@ function isOwnerAuthorizedProspectorRebuild(state, params = {}, directive, now =
     !(building?.activity?.status === 'known' && building?.activity?.busy === true);
 }
 
+function isOwnerAuthorizedAchievementBuild(state, params = {}, directive, now = Date.now()) {
+  const policy = activeOwnerAchievementSlotPolicy(directive);
+  const nowMs = Number(now);
+  const stateAtMs = Date.parse(state?.t);
+  const source = state?.sources?.buildings;
+  const sourceAtMs = Date.parse(source?.asOf);
+  const requestedBuilding = canonicalBuildingName(params?.building);
+  const freeSlots = Number(state?.freeSlots);
+  const fresh = Number.isFinite(nowMs) && Number.isFinite(stateAtMs) &&
+    Number.isFinite(sourceAtMs) && stateAtMs <= nowMs + 60e3 &&
+    sourceAtMs <= nowMs + 60e3 && nowMs - stateAtMs <= OWNER_DIRECTIVE_MAX_STATE_AGE_MS &&
+    nowMs - sourceAtMs <= OWNER_DIRECTIVE_MAX_STATE_AGE_MS;
+  return Boolean(policy?.parallelizeWhenSafe) && policy.openTargetSlots > 0 &&
+    policy.eligibleBuildings.includes(requestedBuilding) && source?.status === 'ok' && fresh &&
+    Number.isSafeInteger(freeSlots) && freeSlots > 0;
+}
+
+function ownerAchievementBuildRequirement(state, directive, now = Date.now()) {
+  const policy = activeOwnerAchievementSlotPolicy(directive);
+  if (!policy?.parallelizeWhenSafe || policy.openTargetSlots < 1) return null;
+  const building = policy.eligibleBuildings.includes('quarry')
+    ? 'Quarry'
+    : policy.eligibleBuildings[0];
+  if (!building || !isOwnerAuthorizedAchievementBuild(
+    state,
+    { building },
+    directive,
+    now,
+  )) return null;
+  const money = Number(state?.money);
+  const minCashAfter = Math.max(4000, Number(state?.config?.minCash) || 0);
+  return {
+    ok: false,
+    guard: true,
+    reason: `the owner-authorized Prospector pool still has ${policy.openTargetSlots} open target slot(s); enroll exactly one ${building} this wake before closing`,
+    requiredTool: 'build',
+    requiredAction: {
+      action: 'build',
+      building,
+      maxCost: Number.isFinite(money) ? Math.max(1, Math.min(100000, money - minCashAfter)) : 50000,
+      minCashAfter,
+      confirm: false,
+    },
+    targetCount: policy.targetCount,
+    targetCapacity: policy.targetCapacity,
+    freeSlots: Number(state.freeSlots),
+  };
+}
+
 function councilRequiredForStructuralAction(action, params, state, ownerDirective = null, now = Date.now()) {
   if (!STRUCTURAL_ACTIONS.has(action)) return false;
   if (action === 'rebuild' &&
       isOwnerAuthorizedProspectorRebuild(state, params, ownerDirective, now)) return false;
+  if (action === 'build' &&
+      isOwnerAuthorizedAchievementBuild(state, params, ownerDirective, now)) return false;
   return true;
 }
 
@@ -759,6 +816,7 @@ class WakeRuntimeGuard {
     this.strategyCouncilAttempted = false;
     this.strategyCouncilCompleted = false;
     this.strategyCouncilDecision = null;
+    this.ownerAchievementBuildCount = 0;
   }
 
   configureStrategyCouncil(requirement = {}) {
@@ -929,6 +987,22 @@ class WakeRuntimeGuard {
           requiredNextStep: 'keep this as a read-only comparison or choose an eligible achievement building; wait for authenticated campaign completion before committing another build',
         };
       }
+      if (achievementSlotPolicy.parallelizeWhenSafe &&
+          !isOwnerAuthorizedAchievementBuild(
+            options.state,
+            params,
+            options.ownerDirective,
+          )) {
+        return {
+          ok: false,
+          guard: true,
+          reason: 'eligible achievement build is not bound to a fresh free slot and an open Prospector target-pool position',
+          targetCount: achievementSlotPolicy.targetCount,
+          targetCapacity: achievementSlotPolicy.targetCapacity,
+          openTargetSlots: achievementSlotPolicy.openTargetSlots,
+          requiredTool: 'refresh_state',
+        };
+      }
     }
     if (STRATEGY_DIRECTION_ACTIONS.has(action) && options.councilRequired !== false) {
       if (params.confirm === true && !this.strategyCouncilCompleted) {
@@ -1053,6 +1127,10 @@ class WakeRuntimeGuard {
         );
         if (candidate) this.strategyCandidates.set(candidate.key, candidate);
       }
+    }
+    if (action === 'build' && params?.confirm === true &&
+        result?.ownerAchievementTargetRegistered === true) {
+      this.ownerAchievementBuildCount += 1;
     }
     if (!actionRequiresRefresh(action, params, result)) return false;
     if (STRATEGY_DIRECTION_ACTIONS.has(action) && params?.confirm === true &&
@@ -1181,8 +1259,10 @@ module.exports = {
   chatPreviewEvidenceIsExact,
   councilArgsMatchPreview,
   councilRequiredForStructuralAction,
+  isOwnerAuthorizedAchievementBuild,
   isApprovedRollingMillUpgrade,
   isOwnerAuthorizedProspectorRebuild,
+  ownerAchievementBuildRequirement,
   sameStructuralTarget,
   sameChatMutationTerms,
   structuralTerms,

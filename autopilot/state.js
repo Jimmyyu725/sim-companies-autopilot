@@ -47,6 +47,8 @@ const {
   validTickerRows,
 } = require(path.join(AUTOPILOT, 'state-feed-validation.js'));
 const {
+  PROSPECTOR_OVERVIEW_PATH,
+  recordOwnerProspectorOverview,
   synchronizeOwnerProspectorConstruction,
 } = require(path.join(AUTOPILOT, 'owner-directive.js'));
 const {
@@ -522,6 +524,25 @@ const PA_PENDING_FILE = path.join(AUTOPILOT, '.pa-pending.json');
   const temporaryStateFile = `${stateFile}.${process.pid}.tmp`;
   fs.writeFileSync(temporaryStateFile, `${JSON.stringify(state, null, 1)}\n`);
   fs.renameSync(temporaryStateFile, stateFile);
+  try {
+    const directive = JSON.parse(
+      fs.readFileSync(path.join(AUTOPILOT, 'OWNER-DIRECTIVE.json'), 'utf8'),
+    );
+    if (directive?.status === 'pending' &&
+        directive?.prospectorExperiment?.campaign?.status === 'active') {
+      const live = await cdp.evaluate(`const r=await api(${JSON.stringify(PROSPECTOR_OVERVIEW_PATH)}); return {status:r.status,json:r.json};`);
+      recordOwnerProspectorOverview(
+        path.join(AUTOPILOT, 'OWNER-DIRECTIVE.json'),
+        {
+          path: PROSPECTOR_OVERVIEW_PATH,
+          status: live?.status ?? null,
+          fetchedAt: capturedAt,
+          data: live?.json ?? null,
+        },
+        Date.parse(capturedAt),
+      );
+    }
+  } catch (_) {}
   synchronizeOwnerProspectorConstruction(
     path.join(AUTOPILOT, 'OWNER-DIRECTIVE.json'),
     state,

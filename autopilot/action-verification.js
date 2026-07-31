@@ -440,7 +440,14 @@ function verifyNewBuildingStarted(beforeRows, afterRows, buildingName) {
   if (!Number.isSafeInteger(buildingId) || buildingId <= 0) {
     return { ok: false, reason: `new ${buildingName} has no valid authoritative building ID` };
   }
-  return { ok: true, buildingId };
+  const completesAtMs = Date.parse(created[0]?.busy?.endsAt);
+  return {
+    ok: true,
+    buildingId,
+    ...(Number.isFinite(completesAtMs) ? {
+      completesAt: new Date(completesAtMs).toISOString(),
+    } : {}),
+  };
 }
 
 function verifyBuildingUpgradeStarted(beforeRows, afterRows, buildingId) {

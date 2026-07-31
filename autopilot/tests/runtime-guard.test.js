@@ -4,6 +4,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const {
+  activeOwnerAchievementSlotPolicy,
   WakeRuntimeGuard,
   actionChangedState,
   actionRequiresRefresh,
@@ -803,5 +804,54 @@ assert.equal(ownerProspectorGuard.beforeAction(
 assert.match(ownerProspectorGuard.beforeAction(
   'rebuild', { buildingId: 55258164, confirm: true }, { councilRequired: false }).reason,
   /requires a successful same-wake preview/);
+
+const achievementSlotDirective = {
+  schemaVersion: 1,
+  status: 'pending',
+  priority: 'owner',
+  action: 'complete-owner-subtasks',
+  prospectorExperiment: {
+    campaign: {
+      mode: 'repeat-until-achievement-complete',
+      status: 'active',
+      slotPolicy: {
+        status: 'active',
+        mode: 'reserve-all-free-standard-slots',
+        purpose: 'achievement-campaign',
+        currentAchievement: 'Prospector',
+        eligibleBuildings: ['Quarry', 'Mine', 'Oil rig', 'Farm'],
+        reservedFreeSlots: 2,
+      },
+    },
+  },
+};
+assert.deepEqual(activeOwnerAchievementSlotPolicy(achievementSlotDirective), {
+  mode: 'reserve-all-free-standard-slots',
+  currentAchievement: 'Prospector',
+  eligibleBuildings: ['quarry', 'mine', 'oil rig'],
+  reservedFreeSlots: 2,
+});
+const reservedSlots = new WakeRuntimeGuard();
+assert.equal(reservedSlots.beforeAction('build', {
+  building: 'Farm', maxCost: 20000, minCashAfter: 5000, confirm: false,
+}, { councilRequired: false, ownerDirective: achievementSlotDirective }), null);
+const blockedRoutineBuild = reservedSlots.beforeAction('build', {
+  building: 'Farm', maxCost: 20000, minCashAfter: 5000, confirm: true,
+}, { councilRequired: false, ownerDirective: achievementSlotDirective });
+assert.match(blockedRoutineBuild.reason, /reserved for the active Prospector achievement campaign/);
+assert.deepEqual(blockedRoutineBuild.allowedBuildingTypes, ['quarry', 'mine', 'oil rig']);
+const eligibleAchievementBuild = new WakeRuntimeGuard();
+const quarryPreview = {
+  building: 'Quarry', maxCost: 30000, minCashAfter: 5000, confirm: false,
+};
+eligibleAchievementBuild.afterAction('build', quarryPreview, {
+  ok: true, dry: true, preview: true,
+});
+assert.equal(eligibleAchievementBuild.beforeAction('build', {
+  ...quarryPreview, confirm: true,
+}, { councilRequired: false, ownerDirective: achievementSlotDirective }), null);
+const completedSlotDirective = JSON.parse(JSON.stringify(achievementSlotDirective));
+completedSlotDirective.prospectorExperiment.campaign.status = 'completed';
+assert.equal(activeOwnerAchievementSlotPolicy(completedSlotDirective), null);
 
 console.log('runtime-guard tests passed');

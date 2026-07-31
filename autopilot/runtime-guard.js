@@ -85,7 +85,43 @@ const MAX_ALARM_DELAY_MS = 4 * 60 * 60 * 1000;
 const OWNER_DIRECTIVE_MAX_STATE_AGE_MS = 5 * 60 * 1000;
 const PROSPECTOR_OVERVIEW_PATH = '/api/v2/companies/me/achievements/';
 const PROSPECTOR_CAMPAIGN_MODE = 'repeat-until-achievement-complete';
+const ACHIEVEMENT_SLOT_POLICY_MODE = 'reserve-all-free-standard-slots';
+const PROSPECTOR_BUILD_TARGETS = new Set(['quarry', 'mine', 'oil rig']);
 const OWNER_SUBTASK_ACTION = 'complete-owner-subtasks';
+
+function canonicalBuildingName(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function activeOwnerAchievementSlotPolicy(directive) {
+  const experiment = directive?.prospectorExperiment;
+  const campaign = experiment?.campaign;
+  const policy = campaign?.slotPolicy;
+  if (directive?.schemaVersion !== 1 || directive?.status !== 'pending' ||
+      directive?.priority !== 'owner' || directive?.action !== OWNER_SUBTASK_ACTION ||
+      campaign?.mode !== PROSPECTOR_CAMPAIGN_MODE || campaign?.status !== 'active' ||
+      policy?.status !== 'active' || policy?.mode !== ACHIEVEMENT_SLOT_POLICY_MODE ||
+      policy?.purpose !== 'achievement-campaign') return null;
+
+  const configuredTargets = Array.isArray(policy.eligibleBuildings)
+    ? policy.eligibleBuildings.map(canonicalBuildingName)
+    : [];
+  const eligibleBuildings = [...new Set(configuredTargets.filter(
+    target => PROSPECTOR_BUILD_TARGETS.has(target),
+  ))];
+  const configuredReservedSlots = policy.reservedFreeSlots;
+  const reservedFreeSlots = configuredReservedSlots != null && configuredReservedSlots !== '' &&
+    typeof configuredReservedSlots !== 'boolean' &&
+    Number.isSafeInteger(Number(configuredReservedSlots)) && Number(configuredReservedSlots) >= 0
+    ? Number(configuredReservedSlots)
+    : null;
+  return {
+    mode: ACHIEVEMENT_SLOT_POLICY_MODE,
+    currentAchievement: String(policy.currentAchievement || 'Prospector').trim(),
+    eligibleBuildings,
+    reservedFreeSlots,
+  };
+}
 
 function buildWakeAlarm(args = {}, nowMs = Date.now(), retryKinds = []) {
   const now = Number(nowMs);
@@ -877,6 +913,23 @@ class WakeRuntimeGuard {
         requiredTool: 'refresh_state',
       };
     }
+    const achievementSlotPolicy = activeOwnerAchievementSlotPolicy(options.ownerDirective);
+    if (action === 'build' && params.confirm === true && achievementSlotPolicy) {
+      const requestedBuilding = canonicalBuildingName(params.building);
+      if (!achievementSlotPolicy.eligibleBuildings.includes(requestedBuilding)) {
+        return {
+          ok: false,
+          guard: true,
+          reason: achievementSlotPolicy.eligibleBuildings.length
+            ? `all free standard building slots are reserved for the active ${achievementSlotPolicy.currentAchievement} achievement campaign`
+            : 'the active achievement slot policy has no valid eligible building types; no build can be confirmed safely',
+          requestedBuilding,
+          allowedBuildingTypes: achievementSlotPolicy.eligibleBuildings,
+          reservedFreeSlots: achievementSlotPolicy.reservedFreeSlots,
+          requiredNextStep: 'keep this as a read-only comparison or choose an eligible achievement building; wait for authenticated campaign completion before committing another build',
+        };
+      }
+    }
     if (STRATEGY_DIRECTION_ACTIONS.has(action) && options.councilRequired !== false) {
       if (params.confirm === true && !this.strategyCouncilCompleted) {
         return {
@@ -1111,6 +1164,7 @@ class WakeRuntimeGuard {
 }
 
 module.exports = {
+  activeOwnerAchievementSlotPolicy,
   CHAT_PREVIEW_ACTIONS,
   MUTATING_ACTIONS,
   STRUCTURAL_ACTIONS,

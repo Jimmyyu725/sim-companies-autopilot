@@ -6,13 +6,19 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const {
+  aggregateStrategyDecision,
   buildCouncilRequest,
   failClosedRoleVote,
   reviewCouncilRole,
   runCouncil,
+  runStrategyCouncil,
+  validateStrategyCouncilArgs,
   writeCouncilAudit,
 } = require('../council.js');
-const { validateCouncilAuthorization } = require('../runtime-guard.js');
+const {
+  validateCouncilAuthorization,
+  validateStrategyCouncilCompletion,
+} = require('../runtime-guard.js');
 
 const AS_OF = '2026-07-27T10:00:00.000Z';
 const CFO_EVIDENCE = {
@@ -227,6 +233,7 @@ test('provider-reported timeouts retry once without a client-side request deadli
     errorKind: 'TIMEOUT',
     repairAttempted: false,
     validationError: null,
+    reviewType: 'authorization',
   });
 });
 
@@ -286,4 +293,165 @@ test('API and response JSON errors fail closed without an unbounded retry', asyn
     assert.equal(vote.status, 'API_ERROR');
     assert.equal(vote.verdict, 'UNKNOWN');
   }
+});
+
+const STRATEGY_OPTIONS = [
+  {
+    id: 'hold',
+    label: 'Keep the current portfolio and preserve optionality.',
+    action: 'hold',
+    buildingId: null,
+    target: null,
+  },
+  {
+    id: 'upgrade_mill',
+    label: 'Upgrade the measured Mill bottleneck.',
+    action: 'upgrade',
+    buildingId: 71,
+    target: 'mill',
+  },
+  {
+    id: 'build_farm',
+    label: 'Build another Farm to expand upstream capacity.',
+    action: 'build',
+    buildingId: null,
+    target: 'farm',
+  },
+];
+
+test('strategy council arguments require a canonical hold option and bound targets', () => {
+  const valid = validateStrategyCouncilArgs({
+    question: 'Which capital direction best advances sustainable profit?',
+    context: '',
+    focusBuildingId: 71,
+    marketKinds: [66, 118],
+    options: STRATEGY_OPTIONS,
+  });
+  assert.equal(valid.ok, true);
+  assert.equal(valid.value.options[1].buildingId, 71);
+
+  const missingHold = validateStrategyCouncilArgs({
+    question: 'Choose a direction.',
+    context: '',
+    focusBuildingId: null,
+    marketKinds: [66],
+    options: STRATEGY_OPTIONS.slice(1),
+  });
+  assert.equal(missingHold.ok, false);
+  assert.match(missingHold.reason, /hold option/);
+});
+
+test('strategy role chooses independently from the supplied options', async () => {
+  let requestedBody;
+  const vote = await reviewCouncilRole({
+    ...ROLE_ARGS,
+    args: {
+      reviewType: 'strategy',
+      question: 'Which direction best advances sustainable profit?',
+      context: '',
+      options: STRATEGY_OPTIONS,
+    },
+  }, dependencies({
+    provider: 'deepseek',
+    fetch: async (_url, request) => {
+      requestedBody = JSON.parse(request.body);
+      return responseFor({
+        verdict: 'RECOMMEND',
+        optionId: 'upgrade_mill',
+        summary: 'Verified financing evidence supports this direction.',
+        metrics: [{ pointer: '/company/cash', value: 41032 }],
+        unknowns: [],
+        conditions: [],
+      });
+    },
+  }));
+  assert.equal(vote.status, 'VALIDATED');
+  assert.equal(vote.verdict, 'RECOMMEND');
+  assert.equal(vote.optionId, 'upgrade_mill');
+  assert.match(requestedBody.messages[0].content, /CEO has not selected an option/);
+  assert.doesNotMatch(requestedBody.messages[0].content, /owner-approved strategy/);
+  assert.match(requestedBody.messages[1].content, /upgrade_mill/);
+});
+
+test('strategy council majority decides and a valid three-way tie holds', () => {
+  const vote = (role, optionId) => ({
+    role,
+    status: 'VALIDATED',
+    verdict: 'RECOMMEND',
+    optionId,
+  });
+  const majority = aggregateStrategyDecision([
+    vote('CFO', 'upgrade_mill'),
+    vote('COO', 'upgrade_mill'),
+    vote('CMO', 'hold'),
+  ], STRATEGY_OPTIONS);
+  assert.equal(majority.status, 'DECIDED');
+  assert.equal(majority.optionId, 'upgrade_mill');
+  assert.equal(majority.method, 'majority');
+
+  const tie = aggregateStrategyDecision([
+    vote('CFO', 'upgrade_mill'),
+    vote('COO', 'build_farm'),
+    vote('CMO', 'hold'),
+  ], STRATEGY_OPTIONS);
+  assert.equal(tie.status, 'DECIDED');
+  assert.equal(tie.optionId, 'hold');
+  assert.equal(tie.method, 'hold_tiebreak');
+});
+
+test('strategy council stays incomplete when any role is unknown', () => {
+  const decision = aggregateStrategyDecision([
+    { role: 'CFO', status: 'VALIDATED', verdict: 'RECOMMEND', optionId: 'upgrade_mill' },
+    { role: 'COO', status: 'VALIDATED', verdict: 'RECOMMEND', optionId: 'upgrade_mill' },
+    { role: 'CMO', status: 'API_ERROR', verdict: 'UNKNOWN', optionId: null },
+  ], STRATEGY_OPTIONS);
+  assert.equal(decision.status, 'INCOMPLETE');
+  assert.equal(decision.optionId, null);
+});
+
+test('strategy council collects once, reviews all roles, and returns a validated decision', async () => {
+  let evidenceCalls = 0;
+  const result = await runStrategyCouncil({
+    args: {
+      question: 'Which capital direction best advances sustainable profit?',
+      context: 'Compare the measured operating alternatives.',
+      focusBuildingId: null,
+      marketKinds: [66, 118],
+      options: STRATEGY_OPTIONS,
+    },
+    apiKey: 'test-only',
+    brainDir: '/not-used',
+    simDir: '/not-used',
+  }, {
+    collectEvidence: args => {
+      evidenceCalls += 1;
+      assert.equal(args.buildingId, null);
+      return {
+        ok: true,
+        meta: {
+          stateFreshness: 'FRESH',
+          financePage: 200,
+          buildingInspection: 'NOT_REQUESTED',
+        },
+        roles: {},
+      };
+    },
+    reviewRole: async ({ role, args }) => {
+      assert.equal(args.reviewType, 'strategy');
+      return {
+        role,
+        status: 'VALIDATED',
+        verdict: 'RECOMMEND',
+        optionId: role === 'CMO' ? 'hold' : 'upgrade_mill',
+        summary: 'Verified evidence supports this direction.',
+        metrics: [],
+        unknowns: [],
+        conditions: [],
+      };
+    },
+  });
+  assert.equal(evidenceCalls, 1);
+  assert.equal(result.ok, true);
+  assert.equal(result.decision.optionId, 'upgrade_mill');
+  assert.equal(validateStrategyCouncilCompletion(result).ok, true);
 });

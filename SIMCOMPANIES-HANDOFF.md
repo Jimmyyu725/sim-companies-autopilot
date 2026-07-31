@@ -69,7 +69,7 @@ artifacts. They are not part of either the active autopilot or the archived thre
 | `autopilot/deepseek-execution-prompt.js` | Small DeepSeek-specific protocol adapter. It adds no business authority and makes one-tool, refresh, evidence, retry, and close sequencing explicit. |
 | `autopilot/action-contracts.js` | Strict per-action schemas plus matching runtime validation. Do not rely on a hard-coded schema count; chat and other guarded capabilities evolve independently. |
 | `autopilot/failure-budget.js` | Per-target two-failure circuit breaker for one wake. |
-| `autopilot/runtime-guard.js` | Enforces refresh between mutations and blocks finish until refresh, journal, CURRENT checkpoint, and alarm requirements pass. If the model reaches its configured round boundary after every enforced close gate has already passed, the engines record a deterministic successful finish instead of overwriting the valid alarm with a five-minute failure retry; an incomplete close still fails safely. |
+| `autopilot/runtime-guard.js` | Enforces refresh between mutations, requires a strategy Council direction before ordinary structural previews, and blocks finish until due strategy Council, refresh, journal, CURRENT checkpoint, and alarm requirements pass. If the model reaches its configured round boundary after every enforced close gate has already passed, the engines record a deterministic successful finish instead of overwriting the valid alarm with a five-minute failure retry; an incomplete close still fails safely. |
 | `autopilot/building-utilization-policy.js` | Journal hard gate: fresh state may not contain an idle standard production/sales building, an unresolved standard sales building, or a completed-but-uncollected job; seasonal/free-and-locked buildings are excluded. Waiting for an upgrade, financing, or evidence is not an idle exception. |
 | `autopilot/building-page-activity.js` | Shared exact-page classifier for construction, active retail sale, enabled production/retail idle forms, and UNKNOWN generic busy text. Evidence is bound to the exact building ID, level, route, and freshness window. |
 | `autopilot/production-policy.js` | Duration limits, Mill micro-batch protection, deadline-bound `finishBefore` sizing, and a pre-browser guard that prevents non-Coffee bridges from consuming verified Power/Water Coffee reserves. |
@@ -92,8 +92,9 @@ artifacts. They are not part of either the active autopilot or the archived thre
 | `autopilot/exchange-sale-safety.js` | Final execution-layer guard for fresh state/plan, available stock, Transport, exact five-minute inspection match, and positive game-form profit. |
 | `autopilot/mill-upgrade-policy.js` | Pure deterministic Pareto comparison of evidence-backed Mill upgrade candidates; ranks merit without using current cash. |
 | `autopilot/council-evidence.js` | Shared read-only collector that gives CFO/COO/CMO separate live finance, operations/P1, and retail/order-book evidence packs before deliberation. |
-| `autopilot/council.js` | Runs the three council roles independently against automatic evidence. It follows the active main-brain provider: DeepSeek V4 Pro Max during the trial and OpenAI Luna High after rollback. Council requests have no client-side elapsed-time limit; API/JSON failures remain `UNKNOWN`, one provider-reported timeout or invalid vote may receive one retry, and a non-sensitive per-role audit is written to `council-audit.jsonl`. |
-| `autopilot/council-verdict.js` | Validates structured council citations against exact evidence values and rejects unsupported claims. |
+| `autopilot/council.js` | Runs CFO/COO/CMO independently in two modes: strategy selection among explicit options and exact-term authorization after preview. A two-vote strategy majority wins; a valid three-way tie selects `hold`. It follows the active main-brain provider: DeepSeek V4 Pro Max during the trial and OpenAI Luna High after rollback. Council requests have no client-side elapsed-time limit; API/JSON failures remain `UNKNOWN`, one provider-reported timeout or invalid vote may receive one retry, and a non-sensitive per-role audit is written to `council-audit.jsonl`. |
+| `autopilot/council-governance.js` | Requires a strategy decision on first deployment, every twenty successful wakes after the prior decision, after twenty-four hours, or after a material level/slot/debt/building/modifier/strategic-question change. Writes ignored idempotent `strategy-council-history.jsonl`. |
+| `autopilot/council-verdict.js` | Validates exact authorization votes and strategy recommendations against exact evidence values, supplied option IDs, authoritative role sources, and freshness. |
 | `autopilot/api-result.js` | Adds source/status/time plus explicit pagination and truncation metadata to generic API reads. |
 | `autopilot/tool-output.js` | Bounds large tool results by whole fields and marks every omission explicitly; no raw JSON clipping. |
 | `autopilot/retail-optimizer.js` | Generates the retail price grid, parses printed UI economics, and selects maximum positive profit/hour. |
@@ -404,9 +405,16 @@ function. Runtime validation repeats the schema checks before CDP starts.
   from the authenticated row rather than guessed. The campaign stops at `stars == starsMax`; any
   other REBUILD still requires council. While a campaign cycle is eligible, production on that exact
   target is refused so repeated council failures cannot starve the owner task.
-- Build, scrap, bonds, upgrade, robots, contracts, or a spend over `$10,000` require:
-  fresh state → live evidence → `confirm:false` preview → council → unchanged terms → confirmation
-  → fresh-state verification.
+- Build, scrap, non-campaign REBUILD, bonds, upgrade, or robots require:
+  fresh state → explicit alternatives including `hold` → strategy Council direction →
+  `confirm:false` preview → final exact-term council → unchanged terms → confirmation →
+  fresh-state verification. Contract mutations retain preview plus exact-term council but need a
+  strategy vote only when they change portfolio direction.
+- A strategy checkpoint is mandatory on first deployment, every twenty successful wakes after the
+  prior decision, after twenty-four hours, or after a material strategic fingerprint change. The
+  runtime blocks `journal` and `finish` until all three roles return validated recommendations and
+  deterministic aggregation records the result. A completed decision cannot be rerolled in the
+  same wake.
 - Council requests isolate CFO/COO/CMO failures and have no client-side or whole-wake elapsed-time
   limit. The full-wake lock prevents overlap while all roles finish. Provider-reported
   timeout/API/JSON failures stay UNKNOWN; one provider-reported timeout or invalid vote may receive
@@ -508,7 +516,8 @@ for f in \
   autopilot/deepseek-execution-prompt.js autopilot/check-alarm.js \
   autopilot/journal-entry.js \
   autopilot/council-evidence.js autopilot/council-evidence-helpers.js \
-  autopilot/council.js autopilot/failure-budget.js autopilot/gate.js autopilot/inspect-building.js \
+  autopilot/council.js autopilot/council-governance.js \
+  autopilot/council-verdict.js autopilot/failure-budget.js autopilot/gate.js autopilot/inspect-building.js \
   autopilot/inspect-exchange-sale.js autopilot/inspection-helpers.js \
   autopilot/inspection-rate-cache.js autopilot/coffee-reserve-policy.js \
   autopilot/exchange-sale-helpers.js autopilot/exchange-sale-safety.js \

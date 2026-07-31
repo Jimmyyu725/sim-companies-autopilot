@@ -28,8 +28,12 @@ This is the canonical active runtime for the Sim Companies operator.
 - `action-contracts.js` — strict typed schemas and runtime validation for each action.
 - `failure-budget.js` — per-target two-failure circuit breaker for one wake.
 - `runtime-guard.js` — refresh/action sequencing and finish requirements.
-  Any refreshed evidence invalidates earlier alarm/journal/master authorization; incomplete model
-  loops schedule a five-minute safety retry instead of silently exiting.
+  It also requires a strategy Council direction before ordinary structural previews and blocks a
+  due strategy checkpoint from closing without a validated decision. Any refreshed evidence
+  invalidates earlier alarm/journal/master authorization; incomplete model loops schedule a
+  five-minute safety retry instead of silently exiting.
+- `council-governance.js` — deterministic twenty-wake/daily/material-change strategy checkpoint,
+  compact portfolio fingerprint, and private idempotent decision history.
 - `api-result.js`, `tool-output.js`, `current-memory.js`, and `council-verdict.js` — source-aware
   bounded tool output, validated current memory, and evidence-checked advisor verdicts.
 - `act.js` — guarded action dispatcher.
@@ -50,7 +54,8 @@ This is the canonical active runtime for the Sim Companies operator.
 
 Runtime state and logs also live here: `CURRENT.json`, `.state.json`, `.inspection-rates.json`,
 `.exchange-sale-inspections.json` (isolated by resource kind), `next-wake.json`, `.last-wake.json`, `brain.log`, `gate.log`,
-per-call `usage.jsonl`, per-wake `wake-usage.jsonl`, `.brain.lock`, and ignored
+per-call `usage.jsonl`, per-wake `wake-usage.jsonl`, `strategy-council-history.jsonl`,
+`.brain.lock`, and ignored
 `metrics/company-value-{current.json,history.jsonl}`.
 
 Each `diaries/diary-*.md` ends with an automatically generated token and estimated API-cost summary. The
@@ -64,8 +69,10 @@ The active runner uses DeepSeek `max` or retained OpenAI `high`, both with low v
 - `.tick.lock` at the Sim root serializes every browser user of Chrome `127.0.0.1:9222`.
 - `.brain.lock` prevents overlapping full wakes.
 - Do not invoke `act.js` manually without the tick lock.
-- A preview is not confirmation. Dangerous actions require fresh state, a dry preview, council,
-  unchanged terms, explicit confirmation, and post-action verification.
+- A preview is not confirmation. Ordinary structural actions require fresh state, a
+  `strategy_council` direction, a dry preview, final `council` authorization, unchanged terms,
+  explicit confirmation, and post-action verification. The exact owner-authorized Prospector
+  REBUILD cycle remains the only direction/authorization exception.
 - Exchange confirmation additionally requires a matching five-minute read-only inspection, one
   sufficient quality lot, reserve/Transport-safe quantity, and positive game-form estimated profit.
   The authorization holds the maximum projected reserve through its expiry and is consumed before

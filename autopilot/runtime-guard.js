@@ -42,6 +42,14 @@ const STRUCTURAL_ACTIONS = new Set([
   'robots',
   'contract_send',
 ]);
+const STRATEGY_DIRECTION_ACTIONS = new Set([
+  'build',
+  'upgrade',
+  'scrap',
+  'rebuild',
+  'bonds',
+  'robots',
+]);
 const CHAT_PREVIEW_ACTIONS = new Set([
   'chat_room_post',
   'chat_room_reply',
@@ -173,6 +181,18 @@ function structuralTermsAreNoRiskier(action, preview, confirmation) {
       confirmation.minCashAfter >= preview.minCashAfter;
   }
   return JSON.stringify(preview) === JSON.stringify(confirmation);
+}
+
+function strategyDecisionMatchesAction(decision, action, params = {}) {
+  if (!decision || decision.consumed === true || decision.action !== action) return false;
+  if (action === 'build') {
+    return String(decision.target || '').trim().toLowerCase() ===
+      String(params.building || '').trim().toLowerCase();
+  }
+  if (['upgrade', 'scrap', 'rebuild', 'robots'].includes(action)) {
+    return Number(decision.buildingId) === Number(params.buildingId);
+  }
+  return action === 'bonds';
 }
 
 function chatMutationTerms(action, params = {}) {
@@ -342,6 +362,55 @@ function validateCouncilAuthorization(result, requirements = {}) {
   return { ok: true };
 }
 
+function validateStrategyCouncilCompletion(result, requirements = {}) {
+  const evidence = result?.evidence;
+  if (evidence?.stateFreshness !== 'FRESH') {
+    return { ok: false, reason: 'strategy council evidence is not fresh' };
+  }
+  if (Number(evidence?.financePage) !== 200) {
+    return { ok: false, reason: 'strategy council finance evidence is not verified' };
+  }
+  if (requirements.buildingInspectionRequired === true &&
+      evidence?.buildingInspection !== 'OK') {
+    return { ok: false, reason: 'strategy council did not inspect the focus building' };
+  }
+  if (evidence?.buildingInspection === 'UNKNOWN') {
+    return { ok: false, reason: 'strategy council building evidence is unknown' };
+  }
+  const votes = Array.isArray(result?.council) ? result.council : [];
+  const roles = new Set(votes.map(vote => vote?.role));
+  if (votes.length !== 3 || !['CFO', 'COO', 'CMO'].every(role => roles.has(role))) {
+    return { ok: false, reason: 'strategy council did not return all three roles' };
+  }
+  const invalid = votes.find(vote => vote?.status !== 'VALIDATED' ||
+    vote?.verdict !== 'RECOMMEND' || !String(vote?.optionId || '').trim());
+  if (invalid) {
+    return {
+      ok: false,
+      reason: `${invalid?.role || 'council'} did not provide a validated recommendation`,
+    };
+  }
+  const decision = result?.decision;
+  const optionId = String(decision?.optionId || '').trim();
+  if (decision?.status !== 'DECIDED' || !optionId) {
+    return { ok: false, reason: 'strategy council did not reach a decision' };
+  }
+  const counts = new Map();
+  for (const vote of votes) counts.set(vote.optionId, (counts.get(vote.optionId) || 0) + 1);
+  if (decision.method === 'majority') {
+    if ((counts.get(optionId) || 0) < 2) {
+      return { ok: false, reason: 'strategy council majority decision does not match its votes' };
+    }
+  } else if (decision.method === 'hold_tiebreak') {
+    if (optionId !== 'hold' || counts.size !== 3) {
+      return { ok: false, reason: 'strategy council hold tiebreak is not a three-way tie' };
+    }
+  } else {
+    return { ok: false, reason: 'strategy council decision method is invalid' };
+  }
+  return { ok: true, optionId, method: decision.method };
+}
+
 function councilArgsMatchPreview(preview, args = {}) {
   if (!preview) return { ok: false, reason: 'no structural preview is active' };
   const action = preview.action;
@@ -448,7 +517,6 @@ function isOwnerAuthorizedProspectorRebuild(state, params = {}, directive, now =
 
 function councilRequiredForStructuralAction(action, params, state, ownerDirective = null, now = Date.now()) {
   if (!STRUCTURAL_ACTIONS.has(action)) return false;
-  if (action === 'upgrade' && isApprovedRollingMillUpgrade(state, params)) return false;
   if (action === 'rebuild' &&
       isOwnerAuthorizedProspectorRebuild(state, params, ownerDirective, now)) return false;
   return true;
@@ -528,6 +596,93 @@ class WakeRuntimeGuard {
     this.masterVersion = -1;
     this.structuralPreview = null;
     this.chatPreview = null;
+    this.strategyCouncilRequirement = {
+      required: false,
+      reasons: [],
+      status: 'not_required',
+    };
+    this.strategyCouncilAttempted = false;
+    this.strategyCouncilCompleted = false;
+    this.strategyCouncilDecision = null;
+  }
+
+  configureStrategyCouncil(requirement = {}) {
+    this.strategyCouncilRequirement = {
+      required: requirement?.required === true,
+      reasons: Array.isArray(requirement?.reasons) ? [...requirement.reasons] : [],
+      status: requirement?.required === true ? 'required' : 'not_required',
+      currentWakeOrdinal: Number(requirement?.currentWakeOrdinal) || null,
+      wakeInterval: Number(requirement?.wakeInterval) || null,
+      materialChanges: Array.isArray(requirement?.materialChanges)
+        ? [...requirement.materialChanges]
+        : [],
+    };
+    this.strategyCouncilAttempted = false;
+    this.strategyCouncilCompleted = false;
+    this.strategyCouncilDecision = null;
+    return this.strategyCouncilStatus();
+  }
+
+  noteStrategyCouncil(result, args = {}) {
+    this.strategyCouncilAttempted = true;
+    const completion = validateStrategyCouncilCompletion(result, {
+      buildingInspectionRequired: args?.focusBuildingId != null,
+    });
+    this.strategyCouncilCompleted = completion.ok;
+    const selected = completion.ok
+      ? (Array.isArray(args?.options)
+          ? args.options.find(option => option?.id === completion.optionId)
+          : null)
+      : null;
+    if (completion.ok && !selected) {
+      this.strategyCouncilCompleted = false;
+      this.strategyCouncilDecision = null;
+      return { ok: false, reason: 'strategy council decision is not in the submitted option set' };
+    }
+    this.strategyCouncilDecision = completion.ok ? {
+      optionId: completion.optionId,
+      method: completion.method,
+      action: String(selected.action || '').trim().toLowerCase(),
+      buildingId: selected.buildingId == null ? null : Number(selected.buildingId),
+      target: selected.target == null ? null : String(selected.target).trim().toLowerCase(),
+      consumed: false,
+    } : null;
+    return completion;
+  }
+
+  beforeStrategyCouncil() {
+    if (this.strategyCouncilCompleted) {
+      return {
+        ok: false,
+        guard: true,
+        reason: 'this wake already has a validated strategy council decision; it cannot be rerolled',
+        strategyGovernance: this.strategyCouncilStatus(),
+      };
+    }
+    return null;
+  }
+
+  strategyCouncilStatus() {
+    if (!this.strategyCouncilRequirement.required && !this.strategyCouncilCompleted) {
+      return {
+        required: false,
+        status: 'not_required',
+        reasons: this.strategyCouncilRequirement.reasons,
+      };
+    }
+    return {
+      required: this.strategyCouncilRequirement.required,
+      status: this.strategyCouncilCompleted
+        ? (this.strategyCouncilRequirement.required
+            ? 'required_and_completed'
+            : 'completed_proactively')
+        : (this.strategyCouncilAttempted ? 'required_but_failed' : 'required_but_skipped'),
+      reasons: this.strategyCouncilRequirement.reasons,
+      currentWakeOrdinal: this.strategyCouncilRequirement.currentWakeOrdinal,
+      wakeInterval: this.strategyCouncilRequirement.wakeInterval,
+      materialChanges: this.strategyCouncilRequirement.materialChanges,
+      decision: this.strategyCouncilDecision,
+    };
   }
 
   beforeAction(action, params = {}, options = {}) {
@@ -538,6 +693,26 @@ class WakeRuntimeGuard {
         reason: `live state changed after ${this.lastMutation}; call refresh_state before another state-changing action`,
         requiredTool: 'refresh_state',
       };
+    }
+    if (STRATEGY_DIRECTION_ACTIONS.has(action) && params.confirm === false &&
+        options.councilRequired !== false) {
+      if (!this.strategyCouncilCompleted) {
+        return {
+          ok: false,
+          guard: true,
+          reason: `${action} planning requires strategy_council to choose the direction before preview`,
+          requiredTool: 'strategy_council',
+          strategyGovernance: this.strategyCouncilStatus(),
+        };
+      }
+      if (!strategyDecisionMatchesAction(this.strategyCouncilDecision, action, params)) {
+        return {
+          ok: false,
+          guard: true,
+          reason: `${action} target is not the direction selected by strategy_council`,
+          selectedDirection: this.strategyCouncilDecision,
+        };
+      }
     }
     if (CHAT_PREVIEW_ACTIONS.has(action) && params.confirm === true) {
       const confirmation = chatMutationTerms(action, params);
@@ -620,6 +795,10 @@ class WakeRuntimeGuard {
       };
     }
     if (!actionRequiresRefresh(action, params, result)) return false;
+    if (STRATEGY_DIRECTION_ACTIONS.has(action) && params?.confirm === true &&
+        this.strategyCouncilDecision) {
+      this.strategyCouncilDecision.consumed = true;
+    }
     this.mutationVersion += 1;
     this.dirty = true;
     this.lastMutation = action;
@@ -663,6 +842,18 @@ class WakeRuntimeGuard {
     if (this.alarmVersion !== this.mutationVersion) {
       return { ok: false, guard: true, reason: 'set_alarm must succeed after the latest mutation before journal', requiredTool: 'set_alarm' };
     }
+    if (this.strategyCouncilRequirement.required && !this.strategyCouncilCompleted) {
+      const governance = this.strategyCouncilStatus();
+      return {
+        ok: false,
+        guard: true,
+        reason: governance.status === 'required_but_failed'
+          ? 'the required strategy council attempt did not produce a validated decision'
+          : 'this wake requires a strategy council decision before journal',
+        requiredTool: 'strategy_council',
+        strategyGovernance: governance,
+      };
+    }
     return null;
   }
 
@@ -693,6 +884,9 @@ class WakeRuntimeGuard {
     if (this.alarmVersion !== this.mutationVersion) missing.push('set_alarm after the latest mutation');
     if (this.journalVersion !== this.mutationVersion) missing.push('journal after the latest mutation');
     if (this.masterVersion !== this.mutationVersion) missing.push('master after the latest mutation');
+    if (this.strategyCouncilRequirement.required && !this.strategyCouncilCompleted) {
+      missing.push('strategy_council decision');
+    }
     if (!missing.length) return { ok: true };
     return {
       ok: false,
@@ -710,6 +904,7 @@ module.exports = {
   CHAT_PREVIEW_ACTIONS,
   MUTATING_ACTIONS,
   STRUCTURAL_ACTIONS,
+  STRATEGY_DIRECTION_ACTIONS,
   WakeRuntimeGuard,
   actionChangedState,
   actionRequiresRefresh,
@@ -727,6 +922,8 @@ module.exports = {
   sameChatMutationTerms,
   structuralTerms,
   structuralTermsAreNoRiskier,
+  strategyDecisionMatchesAction,
   validateCouncilAuthorization,
+  validateStrategyCouncilCompletion,
   validateFinishSummary,
 };

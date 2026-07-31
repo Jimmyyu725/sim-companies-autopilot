@@ -139,6 +139,63 @@ function validateCouncilVote(role, vote, evidence) {
   }
 }
 
+function invalidStrategyVote(role, error) {
+  return {
+    ok: false,
+    value: {
+      role,
+      status: 'INVALID_EVIDENCE',
+      verdict: 'UNKNOWN',
+      optionId: null,
+      summary: 'Strategy council output failed deterministic evidence validation.',
+      metrics: [],
+      unknowns: [String(error?.message || error)],
+      conditions: [],
+    },
+  };
+}
+
+function validateStrategyCouncilVote(role, vote, evidence, optionIds) {
+  try {
+    if (!vote || typeof vote !== 'object' || Array.isArray(vote)) {
+      throw new Error('vote is not an object');
+    }
+    if (!['RECOMMEND', 'UNKNOWN'].includes(vote.verdict)) {
+      throw new Error('invalid strategy verdict');
+    }
+    const allowedOptions = new Set(
+      (Array.isArray(optionIds) ? optionIds : [])
+        .map(value => String(value || '').trim())
+        .filter(Boolean),
+    );
+    const optionId = vote.optionId == null ? null : String(vote.optionId).trim();
+    if (vote.verdict === 'RECOMMEND' && (!optionId || !allowedOptions.has(optionId))) {
+      throw new Error('recommended strategy option is not in the supplied option set');
+    }
+    if (vote.verdict === 'UNKNOWN' && optionId !== null) {
+      throw new Error('UNKNOWN strategy vote must use a null optionId');
+    }
+    const validated = validateCouncilVote(role, {
+      verdict: vote.verdict === 'RECOMMEND' ? 'APPROVE' : 'UNKNOWN',
+      summary: vote.summary,
+      metrics: vote.metrics,
+      unknowns: vote.unknowns,
+      conditions: vote.conditions,
+    }, evidence);
+    if (!validated.ok) return invalidStrategyVote(role, validated.value?.unknowns?.[0]);
+    return {
+      ok: true,
+      value: {
+        ...validated.value,
+        verdict: vote.verdict,
+        optionId,
+      },
+    };
+  } catch (error) {
+    return invalidStrategyVote(role, error);
+  }
+}
+
 const councilVoteSchema = {
   type: 'object',
   additionalProperties: false,
@@ -162,4 +219,33 @@ const councilVoteSchema = {
   required: ['verdict', 'summary', 'metrics', 'unknowns', 'conditions'],
 };
 
-module.exports = { councilVoteSchema, metricIsAuthoritative, resolvePointer, validateCouncilVote };
+const strategyCouncilVoteSchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    verdict: { type: 'string', enum: ['RECOMMEND', 'UNKNOWN'] },
+    optionId: {
+      type: ['string', 'null'],
+      maxLength: 80,
+      description: 'Exact supplied option ID for RECOMMEND; null for UNKNOWN.',
+    },
+    summary: {
+      type: 'string',
+      maxLength: 600,
+      description: 'Qualitative rationale only. Do not include digits or numeric claims.',
+    },
+    metrics: councilVoteSchema.properties.metrics,
+    unknowns: councilVoteSchema.properties.unknowns,
+    conditions: councilVoteSchema.properties.conditions,
+  },
+  required: ['verdict', 'optionId', 'summary', 'metrics', 'unknowns', 'conditions'],
+};
+
+module.exports = {
+  councilVoteSchema,
+  metricIsAuthoritative,
+  resolvePointer,
+  strategyCouncilVoteSchema,
+  validateCouncilVote,
+  validateStrategyCouncilVote,
+};

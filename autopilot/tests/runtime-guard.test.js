@@ -14,6 +14,7 @@ const {
   isApprovedRollingMillUpgrade,
   isOwnerAuthorizedProspectorRebuild,
   validateCouncilAuthorization,
+  validateStrategyCouncilCompletion,
   validateFinishSummary,
   buildAutomaticFinishOnExhaustion,
 } = require('../runtime-guard.js');
@@ -40,6 +41,41 @@ function validCouncilResult(verdict = 'APPROVE', buildingInspection = 'NOT_REQUE
       verdict,
     })),
   };
+}
+
+function authorizeStrategy(guard, selectedOption, otherOption = {
+  id: 'hold',
+  label: 'Hold the current structure.',
+  action: 'hold',
+  buildingId: null,
+  target: null,
+}) {
+  const options = [otherOption, selectedOption];
+  const result = {
+    evidence: {
+      stateFreshness: 'FRESH',
+      financePage: 200,
+      buildingInspection: selectedOption.buildingId == null ? 'NOT_REQUESTED' : 'OK',
+    },
+    council: ['CFO', 'COO', 'CMO'].map(role => ({
+      role,
+      status: 'VALIDATED',
+      verdict: 'RECOMMEND',
+      optionId: selectedOption.id,
+    })),
+    decision: {
+      status: 'DECIDED',
+      optionId: selectedOption.id,
+      method: 'majority',
+      tally: { [selectedOption.id]: 3 },
+    },
+  };
+  const completion = guard.noteStrategyCouncil(result, {
+    focusBuildingId: selectedOption.buildingId,
+    options,
+  });
+  assert.equal(completion.ok, true);
+  return result;
 }
 
 assert.equal(actionChangedState('collect', {}, { collected: false }), false);
@@ -148,6 +184,51 @@ guard.noteJournal();
 guard.noteMaster();
 assert.deepEqual(guard.finishCheck(), { ok: true });
 
+const requiredStrategy = new WakeRuntimeGuard();
+requiredStrategy.configureStrategyCouncil({
+  required: true,
+  reasons: ['wake-cadence'],
+  currentWakeOrdinal: 20,
+  wakeInterval: 20,
+});
+requiredStrategy.noteRefresh();
+requiredStrategy.noteAlarm();
+assert.equal(requiredStrategy.beforeJournal().requiredTool, 'strategy_council');
+assert.equal(requiredStrategy.strategyCouncilStatus().status, 'required_but_skipped');
+assert(requiredStrategy.finishCheck().missing.includes('strategy_council decision'));
+const failedStrategy = {
+  evidence: { stateFreshness: 'FRESH', financePage: 200, buildingInspection: 'NOT_REQUESTED' },
+  council: [
+    { role: 'CFO', status: 'VALIDATED', verdict: 'RECOMMEND', optionId: 'hold' },
+    { role: 'COO', status: 'VALIDATED', verdict: 'RECOMMEND', optionId: 'hold' },
+    { role: 'CMO', status: 'API_ERROR', verdict: 'UNKNOWN', optionId: null },
+  ],
+  decision: { status: 'INCOMPLETE', optionId: null, method: null, tally: {} },
+};
+assert.equal(requiredStrategy.noteStrategyCouncil(failedStrategy, {
+  focusBuildingId: null,
+  options: [{ id: 'hold', action: 'hold', buildingId: null, target: null }],
+}).ok, false);
+assert.equal(requiredStrategy.strategyCouncilStatus().status, 'required_but_failed');
+assert.equal(requiredStrategy.beforeJournal().requiredTool, 'strategy_council');
+authorizeStrategy(requiredStrategy, {
+  id: 'hold',
+  label: 'Hold the current structure.',
+  action: 'hold',
+  buildingId: null,
+  target: null,
+}, {
+  id: 'continue',
+  label: 'Continue routine operations.',
+  action: 'other',
+  buildingId: null,
+  target: null,
+});
+assert.equal(requiredStrategy.strategyCouncilStatus().status, 'required_and_completed');
+assert.equal(requiredStrategy.beforeJournal(), null);
+assert.equal(requiredStrategy.beforeStrategyCouncil().ok, false);
+assert.equal(validateStrategyCouncilCompletion(failedStrategy).ok, false);
+
 guard.noteEvidenceChange('inspect_building');
 assert(guard.finishCheck().missing.includes('set_alarm after the latest mutation'));
 assert(guard.finishCheck().missing.includes('journal after the latest mutation'));
@@ -166,6 +247,13 @@ assert(guard.finishCheck().missing.includes('master after the latest mutation'))
 const structural = new WakeRuntimeGuard();
 const buildPreview = { building: 'Quarry', maxCost: 30000, minCashAfter: 5000, confirm: false };
 const buildConfirm = { building: 'Quarry', maxCost: 29000, minCashAfter: 6000, confirm: true };
+authorizeStrategy(structural, {
+  id: 'build_quarry',
+  label: 'Build a Quarry.',
+  action: 'build',
+  buildingId: null,
+  target: 'quarry',
+});
 assert.match(structural.beforeAction('build', buildConfirm, { councilRequired: true }).reason,
   /requires a successful same-wake preview/);
 structural.afterAction('build', buildPreview, { ok: true, dry: true, preview: true });
@@ -179,7 +267,41 @@ assert.equal(structural.beforeAction('build', buildConfirm, { councilRequired: t
 assert.match(structural.beforeAction('build', buildConfirm, { councilRequired: true }).reason,
   /requires a successful same-wake preview/);
 
+const missingDirection = new WakeRuntimeGuard();
+assert.equal(missingDirection.beforeAction('upgrade', {
+  buildingId: 77,
+  maxCost: 20000,
+  minCashAfter: 5000,
+  confirm: false,
+}, { councilRequired: true }).requiredTool, 'strategy_council');
+authorizeStrategy(missingDirection, {
+  id: 'hold',
+  label: 'Hold the current structure.',
+  action: 'hold',
+  buildingId: null,
+  target: null,
+}, {
+  id: 'upgrade_mill',
+  label: 'Upgrade the selected Mill.',
+  action: 'upgrade',
+  buildingId: 77,
+  target: 'mill',
+});
+assert.match(missingDirection.beforeAction('upgrade', {
+  buildingId: 77,
+  maxCost: 20000,
+  minCashAfter: 5000,
+  confirm: false,
+}, { councilRequired: true }).reason, /not the direction selected/);
+
 const changedTerms = new WakeRuntimeGuard();
+authorizeStrategy(changedTerms, {
+  id: 'issue_bonds',
+  label: 'Issue bounded debt.',
+  action: 'bonds',
+  buildingId: null,
+  target: null,
+});
 changedTerms.afterAction('bonds', { amount: 5000, interest: 0.5, confirm: false },
   { ok: true, dry: true });
 changedTerms.noteCouncil(validCouncilResult('AMEND'), {
@@ -198,6 +320,13 @@ const robotPreview = {
   minCashAfter: 500,
   confirm: false,
 };
+authorizeStrategy(changedRobotSpend, {
+  id: 'install_robots',
+  label: 'Install robots on the selected building.',
+  action: 'robots',
+  buildingId: 55,
+  target: null,
+});
 changedRobotSpend.afterAction('robots', robotPreview, { ok: true, dry: true, preview: true });
 changedRobotSpend.noteCouncil(validCouncilResult('APPROVE', 'OK'), {
   proposal: 'Install robots on building 55 using the previewed spend limits.',
@@ -213,6 +342,13 @@ const invalidCouncil = validCouncilResult('APPROVE', 'OK');
 invalidCouncil.council[1].verdict = 'REJECT';
 assert.equal(validateCouncilAuthorization(invalidCouncil).ok, false);
 const invalidCouncilGuard = new WakeRuntimeGuard();
+authorizeStrategy(invalidCouncilGuard, {
+  id: 'scrap_building',
+  label: 'Scrap the selected building.',
+  action: 'scrap',
+  buildingId: 123,
+  target: null,
+});
 invalidCouncilGuard.afterAction('scrap', { buildingId: 123, confirm: false },
   { ok: true, preview: true });
 assert.equal(invalidCouncilGuard.noteCouncil(invalidCouncil, {
@@ -223,6 +359,13 @@ assert.match(invalidCouncilGuard.beforeAction('scrap', { buildingId: 123, confir
   { councilRequired: true }).reason, /requires a fresh validated council/);
 
 const refreshed = new WakeRuntimeGuard();
+authorizeStrategy(refreshed, {
+  id: 'scrap_building',
+  label: 'Scrap the selected building.',
+  action: 'scrap',
+  buildingId: 123,
+  target: null,
+});
 refreshed.afterAction('scrap', { buildingId: 123, confirm: false },
   { ok: true, preview: true });
 refreshed.noteCouncil(validCouncilResult('APPROVE', 'OK'), {
@@ -242,7 +385,7 @@ const rollingState = {
   ],
 };
 assert.equal(isApprovedRollingMillUpgrade(rollingState, { buildingId: 2 }), true);
-assert.equal(councilRequiredForStructuralAction('upgrade', { buildingId: 2 }, rollingState), false);
+assert.equal(councilRequiredForStructuralAction('upgrade', { buildingId: 2 }, rollingState), true);
 assert.equal(councilRequiredForStructuralAction('build', {}, rollingState), true);
 assert.equal(councilRequiredForStructuralAction('rebuild', { buildingId: 5 }, rollingState), true);
 assert.equal(isApprovedRollingMillUpgrade({ buildings: rollingState.buildings.concat(

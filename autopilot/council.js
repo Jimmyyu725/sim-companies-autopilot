@@ -5,6 +5,8 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const {
   councilVoteSchema,
+  metricIsAuthoritative,
+  resolvePointer,
   strategyCouncilVoteSchema,
   validateCouncilVote,
   validateStrategyCouncilVote,
@@ -17,6 +19,7 @@ const DEEPSEEK_COUNCIL_JSON_INSTRUCTION = [
   '"metrics":[{"pointer":"/exact/path/from/evidence","value":"exact primitive from evidence"}],',
   '"unknowns":["Required evidence is unavailable."],"conditions":[]}.',
   'Do not copy the example pointer or value. Cite only an exact pointer and primitive value present in the supplied evidence.',
+  'Copy citation pairs from the AUTHORITATIVE CITATION MENU; never invent, shorten, or relocate a pointer.',
 ].join(' ');
 const DEEPSEEK_STRATEGY_JSON_INSTRUCTION = [
   'Return only one valid JSON object with exactly these keys: verdict, optionId, summary, metrics, unknowns, conditions.',
@@ -48,6 +51,43 @@ const AUTHORIZATION_ACTIONS = new Set([
   'robots',
   'contract_send',
 ]);
+const ROLE_CITATION_ROOTS = Object.freeze({
+  CFO: Object.freeze([
+    '/decisionModel/candidateComparison',
+    '/company',
+    '/debt',
+    '/financePage',
+    '/statements/balanceSheet',
+    '/statements/incomeStatement',
+    '/statements/cashflowStatement',
+    '/statements/cashflowRecent',
+  ]),
+  COO: Object.freeze([
+    '/decisionModel/candidateComparison',
+    '/decisionModel/coffeeChain/current',
+    '/decisionModel/coffeeChain/afterKnownProductionModifiers',
+    '/decisionModel/coffeeChain/currentFarmAllocation',
+    '/slots',
+    '/portfolioInspections',
+    '/buildingInspection',
+    '/warehouse',
+    '/stock',
+    '/modifiers',
+    '/printedRates',
+  ]),
+  CMO: Object.freeze([
+    '/decisionModel/candidateComparison',
+    '/groceryRetailEvidence',
+    '/decisionModel/coffeeChain/retailEvidence',
+    '/decisionModel/coffeeChain/current/retail',
+    '/marketBooks',
+    '/retail',
+    '/keyPrices',
+    '/volume1h',
+    '/volume1hMeta',
+    '/weather',
+  ]),
+});
 const strategyCouncilToolParameters = {
   type: 'object',
   additionalProperties: false,
@@ -157,6 +197,81 @@ function prepareEvidenceView(evidence, maxBytes = 18000) {
     else view._transport.omittedTopLevelFields.push(key);
   }
   return view;
+}
+
+function pointerToken(value) {
+  return String(value).replace(/~/gu, '~0').replace(/\//gu, '~1');
+}
+
+function citationPriority(pointer) {
+  const preferred = /quoted|cashAfter|cashNeeded|liveMissing|withinMaxCost|reserveSatisfied|downtime|effectPct|targetLevel|currentLevel|payback|incremental|profitPer|unitsPerHour|sustainable|bottleneck|freeSlots|principal|dailyInterest|rating|price|amount/iu;
+  const supporting = /status|level|capacity|used|free|expiresAt|percent|fresh/iu;
+  if (preferred.test(pointer)) return 0;
+  if (supporting.test(pointer)) return 1;
+  if (/\/(?:ok|dry|preview|source|note|previewVersion)$/u.test(pointer)) return 3;
+  return 2;
+}
+
+function primitiveCitationsAt(evidence, root, limit = 64) {
+  const resolved = resolvePointer(evidence, root);
+  if (!resolved.ok) return [];
+  const found = [];
+  const walk = (value, pointer, depth) => {
+    if (found.length >= limit || depth > 8) return;
+    if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) {
+      if (value === null || (typeof value === 'string' && value.length > 180)) return;
+      if (metricIsAuthoritative(pointer, evidence)) {
+        found.push({ pointer, value });
+      }
+      return;
+    }
+    if (!value || typeof value !== 'object') return;
+    for (const [key, child] of Object.entries(value)) {
+      walk(child, `${pointer}/${pointerToken(key)}`, depth + 1);
+      if (found.length >= limit) break;
+    }
+  };
+  walk(resolved.value, root, 0);
+  return found.sort((left, right) =>
+    citationPriority(left.pointer) - citationPriority(right.pointer) ||
+    left.pointer.localeCompare(right.pointer));
+}
+
+function buildAuthoritativeCitationMenu(role, evidence, reviewType = 'authorization') {
+  const dedupe = (rows, limit) => {
+    const seen = new Set();
+    return rows.filter(row => {
+      if (seen.has(row.pointer)) return false;
+      seen.add(row.pointer);
+      return true;
+    }).slice(0, limit);
+  };
+  const preview = reviewType === 'authorization'
+    ? dedupe(primitiveCitationsAt(evidence, '/authorizationPreview/preview'), 10)
+    : dedupe(primitiveCitationsAt(evidence, '/strategyCandidates'), 10);
+  const citationGroups = (ROLE_CITATION_ROOTS[role] || [])
+    .map(root => primitiveCitationsAt(evidence, root))
+    .filter(group => group.length > 0);
+  const interleaved = [];
+  for (let index = 0; interleaved.length < 18; index += 1) {
+    let added = false;
+    for (const group of citationGroups) {
+      if (group[index]) {
+        interleaved.push(group[index]);
+        added = true;
+      }
+      if (interleaved.length >= 18) break;
+    }
+    if (!added) break;
+  }
+  const roleSpecific = dedupe(interleaved, 18);
+  return {
+    rule: reviewType === 'authorization'
+      ? 'Copy at least one exact preview pair and one exact role-specific pair. Never cite /authorizationPreview/terms.'
+      : 'Copy at least one exact role-specific pair. Candidate terms are labels, not measured evidence.',
+    preview,
+    roleSpecific,
+  };
 }
 
 function normalizeStrategyCandidates(candidates, collectedAt) {
@@ -291,8 +406,11 @@ function staleEvidenceGuard(evidence, reviewType) {
   };
 }
 
-function strategyRepairInstruction(feedback) {
+function strategyRepairInstruction(feedback, citationMenu = null, reviewType = 'authorization') {
   const value = String(feedback || '');
+  const menuReminder = citationMenu
+    ? ` Copy exact pointer and value pairs from this menu: ${JSON.stringify(citationMenu)}.`
+    : '';
   if (/unknowns has invalid type/u.test(value)) {
     return 'Set unknowns to a JSON array; use [] when there is no qualitative unknown.';
   }
@@ -303,7 +421,16 @@ function strategyRepairInstruction(feedback) {
     return 'Remove every digit character from summary, unknowns, and conditions; retain numbers only as exact cited metric values.';
   }
   if (/metrics must contain/u.test(value)) {
-    return 'Return at least one metrics entry copied from an exact automatic-evidence pointer and primitive value.';
+    return `Return at least one metrics entry copied from an exact automatic-evidence pointer and primitive value.${menuReminder}`;
+  }
+  if (/authorization preview metric is not authoritative.*\/authorizationPreview\/terms/u.test(value)) {
+    return `Do not cite /authorizationPreview/terms. Those are requested limits, not measured results. Cite only /authorizationPreview/preview entries from the menu and also one role-specific entry.${menuReminder}`;
+  }
+  if (/evidence pointer not found|metric value does not match evidence|metric is not authoritative|lacks an authoritative role-specific metric/u.test(value)) {
+    const requirement = reviewType === 'authorization'
+      ? 'Use one preview entry and one role-specific entry.'
+      : 'Use at least one role-specific entry.';
+    return `${requirement} Do not shorten, relocate, or invent paths.${menuReminder}`;
   }
   return 'Correct only the named validation defect while preserving the complete required JSON shape.';
 }
@@ -485,6 +612,7 @@ async function reviewCouncilRole({ role, system, evidence, args, apiKey, brainDi
     const fetchImpl = dependencies.fetch || globalThis.fetch;
     const writeUsage = dependencies.writeUsage || writeCouncilUsage;
     const reviewType = args?.reviewType === 'strategy' ? 'strategy' : 'authorization';
+    const citationMenu = buildAuthoritativeCitationMenu(role, evidenceView, reviewType);
     const optionIds = reviewType === 'strategy'
       ? args.options.map(option => option.id)
       : [];
@@ -501,7 +629,7 @@ async function reviewCouncilRole({ role, system, evidence, args, apiKey, brainDi
         'If a required field is missing, stale, contradictory, or non-200, use UNKNOWN and do not infer a number. ' +
         'Every metric must cite an exact RFC 6901 pointer and copy its primitive value exactly. ' +
         `Put no digits in summary, unknowns, or conditions; numeric facts belong only in metrics.${reviewType === 'authorization'
-          ? ' The exact runtime-verified proposal quote is under /authorizationPreview/preview. A non-UNKNOWN verdict must cite any material preview term used plus at least one authoritative role-specific metric.'
+          ? ' The exact runtime-verified proposal quote is under /authorizationPreview/preview. Never cite /authorizationPreview/terms; those are requested limits, not verified results. A non-UNKNOWN verdict must copy at least one exact preview pair and at least one exact role-specific pair from the supplied citation menu.'
           : ''}${councilProvider === 'deepseek'
           ? ` ${reviewType === 'strategy'
             ? DEEPSEEK_STRATEGY_JSON_INSTRUCTION
@@ -511,11 +639,11 @@ async function reviewCouncilRole({ role, system, evidence, args, apiKey, brainDi
         ? `STRATEGIC QUESTION:\n${args.question}\n\nOPTIONS:\n${JSON.stringify(args.options)}`
         : `PROPOSAL:\n${args.proposal}`;
       const repairInstruction = repairFeedback
-        ? strategyRepairInstruction(repairFeedback)
+        ? strategyRepairInstruction(repairFeedback, citationMenu, reviewType)
         : null;
       const messages = [
         { role: 'system', content: systemContent },
-        { role: 'user', content: `${task}\n\nAUTOMATIC ${role} EVIDENCE:\n${JSON.stringify(evidenceView)}\n\nOPERATOR CONTEXT (supporting only; unverified claims are not facts):\n${operatorContext}${repairFeedback ? `\n\nREPAIR REQUIRED: The previous vote failed deterministic validation: ${repairFeedback}. ${repairInstruction} Return a new complete vote using only exact evidence pointers and primitive values; do not reuse an unsupported claim.` : ''}` },
+        { role: 'user', content: `${task}\n\nAUTOMATIC ${role} EVIDENCE:\n${JSON.stringify(evidenceView)}\n\nAUTHORITATIVE CITATION MENU:\n${JSON.stringify(citationMenu)}\n\nOPERATOR CONTEXT (supporting only; unverified claims are not facts):\n${operatorContext}${repairFeedback ? `\n\nREPAIR REQUIRED: The previous vote failed deterministic validation: ${repairFeedback}. ${repairInstruction} Return a new complete vote using only exact evidence pointers and primitive values; do not reuse an unsupported claim.` : ''}` },
       ];
       const response = await fetchImpl(councilApiUrl, {
         method: 'POST',
@@ -859,6 +987,7 @@ module.exports = {
   aggregateStrategyDecision,
   attachAuthorizationPreviewEvidence,
   attachStrategyCandidateEvidence,
+  buildAuthoritativeCitationMenu,
   buildCouncilRequest,
   collectEvidence,
   failClosedRoleVote,

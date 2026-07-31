@@ -92,3 +92,64 @@ test('rejects strategy recommendations outside the supplied option set', () => {
   assert.equal(result.value.verdict, 'UNKNOWN');
   assert.equal(result.value.optionId, null);
 });
+
+test('accepts fresh runtime candidate quotes but rejects uncited proposal terms as evidence', () => {
+  const candidateEvidence = {
+    meta: {
+      collectedAt: asOf,
+      stateFreshness: 'FRESH',
+      strategyCandidates: 'VERIFIED',
+    },
+    sourceStatus: {
+      auth: { status: 'ok', asOf },
+    },
+    company: { cash: 38107 },
+    strategyCandidates: [{
+      optionId: 'upgrade_mill',
+      action: 'upgrade',
+      terms: { buildingId: 71, maxCost: 20000 },
+      preview: {
+        ok: true,
+        dry: true,
+        preview: true,
+        cashCost: 12500,
+      },
+      source: 'runtime-verified-structural-preview',
+      previewedAt: asOf,
+      previewAgeSeconds: 0,
+      previewVersion: 2,
+    }],
+  };
+  const accepted = validateStrategyCouncilVote('CFO', {
+    verdict: 'RECOMMEND',
+    optionId: 'upgrade_mill',
+    summary: 'The verified candidate quote supports this direction.',
+    metrics: [{
+      pointer: '/strategyCandidates/0/preview/cashCost',
+      value: 12500,
+    }, {
+      pointer: '/company/cash',
+      value: 38107,
+    }],
+    unknowns: [],
+    conditions: [],
+  }, candidateEvidence, ['hold', 'upgrade_mill']);
+  assert.equal(accepted.ok, true);
+
+  const rejected = validateStrategyCouncilVote('CFO', {
+    verdict: 'RECOMMEND',
+    optionId: 'upgrade_mill',
+    summary: 'The proposed cap supports this direction.',
+    metrics: [{
+      pointer: '/strategyCandidates/0/terms/maxCost',
+      value: 20000,
+    }, {
+      pointer: '/company/cash',
+      value: 38107,
+    }],
+    unknowns: [],
+    conditions: [],
+  }, candidateEvidence, ['hold', 'upgrade_mill']);
+  assert.equal(rejected.ok, false);
+  assert.match(rejected.value.unknowns[0], /not authoritative/);
+});

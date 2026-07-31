@@ -69,10 +69,11 @@ The active runner uses DeepSeek `max` or retained OpenAI `high`, both with low v
 - `.tick.lock` at the Sim root serializes every browser user of Chrome `127.0.0.1:9222`.
 - `.brain.lock` prevents overlapping full wakes.
 - Do not invoke `act.js` manually without the tick lock.
-- A preview is not confirmation. Ordinary structural actions require fresh state, a
-  `strategy_council` direction, a dry preview, final `council` authorization, unchanged terms,
-  explicit confirmation, and post-action verification. The exact owner-authorized Prospector
-  REBUILD cycle remains the only direction/authorization exception.
+- A preview is not confirmation. Ordinary structural actions require fresh state, read-only
+  candidate previews for every executable option, a `strategy_council` direction, a fresh
+  post-vote dry preview, final `council` authorization, unchanged terms, explicit confirmation,
+  and post-action verification. The exact owner-authorized Prospector REBUILD cycle remains the
+  only direction/authorization exception.
 - Exchange confirmation additionally requires a matching five-minute read-only inspection, one
   sufficient quality lot, reserve/Transport-safe quantity, and positive game-form estimated profit.
   The authorization holds the maximum projected reserve through its expiry and is consumed before

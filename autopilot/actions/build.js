@@ -34,7 +34,6 @@ const info = { building, quoted, money: Number.isFinite(money) ? money : null,
 
 if (!isFinite(quoted)) return { ok: false, reason: 'could not read quoted cost', ...info };
 if (!isFinite(money)) return { ok: false, reason: 'could not verify company cash from auth API or fresh state', ...info };
-if (quoted > maxCost) return { ok: false, reason: `quote $${quoted} exceeds maxCost $${maxCost}`, ...info };
 // The catalogue quote is the FULL material bill; BUY MISSING only charges for what the
 // warehouse lacks. When the plan supplies effectiveCost (missing materials priced from the
 // exchange), affordability is judged on that — otherwise fall back to the full quote.
@@ -45,16 +44,23 @@ const cashNeeded = Number.isFinite(parsedEffectiveCost) && parsedEffectiveCost >
   ? parsedEffectiveCost
   : quoted;
 info.cashNeeded = cashNeeded;
-if (money - cashNeeded < minCashAfter) {
-  return { ok: false, reason: `would leave $${money - cashNeeded}, below reserve $${minCashAfter}`, ...info };
-}
 if (confirm !== true) return {
   ok: true,
   dry: true,
   preview: true,
   note: 'dry run — not confirmed',
   ...info,
+  affordability: {
+    withinMaxCost: quoted <= maxCost,
+    reserveSatisfied: money - cashNeeded >= minCashAfter,
+    maxCost,
+    minCashAfter,
+  },
 };
+if (quoted > maxCost) return { ok: false, reason: `quote $${quoted} exceeds maxCost $${maxCost}`, ...info };
+if (money - cashNeeded < minCashAfter) {
+  return { ok: false, reason: `would leave $${money - cashNeeded}, below reserve $${minCashAfter}`, ...info };
+}
 
 row.click();
 await sleep(3500);

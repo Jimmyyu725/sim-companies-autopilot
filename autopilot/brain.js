@@ -320,7 +320,7 @@ const TOOLS = [
   { type: 'function', function: { name: 'inspect_building', description: 'P1 read-only inspection of one building page. Returns live printed level, production rates and wages; optionally quote one product quantity without starting it. Use null for both product and qty when no quote is needed.', parameters: { type: 'object', additionalProperties: false, properties: { buildingId: { type: 'integer', minimum: 1 }, product: { type: ['string', 'null'] }, qty: { type: ['number', 'null'], exclusiveMinimum: 0 } }, required: ['buildingId', 'product', 'qty'] } } },
   { type: 'function', function: { name: 'inspect_exchange_sale', description: 'Read-only exchange-sale inspection. Verifies the current deterministic reserve, live book, 4% fee and Transport, then fills but never submits the exact UI form. Use qty:null for the maximum currently safe quantity. A confirmed exchange_sell must exactly match this result within five minutes.', strict: true, parameters: { type: 'object', additionalProperties: false, properties: { kind: { type: 'integer', minimum: 1 }, qty: { type: ['integer', 'null'], minimum: 1 } }, required: ['kind', 'qty'] } } },
   { type: 'function', function: { name: 'rank_mill_upgrades', description: 'Compare two or three evidence-backed next-step Mill upgrades without considering current cash. Returns a unique recommendation only when one candidate Pareto-dominates all alternatives on added rate, cost, downtime, and downtime output loss.', parameters: { type: 'object', additionalProperties: false, properties: { candidates: { type: 'array', minItems: 2, maxItems: 3, items: { type: 'object', additionalProperties: false, properties: { buildingId: { type: 'integer', minimum: 1 }, currentLevel: { type: 'integer', minimum: 1, maximum: 2 }, currentRate: { type: 'number', exclusiveMinimum: 0 }, productionIncreasePct: { type: 'number', exclusiveMinimum: 0 }, cashCost: { type: 'number', exclusiveMinimum: 0 }, downtimeHours: { type: 'number', exclusiveMinimum: 0 }, evidenceAsOf: { type: 'string', minLength: 1 } }, required: ['buildingId', 'currentLevel', 'currentRate', 'productionIncreasePct', 'cashCost', 'downtimeHours', 'evidenceAsOf'] } } }, required: ['candidates'] } } },
-  { type: 'function', function: { name: 'strategy_council', description: 'CFO/COO/CMO independently choose among two to five explicit strategic options using fresh finance, operations, and market evidence. Include the exact hold option. Runtime requires this at least every twenty successful wakes, daily, and after material strategic changes.', strict: true, parameters: strategyCouncilToolParameters } },
+  { type: 'function', function: { name: 'strategy_council', description: 'CFO/COO/CMO independently choose among two to five explicit strategic options using fresh finance, operations, and market evidence. Include the exact hold option. Before this call, run confirm:false once for every build, upgrade, scrap, rebuild, bonds, or robots option so Council receives verified candidate terms. Runtime requires this at least every twenty successful wakes, daily, and after material strategic changes.', strict: true, parameters: strategyCouncilToolParameters } },
   { type: 'function', function: { name: 'council', description: 'After an exact structural preview, CFO/COO/CMO independently authorize its final terms. Required for every structural confirmation except the exact owner-authorized Prospector REBUILD campaign.', parameters: { type: 'object', additionalProperties: false, properties: { proposal: { type: 'string', description: 'The concrete proposal with numbers' }, context: { type: 'string', description: 'Optional supporting context; automatic evidence remains authoritative' }, buildingId: { type: ['integer', 'null'], minimum: 1 }, marketKinds: { type: 'array', minItems: 1, maxItems: 5, items: { type: 'integer', minimum: 1 } } }, required: ['proposal', 'context', 'buildingId', 'marketKinds'] } } },
 ];
 
@@ -493,11 +493,19 @@ async function runTool(name, args) {
     if (name === 'strategy_council') {
       const sequencingBlock = runtimeGuard.beforeStrategyCouncil();
       if (sequencingBlock) return sequencingBlock;
+      const strategyPreparation = runtimeGuard.prepareStrategyCouncil(args);
+      if (!strategyPreparation.ok) {
+        return {
+          ...strategyPreparation,
+          strategyGovernance: runtimeGuard.strategyCouncilStatus(),
+        };
+      }
       const result = await runStrategyCouncil({
         args,
         apiKey: KEY,
         brainDir: BRAIN,
         simDir: SIM,
+        strategyCandidates: strategyPreparation.strategyCandidates,
       });
       const completion = validateStrategyCouncilCompletion(result, {
         buildingInspectionRequired: args?.focusBuildingId != null,

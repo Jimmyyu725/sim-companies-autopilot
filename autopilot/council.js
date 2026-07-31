@@ -21,6 +21,11 @@ const DEEPSEEK_COUNCIL_JSON_INSTRUCTION = [
 const DEEPSEEK_STRATEGY_JSON_INSTRUCTION = [
   'Return only one valid JSON object with exactly these keys: verdict, optionId, summary, metrics, unknowns, conditions.',
   'Use verdict RECOMMEND with one exact supplied optionId, or UNKNOWN with optionId null.',
+  'If active options are not justified but current evidence is usable, RECOMMEND the exact hold option; do not return UNKNOWN merely because an investment case is weak.',
+  'metrics MUST be a JSON array with one to eight objects; each object has exactly pointer and value.',
+  'unknowns and conditions MUST each be a JSON array of non-empty qualitative strings, or an empty array.',
+  'summary, unknowns, and conditions MUST contain no digit characters; put every numeric fact only in metrics.',
+  'For a recommendation, prefer unknowns:[] and conditions:[] unless a real qualitative caveat remains.',
   'Cite only exact evidence pointers and primitive values present in the supplied evidence.',
 ].join(' ');
 const STRATEGY_ACTIONS = new Set([
@@ -144,6 +149,85 @@ function prepareEvidenceView(evidence, maxBytes = 18000) {
     else view._transport.omittedTopLevelFields.push(key);
   }
   return view;
+}
+
+function normalizeStrategyCandidates(candidates, collectedAt) {
+  const collectedAtMs = Date.parse(collectedAt);
+  return (Array.isArray(candidates) ? candidates : [])
+    .filter(candidate => candidate?.source === 'runtime-verified-structural-preview' &&
+      /^[a-z][a-z0-9_-]{0,79}$/u.test(String(candidate?.optionId || '')) &&
+      STRATEGY_ACTIONS.has(String(candidate?.action || '').trim().toLowerCase()) &&
+      candidate?.terms && typeof candidate.terms === 'object' &&
+      candidate?.preview && typeof candidate.preview === 'object' &&
+      candidate.preview.ok === true &&
+      (candidate.preview.preview === true || candidate.preview.dry === true))
+    .slice(0, 5)
+    .map(candidate => {
+      const previewedAt = String(candidate.previewedAt || '');
+      const previewedAtMs = Date.parse(previewedAt);
+      const previewAgeSeconds = Number.isFinite(collectedAtMs) && Number.isFinite(previewedAtMs)
+        ? Math.round((collectedAtMs - previewedAtMs) / 1000)
+        : null;
+      return {
+        optionId: String(candidate.optionId),
+        action: String(candidate.action).trim().toLowerCase(),
+        terms: candidate.terms,
+        preview: candidate.preview,
+        source: candidate.source,
+        previewedAt,
+        previewAgeSeconds,
+        previewVersion: Number.isSafeInteger(Number(candidate.previewVersion))
+          ? Number(candidate.previewVersion)
+          : null,
+      };
+    });
+}
+
+function attachStrategyCandidateEvidence(evidence, candidates) {
+  const collectedAt = evidence?.meta?.collectedAt || new Date().toISOString();
+  const normalized = normalizeStrategyCandidates(candidates, collectedAt);
+  const candidateStatus = normalized.length ? 'VERIFIED' : 'NOT_PROVIDED';
+  const meta = {
+    ...(evidence?.meta || { status: 'UNKNOWN' }),
+    strategyCandidates: candidateStatus,
+    strategyCandidateCount: normalized.length,
+  };
+  const roles = {};
+  for (const [role, roleEvidence] of Object.entries(evidence?.roles || {})) {
+    const { meta: roleMeta, ...rest } = roleEvidence || {};
+    roles[role] = {
+      meta: {
+        ...(roleMeta || meta),
+        strategyCandidates: candidateStatus,
+        strategyCandidateCount: normalized.length,
+      },
+      // Keep candidate quotes ahead of larger role payloads so bounded transport preserves them.
+      strategyCandidates: normalized,
+      ...rest,
+    };
+  }
+  return {
+    ...(evidence || {}),
+    meta,
+    roles,
+  };
+}
+
+function strategyRepairInstruction(feedback) {
+  const value = String(feedback || '');
+  if (/unknowns has invalid type/u.test(value)) {
+    return 'Set unknowns to a JSON array; use [] when there is no qualitative unknown.';
+  }
+  if (/conditions has invalid type/u.test(value)) {
+    return 'Set conditions to a JSON array; use [] when there is no qualitative condition.';
+  }
+  if (/must not contain numeric claims/u.test(value)) {
+    return 'Remove every digit character from summary, unknowns, and conditions; retain numbers only as exact cited metric values.';
+  }
+  if (/metrics must contain/u.test(value)) {
+    return 'Return at least one metrics entry copied from an exact automatic-evidence pointer and primitive value.';
+  }
+  return 'Correct only the named validation defect while preserving the complete required JSON shape.';
 }
 
 function collectEvidence(args, brainDir, simDir) {
@@ -300,7 +384,7 @@ async function reviewCouncilRole({ role, system, evidence, args, apiKey, brainDi
       const repairFeedback = validationFeedback;
       repairAttempted ||= Boolean(repairFeedback);
       const reviewInstruction = reviewType === 'strategy'
-        ? 'Independently choose the best direction from the supplied options. The CEO has not selected an option. Recommend exactly one option ID; use UNKNOWN only when evidence cannot support any recommendation.'
+        ? 'Independently choose the best direction from the supplied options. The CEO has not selected an option. Recommend exactly one option ID. If active options are not justified but current evidence is usable, recommend hold. Use UNKNOWN only when the automatic evidence is too broken or contradictory even to support hold.'
         : 'Independently review the exact previewed proposal. It is not pre-approved. Approve, amend, reject, or return UNKNOWN from the evidence.';
       const systemContent = `${system} ${reviewInstruction} Use only the automatic evidence below as facts. ` +
         'If a required field is missing, stale, contradictory, or non-200, use UNKNOWN and do not infer a number. ' +
@@ -313,9 +397,12 @@ async function reviewCouncilRole({ role, system, evidence, args, apiKey, brainDi
       const task = reviewType === 'strategy'
         ? `STRATEGIC QUESTION:\n${args.question}\n\nOPTIONS:\n${JSON.stringify(args.options)}`
         : `PROPOSAL:\n${args.proposal}`;
+      const repairInstruction = repairFeedback
+        ? strategyRepairInstruction(repairFeedback)
+        : null;
       const messages = [
         { role: 'system', content: systemContent },
-        { role: 'user', content: `${task}\n\nAUTOMATIC ${role} EVIDENCE:\n${JSON.stringify(evidenceView)}\n\nOPERATOR CONTEXT (supporting only; unverified claims are not facts):\n${operatorContext}${repairFeedback ? `\n\nREPAIR REQUIRED: The previous vote failed deterministic validation: ${repairFeedback}. Return a new complete vote using only exact evidence pointers and primitive values; do not reuse an unsupported claim.` : ''}` },
+        { role: 'user', content: `${task}\n\nAUTOMATIC ${role} EVIDENCE:\n${JSON.stringify(evidenceView)}\n\nOPERATOR CONTEXT (supporting only; unverified claims are not facts):\n${operatorContext}${repairFeedback ? `\n\nREPAIR REQUIRED: The previous vote failed deterministic validation: ${repairFeedback}. ${repairInstruction} Return a new complete vote using only exact evidence pointers and primitive values; do not reuse an unsupported claim.` : ''}` },
       ];
       const response = await fetchImpl(councilApiUrl, {
         method: 'POST',
@@ -443,6 +530,7 @@ function validateStrategyCouncilArgs(args) {
       throw new Error('options must contain two to five choices');
     }
     const seen = new Set();
+    const seenDirections = new Set();
     const options = args.options.map(option => {
       if (!option || typeof option !== 'object' || Array.isArray(option)) {
         throw new Error('each strategy option must be an object');
@@ -473,6 +561,15 @@ function validateStrategyCouncilArgs(args) {
       if (target !== null && (!target || target.length > 120)) {
         throw new Error('strategy option target must be null or a bounded non-empty string');
       }
+      const directionKey = action === 'build'
+        ? `${action}:${target}`
+        : (['upgrade', 'scrap', 'rebuild', 'robots'].includes(action)
+          ? `${action}:${buildingId}`
+          : (action === 'bonds' ? action : null));
+      if (directionKey && seenDirections.has(directionKey)) {
+        throw new Error('strategy options cannot duplicate one executable action target');
+      }
+      if (directionKey) seenDirections.add(directionKey);
       return { id, label, action, buildingId, target };
     });
     const hold = options.find(option => option.id === 'hold');
@@ -542,7 +639,13 @@ function aggregateStrategyDecision(votes, options) {
   };
 }
 
-async function runStrategyCouncil({ args, apiKey, brainDir, simDir }, dependencies = {}) {
+async function runStrategyCouncil({
+  args,
+  apiKey,
+  brainDir,
+  simDir,
+  strategyCandidates = [],
+}, dependencies = {}) {
   const checked = validateStrategyCouncilArgs(args);
   if (!checked.ok) {
     return {
@@ -562,10 +665,11 @@ async function runStrategyCouncil({ args, apiKey, brainDir, simDir }, dependenci
   }
   const normalizedArgs = { ...checked.value, reviewType: 'strategy' };
   const evidenceCollector = dependencies.collectEvidence || collectEvidence;
-  const evidence = evidenceCollector({
+  const collectedEvidence = evidenceCollector({
     ...normalizedArgs,
     buildingId: normalizedArgs.focusBuildingId,
   }, brainDir, simDir);
+  const evidence = attachStrategyCandidateEvidence(collectedEvidence, strategyCandidates);
   const roleReviewer = dependencies.reviewRole || reviewCouncilRole;
   const votes = await Promise.all(ROLES.map(async ([role, system]) => {
     try {
@@ -596,10 +700,12 @@ module.exports = {
   ROLES,
   STRATEGY_ACTIONS,
   aggregateStrategyDecision,
+  attachStrategyCandidateEvidence,
   buildCouncilRequest,
   collectEvidence,
   failClosedRoleVote,
   isTimeoutError,
+  normalizeStrategyCandidates,
   prepareEvidenceView,
   redactSecrets,
   resolveCouncilProvider,
@@ -607,6 +713,7 @@ module.exports = {
   runCouncil,
   runStrategyCouncil,
   runWithRetry,
+  strategyRepairInstruction,
   strategyCouncilToolParameters,
   validateStrategyCouncilArgs,
   writeCouncilAudit,

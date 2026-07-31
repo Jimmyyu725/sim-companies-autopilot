@@ -35,6 +35,18 @@ test('rebuild dry preview never clicks a UI control and confirmation clicks at m
   assert.match(source, /doNotRetry:\s*true/);
 });
 
+test('build candidate preview reports affordability before enforcing confirmation spend caps', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'actions', 'build.js'), 'utf8');
+  const preview = source.indexOf('if (confirm !== true) return {');
+  const maxCostGuard = source.indexOf('if (quoted > maxCost)');
+  const reserveGuard = source.indexOf('if (money - cashNeeded < minCashAfter)');
+  assert(preview >= 0);
+  assert(maxCostGuard > preview);
+  assert(reserveGuard > preview);
+  assert.match(source.slice(preview, maxCostGuard), /affordability:[\s\S]*withinMaxCost/);
+  assert.match(source.slice(preview, maxCostGuard), /reserveSatisfied/);
+});
+
 test('confirmed rebuild refreshes authenticated Prospector evidence before claiming or clicking', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'act.js'), 'utf8');
   const start = source.indexOf("} else if (action === 'rebuild')");

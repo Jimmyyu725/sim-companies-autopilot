@@ -6,12 +6,16 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const {
+  DEEPSEEK_STRATEGY_JSON_INSTRUCTION,
   aggregateStrategyDecision,
+  attachStrategyCandidateEvidence,
   buildCouncilRequest,
   failClosedRoleVote,
+  prepareEvidenceView,
   reviewCouncilRole,
   runCouncil,
   runStrategyCouncil,
+  strategyRepairInstruction,
   validateStrategyCouncilArgs,
   writeCouncilAudit,
 } = require('../council.js');
@@ -84,6 +88,17 @@ test('DeepSeek council request uses Max thinking plus JSON object mode', () => {
   assert.deepEqual(request.thinking, { type: 'enabled' });
   assert.equal(request.reasoning_effort, 'max');
   assert.equal(request.max_tokens, 16384);
+});
+
+test('DeepSeek strategy contract explicitly requires arrays, citations, and digit-free prose', () => {
+  assert.match(DEEPSEEK_STRATEGY_JSON_INSTRUCTION, /unknowns and conditions MUST each be a JSON array/);
+  assert.match(DEEPSEEK_STRATEGY_JSON_INSTRUCTION, /one to eight objects/);
+  assert.match(DEEPSEEK_STRATEGY_JSON_INSTRUCTION, /no digit characters/);
+  assert.match(DEEPSEEK_STRATEGY_JSON_INSTRUCTION, /RECOMMEND the exact hold option/);
+  assert.match(strategyRepairInstruction('unknowns has invalid type'), /Set unknowns to a JSON array/);
+  assert.match(strategyRepairInstruction(
+    'unknowns must not contain numeric claims; cite them through metrics',
+  ), /Remove every digit character/);
 });
 
 test('council failures redact provider credentials before returning or auditing them', () => {
@@ -339,6 +354,20 @@ test('strategy council arguments require a canonical hold option and bound targe
   });
   assert.equal(missingHold.ok, false);
   assert.match(missingHold.reason, /hold option/);
+
+  const duplicateTarget = validateStrategyCouncilArgs({
+    question: 'Choose a direction.',
+    context: '',
+    focusBuildingId: 71,
+    marketKinds: [66],
+    options: [
+      STRATEGY_OPTIONS[0],
+      STRATEGY_OPTIONS[1],
+      { ...STRATEGY_OPTIONS[1], id: 'upgrade_mill_faster' },
+    ],
+  });
+  assert.equal(duplicateTarget.ok, false);
+  assert.match(duplicateTarget.reason, /duplicate one executable action target/);
 });
 
 test('strategy role chooses independently from the supplied options', async () => {
@@ -454,4 +483,81 @@ test('strategy council collects once, reviews all roles, and returns a validated
   assert.equal(result.ok, true);
   assert.equal(result.decision.optionId, 'upgrade_mill');
   assert.equal(validateStrategyCouncilCompletion(result).ok, true);
+});
+
+test('verified strategy candidates are injected ahead of each bounded role evidence pack', async () => {
+  const candidate = {
+    optionId: 'upgrade_mill',
+    action: 'upgrade',
+    terms: { buildingId: 71, maxCost: 20000, minCashAfter: 5000 },
+    preview: {
+      ok: true,
+      dry: true,
+      preview: true,
+      cashCost: 12500,
+      downtime: '04:00h',
+    },
+    source: 'runtime-verified-structural-preview',
+    previewedAt: AS_OF,
+    previewVersion: 3,
+  };
+  const baseEvidence = {
+    ok: true,
+    meta: {
+      collectedAt: AS_OF,
+      stateFreshness: 'FRESH',
+      financePage: 200,
+      buildingInspection: 'NOT_REQUESTED',
+    },
+    roles: Object.fromEntries(['CFO', 'COO', 'CMO'].map(role => [role, {
+      meta: { collectedAt: AS_OF, stateFreshness: 'FRESH' },
+      company: { cash: 41032 },
+    }])),
+  };
+  const attached = attachStrategyCandidateEvidence(baseEvidence, [candidate]);
+  assert.equal(attached.meta.strategyCandidates, 'VERIFIED');
+  assert.equal(attached.roles.CFO.strategyCandidates[0].preview.cashCost, 12500);
+  assert.deepEqual(Object.keys(attached.roles.CFO).slice(0, 2), [
+    'meta',
+    'strategyCandidates',
+  ]);
+  const bounded = prepareEvidenceView({
+    ...attached.roles.COO,
+    warehouse: 'x'.repeat(25000),
+  });
+  assert.equal(bounded.strategyCandidates[0].preview.cashCost, 12500);
+  assert(bounded._transport.omittedTopLevelFields.includes('warehouse'));
+
+  const seen = [];
+  const result = await runStrategyCouncil({
+    args: {
+      question: 'Which capital direction best advances sustainable profit?',
+      context: 'Compare the measured operating alternatives.',
+      focusBuildingId: null,
+      marketKinds: [66, 118],
+      options: STRATEGY_OPTIONS,
+    },
+    apiKey: 'test-only',
+    brainDir: '/not-used',
+    simDir: '/not-used',
+    strategyCandidates: [candidate],
+  }, {
+    collectEvidence: () => baseEvidence,
+    reviewRole: async ({ role, evidence }) => {
+      seen.push(evidence.roles[role].strategyCandidates[0].optionId);
+      return {
+        role,
+        status: 'VALIDATED',
+        verdict: 'RECOMMEND',
+        optionId: 'upgrade_mill',
+        summary: 'Verified evidence supports this direction.',
+        metrics: [],
+        unknowns: [],
+        conditions: [],
+      };
+    },
+  });
+  assert.deepEqual(seen.sort(), ['upgrade_mill', 'upgrade_mill', 'upgrade_mill']);
+  assert.equal(result.ok, true);
+  assert.equal(result.evidence.strategyCandidateCount, 1);
 });

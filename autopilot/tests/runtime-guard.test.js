@@ -273,7 +273,7 @@ assert.equal(missingDirection.beforeAction('upgrade', {
   maxCost: 20000,
   minCashAfter: 5000,
   confirm: false,
-}, { councilRequired: true }).requiredTool, 'strategy_council');
+}, { councilRequired: true }), null);
 authorizeStrategy(missingDirection, {
   id: 'hold',
   label: 'Hold the current structure.',
@@ -293,6 +293,89 @@ assert.match(missingDirection.beforeAction('upgrade', {
   minCashAfter: 5000,
   confirm: false,
 }, { councilRequired: true }).reason, /not the direction selected/);
+
+const candidateStrategy = new WakeRuntimeGuard();
+candidateStrategy.configureStrategyCouncil({
+  required: true,
+  reasons: ['wake-cadence'],
+  currentWakeOrdinal: 20,
+  wakeInterval: 20,
+});
+const candidateUpgrade = {
+  buildingId: 77,
+  maxCost: 20000,
+  minCashAfter: 5000,
+  confirm: false,
+};
+candidateStrategy.afterAction('upgrade', candidateUpgrade, {
+  ok: true,
+  dry: true,
+  preview: true,
+  cashCost: 12500,
+  downtime: '04:00h',
+});
+const candidateOptions = [
+  {
+    id: 'hold',
+    label: 'Hold the current structure.',
+    action: 'hold',
+    buildingId: null,
+    target: null,
+  },
+  {
+    id: 'upgrade_mill',
+    label: 'Upgrade the selected Mill.',
+    action: 'upgrade',
+    buildingId: 77,
+    target: 'mill',
+  },
+];
+const preparedCandidates = candidateStrategy.prepareStrategyCouncil({
+  options: candidateOptions,
+});
+assert.equal(preparedCandidates.ok, true);
+assert.equal(preparedCandidates.strategyCandidates.length, 1);
+assert.equal(preparedCandidates.strategyCandidates[0].optionId, 'upgrade_mill');
+assert.equal(preparedCandidates.strategyCandidates[0].preview.cashCost, 12500);
+assert.equal(candidateStrategy.beforeAction('upgrade', {
+  ...candidateUpgrade,
+  confirm: true,
+}, { councilRequired: true }).requiredTool, 'strategy_council');
+authorizeStrategy(candidateStrategy, candidateOptions[1], candidateOptions[0]);
+assert.match(candidateStrategy.beforeAction('upgrade', {
+  ...candidateUpgrade,
+  confirm: true,
+}, { councilRequired: true }).reason, /requires a successful same-wake preview/);
+candidateStrategy.afterAction('upgrade', candidateUpgrade, {
+  ok: true,
+  dry: true,
+  preview: true,
+  cashCost: 12500,
+});
+assert.match(candidateStrategy.beforeAction('upgrade', {
+  ...candidateUpgrade,
+  confirm: true,
+}, { councilRequired: true }).reason, /requires a fresh validated council/);
+
+const missingCandidate = new WakeRuntimeGuard();
+missingCandidate.afterAction('upgrade', candidateUpgrade, {
+  ok: false,
+  reason: 'upgrade quote unavailable',
+});
+const missingCandidateResult = missingCandidate.prepareStrategyCouncil({
+  options: candidateOptions,
+});
+assert.equal(missingCandidateResult.ok, false);
+assert.equal(missingCandidateResult.missingCandidates[0].optionId, 'upgrade_mill');
+missingCandidate.afterAction('upgrade', candidateUpgrade, {
+  ok: true,
+  dry: true,
+  preview: true,
+  cashCost: 12500,
+});
+assert.equal(missingCandidate.prepareStrategyCouncil({ options: candidateOptions }).ok, true);
+missingCandidate.noteRefresh();
+assert.equal(missingCandidate.prepareStrategyCouncil({ options: candidateOptions }).ok, false);
 
 const changedTerms = new WakeRuntimeGuard();
 authorizeStrategy(changedTerms, {

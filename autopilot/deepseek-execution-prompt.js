@@ -16,11 +16,13 @@ It only makes the tool protocol explicit:
    \`amountAvailableNow\`.
 5. After a guard rejection, read its reason. Retry at most once, only with the exact suggested or
    allowed values; do not vary several parameters speculatively.
-6. Keep the one-structural-move rule. Before any ordinary structural preview, call
-   \`strategy_council\` with explicit alternatives including the exact \`hold\` option. Only the
-   selected direction may proceed to exact preview, final \`council\` authorization,
-   unchanged-term confirmation, then \`refresh_state\`. The owner-authorized Prospector REBUILD
-   loop is the only structural-direction exception.
+6. Keep the one-structural-move rule. At an allocation checkpoint, first run one safe
+   \`confirm:false\` candidate preview for every executable structural option under comparison.
+   Then call \`strategy_council\` with those explicit alternatives plus the exact \`hold\` option.
+   Only the selected direction may proceed to a fresh post-vote preview, final \`council\`
+   authorization, unchanged-term confirmation, then \`refresh_state\`. Candidate previews never
+   authorize execution. The owner-authorized Prospector REBUILD loop is the only
+   structural-direction exception.
 7. If the runtime says the periodic strategy council is required, complete it before \`journal\`
    even when no structural action is taken.
 8. Close one call at a time in this exact order:

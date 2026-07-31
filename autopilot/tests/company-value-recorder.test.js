@@ -11,6 +11,7 @@ function fixture() {
   return {
     t: '2026-07-30T04:00:00.000Z',
     companyValue: {
+      methodVersion: 3,
       official: {
         status: 'ok',
         total: 385783,
@@ -21,10 +22,19 @@ function fixture() {
         total: 421043,
         asOf: '2026-07-30T04:00:00.000Z',
         deltaFromOfficial: 35260,
+        comparisonToOfficialSnapshot: {
+          snapshotAgeSeconds: 10303,
+          totalDifference: 35260,
+          includesPostSnapshotActivity: true,
+          componentDifference: { cash: 12750 },
+        },
         confidence: 'medium',
         components: { cash: 188443 },
-        inventory: { coveragePct: 100 },
-        limitations: ['Tracked VWAP blends qualities.'],
+        inventory: {
+          coveragePct: 100,
+          valueByBasis: { 'current-quality-best-ask': 10000 },
+        },
+        limitations: ['Official daily reference prices use a different timestamp.'],
       },
     },
   };
@@ -57,6 +67,11 @@ test('persists one idempotent record and appends it to the wake diary', () => {
   assert.equal((diary.match(/<!-- company-value:/g) || []).length, 1);
   assert.match(diary, /Real-time estimate: \$421,043/);
   assert.match(diary, /Official daily value: \$385,783/);
+  assert.match(diary, /Estimated difference versus the older official snapshot/);
+  assert.match(diary, /2\.9 hours old/);
+  assert.match(diary, /quality-specific live market proxies/);
+  assert.doesNotMatch(diary, /Change since official snapshot/);
+  assert.equal(JSON.parse(fs.readFileSync(currentFile, 'utf8')).methodVersion, 3);
 });
 
 test('records final-capture failure without presenting stale data as current', () => {

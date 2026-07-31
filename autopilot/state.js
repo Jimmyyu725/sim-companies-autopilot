@@ -14,7 +14,10 @@ const CFG = require(path.join(SHARED, 'config.json'));
 const { aggregateVolumeRecords } = require(path.join(SHARED, 'price-tracker', 'data-quality.js'));
 const {
   calculateCompanyValue,
+  collectInventoryLots,
+  deriveQualityMarketPrices,
   derivePreviousDayReferencePrices,
+  inventoryAmountsByQuality,
 } = require(path.join(AUTOPILOT, 'company-value.js'));
 const {
   ageSeconds,
@@ -286,6 +289,66 @@ const PA_PENDING_FILE = path.join(AUTOPILOT, '.pa-pending.json');
       supplementalData.balance?.date,
       aggregateVolumeRecords,
     );
+    const inventoryPreview = collectInventoryLots({
+      warehouse: resourcesKnown ? resourcesRaw : null,
+      marketOrders: supplementalData.marketOrders,
+      outgoingContracts: supplementalData.outgoingContracts,
+      buildings,
+      resourceDefinitions: definitions,
+    });
+    const requiredQualityAmounts = inventoryAmountsByQuality(inventoryPreview.lots);
+    const marketKinds = [...new Set(
+      Object.keys(requiredQualityAmounts)
+        .map(key => Number(key.split(':')[0]))
+        .filter(kind => Number.isSafeInteger(kind) && kind > 0),
+    )];
+    let marketSummaries = [];
+    if (marketKinds.length) {
+      try {
+        marketSummaries = await cdp.evaluate(`
+          const kinds = ${JSON.stringify(marketKinds)};
+          const summaries = [];
+          for (let offset = 0; offset < kinds.length; offset += 6) {
+            const batch = kinds.slice(offset, offset + 6);
+            const rows = await Promise.all(batch.map(async kind => {
+              const response = await api('/api/v3/market/0/' + kind + '/');
+              const qualities = {};
+              for (const order of Array.isArray(response.json) ? response.json : []) {
+                const quality = Number(order?.quality);
+                const bestAsk = Number(order?.price);
+                const quantity = Number(order?.quantity);
+                if (!Number.isSafeInteger(quality) || quality < 0
+                    || !Number.isFinite(bestAsk) || bestAsk <= 0
+                    || !Number.isFinite(quantity) || quantity <= 0) continue;
+                if (!qualities[quality]) {
+                  qualities[quality] = {
+                    quality,
+                    bestAsk,
+                    listedUnits: 0,
+                    orderCount: 0,
+                  };
+                }
+                qualities[quality].bestAsk = Math.min(qualities[quality].bestAsk, bestAsk);
+                qualities[quality].listedUnits += quantity;
+                qualities[quality].orderCount += 1;
+              }
+              return {
+                kind,
+                status: response.status,
+                qualities: Object.values(qualities).sort((a, b) => a.quality - b.quality),
+              };
+            }));
+            summaries.push(...rows);
+          }
+          return summaries;
+        `);
+      } catch (error) { /* Explicit local VWAP and sourcing-cost fallbacks remain available. */ }
+    }
+    const qualityMarketPrices = deriveQualityMarketPrices(
+      marketSummaries,
+      requiredQualityAmounts,
+      { capturedAt },
+    );
     companyValue = calculateCompanyValue({
       capturedAt,
       balanceSheet: supplementalData.balance,
@@ -300,11 +363,12 @@ const PA_PENDING_FILE = path.join(AUTOPILOT, '.pa-pending.json');
       patentRequirements: facts.mechanics?.patents_needed_per_quality,
       patentValuesByResearchKind: facts.mechanics?.patent_value_by_research_kind,
       referencePriceResult: referencePrices,
+      qualityMarketPriceResult: qualityMarketPrices,
       tickerPrices: P,
     });
   } catch (error) {
     companyValue = {
-      methodVersion: 2,
+      methodVersion: 3,
       capturedAt,
       official: {
         status: 'unavailable',
@@ -383,7 +447,7 @@ const PA_PENDING_FILE = path.join(AUTOPILOT, '.pa-pending.json');
     companyValue: {
       status: companyValue.realtimeEstimate?.status || 'unavailable',
       asOf: companyValue.realtimeEstimate?.asOf || null,
-      source: 'live assets + live research portfolio + official balance baseline + previous-day local VWAP',
+      source: 'live assets + live research + official balance baseline + quality-specific live market proxies',
       officialAsOf: companyValue.official?.asOf || null,
       supplementalStatus: supplementalData.status,
     },

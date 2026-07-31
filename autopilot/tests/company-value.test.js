@@ -8,7 +8,9 @@ const {
   calculateCompanyValue,
   calculatePatentAssets,
   collectInventoryLots,
+  deriveQualityMarketPrices,
   derivePreviousDayReferencePrices,
+  inventoryAmountsByQuality,
   summarizeOfficialBalanceSheet,
   valueInventoryLots,
 } = require('../company-value.js');
@@ -92,7 +94,7 @@ test('derives the prior UTC day tracked VWAP and 85% liquidation value', () => {
   assert.equal(result.window.endIso, '2026-07-30T00:00:00.000Z');
 });
 
-test('collects every inventory location and values production WIP as recipe inputs', () => {
+test('collects every inventory location and values production WIP at live unit cost', () => {
   const result = collectInventoryLots({
     warehouse: [{ kind: 1, quality: 0, amount: 100, cost: { market: 28 } }],
     marketOrders: [{ kind: 2, quality: 0, quantity: 10, seller: { id: 1 } },
@@ -101,14 +103,19 @@ test('collects every inventory location and values production WIP as recipe inpu
     buildings: [{
       id: 1,
       busy: {
-        resource: { kind: 119, quality: 0, amount: 100, amountAvailableNow: 20 },
+        resource: {
+          kind: 119,
+          quality: 0,
+          amount: 100,
+          amountAvailableNow: 20,
+          unitCost: 2.5,
+        },
       },
     }, {
       id: 2,
       busy: {
         sales_order: {
           kind: 119,
-          quality: 0,
           price: 38.8,
           remainingProfit: 3880,
           profitAvailableNow: 200,
@@ -124,9 +131,11 @@ test('collects every inventory location and values production WIP as recipe inpu
   assert.equal(result.lots.find(lot => lot.location === 'exchange-order').amount, 10);
   assert.equal(result.lots.find(lot => lot.location === 'outgoing-contract').amount, 5);
   assert.equal(result.lots.find(lot => lot.location === 'production-ready').amount, 20);
-  assert.equal(result.lots.find(lot => lot.location === 'work-in-process').kind, 118);
-  assert.equal(result.lots.find(lot => lot.location === 'work-in-process').amount, 800);
+  assert.equal(result.lots.find(lot => lot.location === 'work-in-process').kind, 119);
+  assert.equal(result.lots.find(lot => lot.location === 'work-in-process').amount, 80);
+  assert.equal(result.lots.find(lot => lot.location === 'work-in-process').sourcingUnitCost, 2.5);
   assert.ok(Math.abs(result.lots.find(lot => lot.location === 'retail').amount - 100) < 1e-9);
+  assert.match(result.limitations.join(' '), /Q0 was used conservatively/);
 
   const valuation = valueInventoryLots(result.lots, {
     referencePrices: {
@@ -138,8 +147,49 @@ test('collects every inventory location and values production WIP as recipe inpu
     },
   });
   assert.equal(valuation.coveragePct, 100);
-  assert.equal(valuation.byLocation['work-in-process'], 640);
+  assert.equal(valuation.byLocation['work-in-process'], 200);
   assert.equal(valuation.byLocation.retail, 4250);
+  assert.equal(valuation.valueByBasis['live-production-unit-cost'], 200);
+});
+
+test('uses exact-quality live asks and interpolates an illiquid held quality', () => {
+  const prices = deriveQualityMarketPrices([{
+    kind: 119,
+    status: 200,
+    qualities: [
+      { quality: 0, bestAsk: 38, listedUnits: 10000, orderCount: 10 },
+      { quality: 1, bestAsk: 40, listedUnits: 10000, orderCount: 8 },
+      { quality: 2, bestAsk: 46.5, listedUnits: 500, orderCount: 1 },
+      { quality: 3, bestAsk: 44, listedUnits: 10000, orderCount: 6 },
+    ],
+  }], {
+    '119:0': 100,
+    '119:2': 2664,
+  }, {
+    capturedAt: '2026-07-31T03:00:00Z',
+  });
+
+  assert.equal(prices.status, 'estimated');
+  assert.equal(prices.prices[119][0].marketUnitValue, 38);
+  assert.equal(prices.prices[119][0].basis, 'current-quality-best-ask');
+  assert.equal(prices.prices[119][2].marketUnitValue, 42);
+  assert.equal(
+    prices.prices[119][2].basis,
+    'current-quality-interpolated-best-ask',
+  );
+  assert.ok(Math.abs(prices.prices[119][2].liquidationUnitValue - 35.7) < 1e-9);
+});
+
+test('requests quality prices only for inventory that is not WIP', () => {
+  assert.deepEqual(inventoryAmountsByQuality([
+    { kind: 119, quality: 2, amount: 100, location: 'warehouse' },
+    { kind: 119, quality: 2, amount: 20, location: 'retail' },
+    { kind: 119, quality: 2, amount: 50, location: 'work-in-process' },
+    { kind: 2, quality: 0, amount: 10, location: 'warehouse' },
+  ]), {
+    '119:2': 120,
+    '2:0': 10,
+  });
 });
 
 test('reconstructs live patent value from cumulative quality thresholds and current progress', () => {
@@ -214,12 +264,18 @@ test('calculates a live estimate using current patents instead of the daily pate
     tickerPrices: {},
   });
   assert.equal(result.official.total, 150);
+  assert.equal(result.methodVersion, 3);
   assert.equal(result.realtimeEstimate.total, 450);
   assert.equal(result.realtimeEstimate.deltaFromOfficial, 300);
   assert.equal(result.realtimeEstimate.components.inventory, 10);
   assert.equal(result.realtimeEstimate.components.accountsReceivable, 20);
   assert.equal(result.realtimeEstimate.components.patents, 200);
   assert.equal(result.realtimeEstimate.patents.patentCount, 2);
+  assert.equal(result.realtimeEstimate.comparisonToOfficialSnapshot.snapshotAgeSeconds, 10800);
+  assert.equal(
+    result.realtimeEstimate.comparisonToOfficialSnapshot.componentDifference.patents,
+    190,
+  );
   assert.ok(!result.realtimeEstimate.methodology.carriedDailyFields.includes('patents'));
 });
 

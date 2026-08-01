@@ -332,6 +332,12 @@ a strategy-changing commitment:
 Contract mutations use exact preview and the final `council` authorization, but do not require a
 portfolio-direction vote unless the contract itself changes strategy.
 
+The Prospector campaign farms COUNT ONLY. The achievement is "scrap 100 mines, quarries or rigs";
+each rebuild is worth the same whatever comes out of it. Never evaluate, compare, or wait on a
+rebuilt extraction site's abundance, and never skip or redo a cycle because the abundance looks
+poor — a low roll still counts. Owner directive, 2026-08-01: "盲拆凑数量就行刷成就". Spending
+rounds on abundance analysis is wasted work, not diligence.
+
 Every exact Prospector REBUILD cycle named by the active owner campaign is already approved and does
 not need stochastic council re-review. This exception applies only to the pool's selected current
 target and authenticated expected baseline. Run `confirm:false`, follow its

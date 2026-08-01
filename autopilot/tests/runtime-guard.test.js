@@ -1034,3 +1034,41 @@ completedSlotDirective.prospectorExperiment.campaign.status = 'completed';
 assert.equal(activeOwnerAchievementSlotPolicy(completedSlotDirective), null);
 
 console.log('runtime-guard tests passed');
+
+// Regression (2026-08-01 03:50 wake): an owner-authorized Prospector REBUILD confirm on a
+// DIFFERENT building must not consume the council-selected Farm-upgrade direction. The old code
+// consumed it, every later upgrade attempt was refused as "direction was consumed", and the wake
+// exhausted 40 rounds with the Farm idle.
+const crosstalk = new WakeRuntimeGuard();
+authorizeStrategy(crosstalk, {
+  id: 'upgrade_farm_55518748',
+  label: 'Upgrade Farm 55518748 to level 2.',
+  action: 'upgrade',
+  buildingId: 55518748,
+  target: 'farm',
+});
+// Owner-authorized rebuild of an unrelated Quarry executes (it bypasses strategy selection).
+assert.equal(crosstalk.afterAction('rebuild', { buildingId: 55538609, confirm: true }, {
+  ok: true, clicked: true, newBuildingId: 55545964,
+}), true);
+assert.equal(crosstalk.strategyCouncilStatus().decision.consumed, false,
+  'unrelated rebuild confirm must not consume the selected upgrade direction');
+crosstalk.noteRefresh();
+// The selected upgrade must still be executable: preview + council + confirm passes the
+// consumed-direction gate (null = no guard objection from beforeAction).
+crosstalk.afterAction('upgrade',
+  { buildingId: 55518748, maxCost: 50000, minCashAfter: 5000, confirm: false },
+  { ok: true, dry: true, preview: true, cashCost: 7652 });
+assert.equal(crosstalk.noteCouncil(validCouncilResult('APPROVE', 'OK'), {
+  proposal: 'Upgrade Farm 55518748 within the previewed limits.',
+  buildingId: 55518748,
+}).ok, true);
+assert.equal(crosstalk.beforeAction('upgrade',
+  { buildingId: 55518748, maxCost: 50000, minCashAfter: 5000, confirm: true },
+  { councilRequired: true }), null);
+// And a MATCHED confirm still consumes the direction (one-use preserved).
+crosstalk.afterAction('upgrade',
+  { buildingId: 55518748, maxCost: 50000, minCashAfter: 5000, confirm: true },
+  { ok: false, reason: 'commit outcome is ambiguous', mutationAttempted: true, doNotRetry: true });
+assert.equal(crosstalk.strategyCouncilStatus().decision.consumed, true,
+  'a matched confirm attempt must still consume the one-use direction');

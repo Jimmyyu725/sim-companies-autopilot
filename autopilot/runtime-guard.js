@@ -1237,8 +1237,14 @@ class WakeRuntimeGuard {
       this.ownerAchievementBuildCount += 1;
     }
     if (!actionRequiresRefresh(action, params, result)) return false;
+    // Consume the one-use strategy direction only when the confirmed action IS that direction.
+    // An owner-authorized Prospector REBUILD bypasses strategy selection entirely (PR #30), so it
+    // must not burn an unrelated selected direction: on 2026-08-01 wake 03:50 a rebuild confirm
+    // consumed the council-selected Farm upgrade, every later upgrade attempt was refused as
+    // "direction was consumed", and the wake exhausted its 40 rounds with the Farm left idle.
     if (STRATEGY_DIRECTION_ACTIONS.has(action) && params?.confirm === true &&
         this.strategyCouncilDecision &&
+        strategyDecisionMatchesAction(this.strategyCouncilDecision, action, params) &&
         !structuralAttemptIsExplicitlyRetrySafe(action, params, result)) {
       this.strategyCouncilDecision.consumed = true;
     }

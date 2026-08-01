@@ -36,6 +36,7 @@ const {
   validateStrategyCouncilCompletion,
   validateFinishSummary,
   buildAutomaticFinishOnExhaustion,
+  closingBudgetDirective,
 } = require(path.join(BRAIN, 'runtime-guard.js'));
 const { currentMemorySchema, readCurrentMemory, validateCurrentMemory, writeCurrentMemory } = require(path.join(BRAIN, 'current-memory.js'));
 const { formatWakeSnapshot, journalToolSchema, prepareJournalEntry } = require(path.join(BRAIN, 'journal-entry.js'));
@@ -959,6 +960,14 @@ async function main() {
   let forcedToolName = null;
   try {
     for (let i = 0; i < MAX_ROUNDS; i++) {
+    // Reserve the final rounds for the closing sequence so a productive wake is not discarded for
+    // running out before `master` writes the checkpoint.
+    const closing = closingBudgetDirective(MAX_ROUNDS - i, runtimeGuard.finishCheck());
+    if (closing) {
+      log('CLOSING_BUDGET', closing.roundsRemaining, closing.missing.join('; '));
+      messages.push({ role: 'user', content: closing.message });
+      if (PROVIDER === 'deepseek' && closing.requiredTool) forcedToolName = closing.requiredTool;
+    }
     const msg = await chat(messages, { forcedToolName });
     forcedToolName = null;
     messages.push(msg);

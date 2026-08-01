@@ -168,6 +168,31 @@ function validateFinishSummary(value) {
       reason: 'finish requires a non-empty summary of at most 1000 characters' };
 }
 
+// A wake that spends every round on useful work still fails if it reaches the cap before the
+// closing sequence: on 2026-08-01 wake 05:16 the model finished its business, wrote the alarm and
+// the decision brief on round 30, and never reached `master` — so CURRENT was left stale, the
+// automatic finish correctly refused, and the whole wake was retried. Reserve the last rounds for
+// closing instead of discarding completed work.
+const CLOSING_BUDGET_ROUNDS = 4;
+
+function closingBudgetDirective(roundsRemaining, finishCheck) {
+  if (!Number.isSafeInteger(roundsRemaining) || roundsRemaining > CLOSING_BUDGET_ROUNDS ||
+      roundsRemaining < 0) return null;
+  if (!finishCheck || finishCheck.ok) return null;
+  const missing = Array.isArray(finishCheck.missing) ? finishCheck.missing.filter(Boolean) : [];
+  if (!missing.length) return null;
+  const firstTool = String(missing[0]).trim().split(/\s+/u)[0];
+  return {
+    roundsRemaining,
+    missing,
+    requiredTool: ['set_alarm', 'journal', 'master'].includes(firstTool) ? firstTool : null,
+    message: `CLOSING BUDGET: ${roundsRemaining} tool rounds remain in this wake. Start no new ` +
+      'work, previews, or inspections. Complete only these closing steps, one per turn, in this ' +
+      `order: ${missing.join('; ')}. Then call finish. An unfinished wake leaves the checkpoint ` +
+      'stale and forces a full retry.',
+  };
+}
+
 function buildAutomaticFinishOnExhaustion(runtimeGuard) {
   if (!runtimeGuard || typeof runtimeGuard.finishCheck !== 'function') {
     return { ok: false, reason: 'runtime finish guard is unavailable' };
@@ -1402,6 +1427,7 @@ module.exports = {
   actionRequiresRefresh,
   bindStructuralPreviewToCouncilArgs,
   buildAutomaticFinishOnExhaustion,
+  closingBudgetDirective,
   buildSafetyRetryAlarm,
   buildStructuralPreviewEvidence,
   buildWakeAlarm,

@@ -21,6 +21,7 @@ const {
   validateStrategyCouncilCompletion,
   validateFinishSummary,
   buildAutomaticFinishOnExhaustion,
+  closingBudgetDirective,
 } = require('../runtime-guard.js');
 
 for (const filename of ['build.js', 'scrap.js', 'rebuild.js']) {
@@ -1125,3 +1126,30 @@ assert.match(authDeadlock.beforeAction('produce', {
   targetHours: 6,
   finishBefore: new Date(authDeadlockAt + 6 * 60 * 60 * 1000).toISOString(),
 }, { state: authDeadlockState }).reason, /failed council authorization/);
+
+// Regression (2026-08-01 wake 05:16): the wake spent all 30 rounds on useful work, wrote the alarm
+// and decision brief on the last round, and never reached `master` — CURRENT stayed stale, the
+// automatic finish correctly refused, and the completed work was retried from scratch. The final
+// rounds must be reserved for the closing sequence.
+assert.equal(closingBudgetDirective(30, { ok: false, missing: ['master after the latest mutation'] }),
+  null, 'no directive while plenty of rounds remain');
+assert.equal(closingBudgetDirective(2, { ok: true }), null,
+  'no directive when nothing is missing');
+assert.equal(closingBudgetDirective(2, { ok: false, missing: [] }), null);
+const closingNow = closingBudgetDirective(3, {
+  ok: false,
+  missing: ['journal after the latest mutation', 'master after the latest mutation'],
+});
+assert.equal(closingNow.roundsRemaining, 3);
+assert.equal(closingNow.requiredTool, 'journal');
+assert.match(closingNow.message, /CLOSING BUDGET: 3 tool rounds remain/);
+assert.match(closingNow.message, /master after the latest mutation/);
+assert.match(closingNow.message, /Start no new work/);
+const closingMaster = closingBudgetDirective(1, {
+  ok: false, missing: ['master after the latest mutation'],
+});
+assert.equal(closingMaster.requiredTool, 'master');
+// An unexpected missing label must not be forced as a tool name.
+assert.equal(closingBudgetDirective(1, {
+  ok: false, missing: ['collect the completed job first'],
+}).requiredTool, null);

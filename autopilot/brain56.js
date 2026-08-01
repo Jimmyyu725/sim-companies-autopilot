@@ -38,6 +38,7 @@ const {
   validateStrategyCouncilCompletion,
   validateFinishSummary,
   buildAutomaticFinishOnExhaustion,
+  closingBudgetDirective,
 } = require(path.join(BRAIN, 'runtime-guard.js'));
 const { currentMemorySchema, readCurrentMemory, validateCurrentMemory, writeCurrentMemory } = require(path.join(BRAIN, 'current-memory.js'));
 const { formatWakeSnapshot, journalToolSchema, prepareJournalEntry } = require(path.join(BRAIN, 'journal-entry.js'));
@@ -764,6 +765,13 @@ async function main() {
       outputs.push({ type: 'function_call_output', call_id: c.call_id, output: formatToolOutput(c.name, result) });
     }
     if (done) break;
+    // Reserve the final rounds for the closing sequence so a productive wake is not discarded
+    // for running out before `master` writes the checkpoint.
+    const closing = closingBudgetDirective(30 - (i + 1), runtimeGuard.finishCheck());
+    if (closing) {
+      log('CLOSING_BUDGET', closing.roundsRemaining, closing.missing.join('; '));
+      outputs.push({ role: 'user', content: closing.message });
+    }
     r = await respond(buildChainedResponseRequest(r.id, system, outputs));
     }
     if (!finished) {

@@ -548,7 +548,20 @@ function validateActionParams(action, params) {
   }
   for (const [key, value] of Object.entries(params)) {
     const error = validateValue(key, value, contract.properties[key]);
-    if (error) return { ok: false, reason: `${action}: ${error}` };
+    if (error) {
+      // A checkpoint closer than one hour cannot be expressed through targetHours (minimum 1), and
+      // the bare minimum-violation left no legal move visible: on 2026-08-01 the model tried a
+      // 15-minute bridge as targetHours:0.25, was refused, then guessed a full hour that overshot
+      // the checkpoint. Name the working combination instead of only the constraint.
+      if (action === 'produce' && key === 'targetHours') {
+        return {
+          ok: false,
+          reason: `${action}: ${error}; for a bridge shorter than one hour pass targetHours:null ` +
+            'and let finishBefore bound the order — the runtime sizes qty to the checkpoint',
+        };
+      }
+      return { ok: false, reason: `${action}: ${error}` };
+    }
   }
   if (action === 'produce' && params.finishBefore != null && !Number.isFinite(Date.parse(params.finishBefore))) {
     return { ok: false, reason: 'produce: finishBefore must be a valid ISO timestamp or null' };

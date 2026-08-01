@@ -200,3 +200,41 @@ test('PA reply is fingerprint-bound and requires a guide reconciliation', () => 
     rationale: 'This appears to dominate the other displayed options.',
   }).ok, true);
 });
+
+// Regression (2026-08-01): a sub-hour bridge attempt (targetHours:0.25) was refused with only the
+// bare minimum violation, so the model next guessed a full hour that overshot the checkpoint. The
+// refusal must name the working combination: targetHours:null bounded by finishBefore.
+test('sub-hour targetHours refusal names the finishBefore bridge combination', () => {
+  const refused = validateActionParams('produce', {
+    buildingId: 55518748,
+    name: 'Seeds',
+    qty: 229,
+    targetHours: 0.25,
+    finishBefore: '2026-08-01T10:20:00.000Z',
+  });
+  assert.equal(refused.ok, false);
+  assert.match(refused.reason, /targetHours must be >= 1/);
+  assert.match(refused.reason, /targetHours:null/);
+  assert.match(refused.reason, /finishBefore/);
+
+  // The named combination itself is accepted by the contract.
+  const accepted = validateActionParams('produce', {
+    buildingId: 55518748,
+    name: 'Seeds',
+    qty: 229,
+    targetHours: null,
+    finishBefore: '2026-08-01T10:20:00.000Z',
+  });
+  assert.equal(accepted.ok, true);
+
+  // Other minimum violations keep the plain message.
+  const other = validateActionParams('produce', {
+    buildingId: 0,
+    name: 'Seeds',
+    qty: 1,
+    targetHours: null,
+    finishBefore: null,
+  });
+  assert.equal(other.ok, false);
+  assert.doesNotMatch(other.reason, /targetHours:null/);
+});

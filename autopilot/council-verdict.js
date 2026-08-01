@@ -270,7 +270,7 @@ function validateStrategyCouncilVote(role, vote, evidence, optionIds, menu = [])
       metrics: vote.metrics,
       unknowns: vote.unknowns,
       conditions: vote.conditions,
-    }, evidence);
+    }, evidence, menu);
     if (!validated.ok) return invalidStrategyVote(role, validated.value?.unknowns?.[0]);
     return {
       ok: true,

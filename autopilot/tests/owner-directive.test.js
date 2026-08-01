@@ -668,6 +668,122 @@ test('parallel Prospector pool enrolls two slots and rotates independent rebuild
     [99, 101, 102]);
 });
 
+test('parallel Prospector pool recognizes completed targets when the API omits busy', t => {
+  const files = fixture();
+  t.after(() => fs.rmSync(files.directory, { recursive: true, force: true }));
+  const now = Date.parse('2026-08-01T02:52:38.070Z');
+  const observedAt = new Date(now - 1000).toISOString();
+  const directive = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
+  directive.action = OWNER_SUBTASK_ACTION;
+  directive.prospectorExperiment = {
+    status: 'waiting-construction',
+    building: 'Quarry',
+    buildingId: 200,
+    level: 1,
+    completesAt: new Date(now + 20 * 60e3).toISOString(),
+    expectedBaseline: 30,
+    expectedTarget: 50,
+    expectedIncrement: 1,
+    campaign: {
+      mode: 'repeat-until-achievement-complete',
+      status: 'active',
+      currentStars: 1,
+      starsMax: 7,
+      targetCapacity: 3,
+      activeTargetId: 'primary',
+      slotPolicy: { parallelizeWhenSafe: true },
+      targets: [
+        {
+          targetId: 'primary', building: 'Quarry', buildingId: 200, level: 1,
+          status: 'waiting-construction', completesAt: new Date(now + 20 * 60e3).toISOString(),
+        },
+        {
+          targetId: 'completed-api-row', building: 'Quarry', buildingId: 201, level: 1,
+          status: 'busy', completesAt: new Date(now - 30 * 60e3).toISOString(),
+        },
+        {
+          targetId: 'future-api-row', building: 'Quarry', buildingId: 202, level: 1,
+          status: 'busy', completesAt: new Date(now + 10 * 60e3).toISOString(),
+        },
+      ],
+    },
+    baselineProgress: {
+      path: PROSPECTOR_OVERVIEW_PATH, status: 200, observedAt,
+      current: 30, target: 50, stars: 1, starsMax: 7,
+    },
+    lastProgressEvidence: {
+      path: PROSPECTOR_OVERVIEW_PATH, status: 200, observedAt,
+      current: 30, target: 50, stars: 1, starsMax: 7,
+    },
+  };
+  fs.writeFileSync(files.directiveFile, JSON.stringify(directive));
+  const state = {
+    t: new Date(now).toISOString(),
+    sources: { buildings: { status: 'ok', asOf: new Date(now).toISOString() } },
+    buildings: [
+      {
+        id: 200, name: 'Quarry', size: 1,
+        busy: { type: 'construction', expanding: true,
+          endsAt: new Date(now + 20 * 60e3).toISOString() },
+      },
+      { id: 201, name: 'Quarry', size: 1, activity: { status: 'unknown', busy: null } },
+      { id: 202, name: 'Quarry', size: 1, activity: { status: 'unknown', busy: null } },
+    ],
+  };
+
+  assert.equal(synchronizeOwnerProspectorConstruction(files.directiveFile, state, now), true);
+  const persisted = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
+  const summary = prospectorCampaignTargetSummary(persisted);
+  assert.equal(summary.activeTargetId, 'completed-api-row');
+  assert.equal(summary.targets.find(target => target.buildingId === 201).status, 'ready');
+  assert.equal(summary.targets.find(target => target.buildingId === 202).status,
+    'waiting-construction');
+  assert.equal(persisted.prospectorExperiment.buildingId, 201);
+  assert.equal(persisted.prospectorExperiment.status, 'baseline-verified');
+});
+
+test('parallel Prospector pool accepts exact page-derived idle evidence', t => {
+  const files = fixture();
+  t.after(() => fs.rmSync(files.directory, { recursive: true, force: true }));
+  const now = Date.parse('2026-08-01T03:00:00.000Z');
+  const directive = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
+  directive.action = OWNER_SUBTASK_ACTION;
+  directive.prospectorExperiment = {
+    status: 'waiting-construction', building: 'Quarry', buildingId: 301, level: 1,
+    completesAt: null, expectedBaseline: 30, expectedTarget: 50, expectedIncrement: 1,
+    campaign: {
+      mode: 'repeat-until-achievement-complete', status: 'active', currentStars: 1, starsMax: 7,
+      targetCapacity: 1, activeTargetId: 'primary', slotPolicy: { parallelizeWhenSafe: true },
+      targets: [{
+        targetId: 'primary', building: 'Quarry', buildingId: 301, level: 1,
+        status: 'busy', completesAt: null,
+      }],
+    },
+    baselineProgress: {
+      path: PROSPECTOR_OVERVIEW_PATH, status: 200, current: 30, target: 50,
+      stars: 1, starsMax: 7,
+    },
+    lastProgressEvidence: {
+      path: PROSPECTOR_OVERVIEW_PATH, status: 200, current: 30, target: 50,
+      stars: 1, starsMax: 7,
+    },
+  };
+  fs.writeFileSync(files.directiveFile, JSON.stringify(directive));
+  const state = {
+    t: new Date(now).toISOString(),
+    sources: { buildings: { status: 'ok', asOf: new Date(now).toISOString() } },
+    buildings: [{
+      id: 301, name: 'Quarry', size: 1,
+      activity: { status: 'page-derived', busy: false },
+    }],
+  };
+
+  assert.equal(synchronizeOwnerProspectorConstruction(files.directiveFile, state, now), true);
+  const persisted = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
+  assert.equal(persisted.prospectorExperiment.status, 'baseline-verified');
+  assert.equal(persisted.prospectorExperiment.campaign.targets[0].status, 'ready');
+});
+
 test('continuous Prospector campaign never duplicates while its counter is unchanged', t => {
   const files = fixture();
   t.after(() => fs.rmSync(files.directory, { recursive: true, force: true }));

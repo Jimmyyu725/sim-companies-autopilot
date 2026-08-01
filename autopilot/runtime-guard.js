@@ -175,6 +175,13 @@ function validateFinishSummary(value) {
 // closing instead of discarding completed work.
 const CLOSING_BUDGET_ROUNDS = 4;
 
+// True while the wake is inside its reserved closing rounds. Optional journal gates must yield
+// then: an OPTIONAL review that blocks the mandatory closing sequence discards the whole wake.
+function closingBudgetActive(roundsRemaining) {
+  return Number.isSafeInteger(roundsRemaining) && roundsRemaining >= 0 &&
+    roundsRemaining <= CLOSING_BUDGET_ROUNDS;
+}
+
 function closingBudgetDirective(roundsRemaining, finishCheck) {
   if (!Number.isSafeInteger(roundsRemaining) || roundsRemaining > CLOSING_BUDGET_ROUNDS ||
       roundsRemaining < 0) return null;
@@ -1454,6 +1461,7 @@ module.exports = {
   actionRequiresRefresh,
   bindStructuralPreviewToCouncilArgs,
   buildAutomaticFinishOnExhaustion,
+  closingBudgetActive,
   closingBudgetDirective,
   buildSafetyRetryAlarm,
   buildStructuralPreviewEvidence,

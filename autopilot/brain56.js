@@ -38,6 +38,7 @@ const {
   validateStrategyCouncilCompletion,
   validateFinishSummary,
   buildAutomaticFinishOnExhaustion,
+  closingBudgetActive,
   closingBudgetDirective,
 } = require(path.join(BRAIN, 'runtime-guard.js'));
 const { currentMemorySchema, readCurrentMemory, validateCurrentMemory, writeCurrentMemory } = require(path.join(BRAIN, 'current-memory.js'));
@@ -78,6 +79,8 @@ const readOwnerDirectiveFile = () => {
 const ACTION_SET = new Set(ACTION_NAMES);
 const failureBudget = new FailureBudget(2);
 const runtimeGuard = new WakeRuntimeGuard();
+// Rounds left in this wake, refreshed by the main loop so journal gates can yield while closing.
+let roundsRemaining = Number.POSITIVE_INFINITY;
 let strategyCouncilGovernance = { required: false, status: 'not_required', reasons: [] };
 const ownerUpgradeBridgeAuthorizations = new Set();
 const UTILITY_KINDS = Object.freeze([1, 2]);
@@ -626,7 +629,12 @@ async function runTool(name, args) {   // identical behavior to brain.js
         { ownerDirective },
       );
       if (utilizationBlock) return utilizationBlock;
-      const utilityBlock = utilityJournalGate(state, utilityExchangeReviews, alarm);
+      // The utility surplus review is optional by its own definition ("Selling is optional").
+      // Live 2026-08-01 wake 11:57: it blocked the journal with two rounds left, the closing budget
+      // could not help, and the whole wake was discarded. Defer it to the next wake instead.
+      const utilityBlock = closingBudgetActive(roundsRemaining)
+        ? null
+        : utilityJournalGate(state, utilityExchangeReviews, alarm);
       if (utilityBlock) return utilityBlock;
       const prepared = prepareJournalEntry(args, state);
       if (!prepared.ok) return prepared;
@@ -767,7 +775,8 @@ async function main() {
     if (done) break;
     // Reserve the final rounds for the closing sequence so a productive wake is not discarded
     // for running out before `master` writes the checkpoint.
-    const closing = closingBudgetDirective(30 - (i + 1), runtimeGuard.finishCheck());
+    roundsRemaining = 30 - (i + 1);
+    const closing = closingBudgetDirective(roundsRemaining, runtimeGuard.finishCheck());
     if (closing) {
       log('CLOSING_BUDGET', closing.roundsRemaining, closing.missing.join('; '));
       outputs.push({ role: 'user', content: closing.message });

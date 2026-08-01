@@ -90,6 +90,7 @@ test('both brain engines reserve every owner Prospector pool target from product
   for (const filename of ['brain.js', 'brain56.js']) {
     const source = fs.readFileSync(path.join(__dirname, '..', filename), 'utf8');
     assert.match(source, /isOwnerAuthorizedProspectorRebuild\(/, filename);
+    assert.match(source, /ownerAuthorizedProspectorRebuildTarget\(/, filename);
     assert.match(source, /isOwnerProspectorCampaignTarget\(/, filename);
     assert.match(source, /action === 'produce' && ownerProspectorPoolTarget/, filename);
     assert.match(source, /ownerAchievementBuildRequirement\(/, filename);
@@ -97,6 +98,8 @@ test('both brain engines reserve every owner Prospector pool target from product
     assert.match(source, /ownerDirectivePriority:\s*true/, filename);
     assert.match(source, /councilRequired:\s*false/, filename);
     assert.match(source, /requiredNextAction:[\s\S]{0,180}confirm:\s*true/, filename);
+    assert.match(source, /not the current one-use target/, filename);
+    assert.match(source, /refresh state instead of submitting this campaign action to Council/, filename);
     assert.match(source,
       /councilRequiredForStructuralAction\([\s\S]{0,180}ownerDirectiveForAction/, filename);
     assert.match(source,

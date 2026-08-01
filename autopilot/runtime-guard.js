@@ -676,6 +676,30 @@ function isOwnerAuthorizedProspectorRebuild(state, params = {}, directive, now =
     !(building?.activity?.status === 'known' && building?.activity?.busy === true);
 }
 
+function ownerAuthorizedProspectorRebuildTarget(state, directive, now = Date.now()) {
+  const experiment = directive?.prospectorExperiment;
+  const summary = prospectorCampaignTargetSummary(directive);
+  const activeTarget = summary.targets.find(
+    target => target.targetId === summary.activeTargetId,
+  );
+  const candidateIds = [
+    activeTarget?.buildingId,
+    experiment?.buildingId,
+    findOwnerProspectorRecoveryCandidate(state, directive, now)?.buildingId,
+  ];
+  for (const rawBuildingId of candidateIds) {
+    const buildingId = Number(rawBuildingId);
+    if (!Number.isSafeInteger(buildingId) || buildingId <= 0) continue;
+    if (isOwnerAuthorizedProspectorRebuild(
+      state,
+      { buildingId },
+      directive,
+      now,
+    )) return buildingId;
+  }
+  return null;
+}
+
 function isOwnerAuthorizedAchievementBuild(state, params = {}, directive, now = Date.now()) {
   const policy = activeOwnerAchievementSlotPolicy(directive);
   const nowMs = Number(now);
@@ -1342,6 +1366,7 @@ module.exports = {
   isOwnerAuthorizedAchievementBuild,
   isApprovedRollingMillUpgrade,
   isOwnerAuthorizedProspectorRebuild,
+  ownerAuthorizedProspectorRebuildTarget,
   ownerAchievementBuildRequirement,
   sameStructuralTarget,
   sameChatMutationTerms,

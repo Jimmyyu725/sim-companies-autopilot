@@ -566,6 +566,24 @@ function writeCouncilUsage(brainDir, role, councilModel, json, provider = 'opena
   }) + '\n');
 }
 
+// A council result larger than the tool-output budget is bounded by whole fields, which reduces
+// `council: [votes]` to an item count and hides every role reason. The brain then retries blindly:
+// on 2026-08-01 it reissued the same Farm-upgrade proposal six times while the COO kept returning
+// VALIDATED/UNKNOWN. This compact string stays under the scalar limit, so the blocking role and its
+// first stated gap always survive bounding and the brain can address or hold on a real reason.
+function summarizeCouncilBlockers(result) {
+  const votes = Array.isArray(result?.council) ? result.council : [];
+  const blockers = votes.filter(vote => vote &&
+    !["APPROVE", "RECOMMEND"].includes(String(vote.verdict || "").toUpperCase()));
+  if (!blockers.length) return null;
+  return blockers.slice(0, 3).map(vote => {
+    const gap = Array.isArray(vote.unknowns) && vote.unknowns.length
+      ? String(vote.unknowns[0])
+      : (vote.summary ? String(vote.summary) : "no stated gap");
+    return `${vote.role} ${vote.verdict}: ${gap.slice(0, 120)}`;
+  }).join(" | ").slice(0, 250);
+}
+
 function writeCouncilAudit(brainDir, role, vote, details = {}) {
   const validationError = details.validationError
     ? String(details.validationError).slice(0, 300)
@@ -584,6 +602,12 @@ function writeCouncilAudit(brainDir, role, vote, details = {}) {
     errorKind: details.errorKind || null,
     repairAttempted: details.repairAttempted === true,
     validationError,
+    // Deliberately no vote prose here: the audit must never carry model-authored summaries,
+    // unknowns, or evidence values (see the bounded-diagnostics test). The per-role reasons are
+    // already returned to the brain in `council: votes` and land in the wake diary; the audit only
+    // records deterministic outcome fields. `unknownCount` keeps a VALIDATED/UNKNOWN verdict
+    // distinguishable from a silent one without leaking any text.
+    unknownCount: Array.isArray(vote?.unknowns) ? vote.unknowns.length : 0,
   }) + '\n');
 }
 
@@ -980,6 +1004,7 @@ async function runStrategyCouncil({
 }
 
 module.exports = {
+  summarizeCouncilBlockers,
   DEEPSEEK_STRATEGY_JSON_INSTRUCTION,
   ROLE_MAX_ATTEMPTS,
   ROLES,

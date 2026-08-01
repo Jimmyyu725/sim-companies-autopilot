@@ -85,6 +85,8 @@ const MIN_ALARM_DELAY_MS = 2 * 60 * 1000;
 const MAX_ALARM_DELAY_MS = 4 * 60 * 60 * 1000;
 const OWNER_DIRECTIVE_MAX_STATE_AGE_MS = 5 * 60 * 1000;
 const FARM_UPGRADE_REVIEW_MAX_BRIDGE_MS = 60 * 60 * 1000;
+// Two refusals prove the block is systematic rather than a single transient role failure.
+const STRUCTURAL_AUTHORIZATION_BRIDGE_THRESHOLD = 2;
 const PROSPECTOR_OVERVIEW_PATH = '/api/v2/companies/me/achievements/';
 const PROSPECTOR_CAMPAIGN_MODE = 'repeat-until-achievement-complete';
 const ACHIEVEMENT_SLOT_POLICY_MODE = 'reserve-all-free-standard-slots';
@@ -164,6 +166,31 @@ function validateFinishSummary(value) {
     ? { ok: true, summary }
     : { ok: false, guard: true,
       reason: 'finish requires a non-empty summary of at most 1000 characters' };
+}
+
+// A wake that spends every round on useful work still fails if it reaches the cap before the
+// closing sequence: on 2026-08-01 wake 05:16 the model finished its business, wrote the alarm and
+// the decision brief on round 30, and never reached `master` — so CURRENT was left stale, the
+// automatic finish correctly refused, and the whole wake was retried. Reserve the last rounds for
+// closing instead of discarding completed work.
+const CLOSING_BUDGET_ROUNDS = 4;
+
+function closingBudgetDirective(roundsRemaining, finishCheck) {
+  if (!Number.isSafeInteger(roundsRemaining) || roundsRemaining > CLOSING_BUDGET_ROUNDS ||
+      roundsRemaining < 0) return null;
+  if (!finishCheck || finishCheck.ok) return null;
+  const missing = Array.isArray(finishCheck.missing) ? finishCheck.missing.filter(Boolean) : [];
+  if (!missing.length) return null;
+  const firstTool = String(missing[0]).trim().split(/\s+/u)[0];
+  return {
+    roundsRemaining,
+    missing,
+    requiredTool: ['set_alarm', 'journal', 'master'].includes(firstTool) ? firstTool : null,
+    message: `CLOSING BUDGET: ${roundsRemaining} tool rounds remain in this wake. Start no new ` +
+      'work, previews, or inspections. Complete only these closing steps, one per turn, in this ' +
+      `order: ${missing.join('; ')}. Then call finish. An unfinished wake leaves the checkpoint ` +
+      'stale and forces a full retry.',
+  };
 }
 
 function buildAutomaticFinishOnExhaustion(runtimeGuard) {
@@ -842,6 +869,11 @@ class WakeRuntimeGuard {
     this.strategyCouncilCompleted = false;
     this.strategyCouncilDecision = null;
     this.strategyCouncilConsideredDirections = new Set();
+    // How often the execution council refused to authorize a selected direction this wake, keyed by
+    // direction. A repeatedly unauthorized selection must not also block bridge work (see the
+    // produce guard): on 2026-08-01 the COO returned VALIDATED/UNKNOWN five times for one Farm
+    // upgrade while the produce path stayed blocked, so the Farm could neither upgrade nor work.
+    this.structuralAuthorizationFailures = new Map();
     this.ownerAchievementBuildCount = 0;
   }
 
@@ -1020,15 +1052,40 @@ class WakeRuntimeGuard {
           // Council explicitly chose continued operation after reviewing this exact Farm upgrade.
         } else if (this.strategyCouncilCompleted && considered &&
             decision?.action === 'upgrade' && Number(decision.buildingId) === buildingId) {
-          return {
-            ok: false,
-            guard: true,
-            reason: 'strategy_council selected this Farm upgrade; do not hide the upgrade window behind another production order',
-            requiredAction: {
-              action: 'upgrade', buildingId, confirm: false,
-              note: 'refresh the exact quote, fund the measured gap if necessary, then execute the selected upgrade',
-            },
-          };
+          // The selected upgrade normally outranks production. But if the execution council has
+          // already refused to authorize it repeatedly this wake, blocking production too leaves
+          // the building with no legal move at all while the no-voluntary-idle journal gate still
+          // demands work. Allow the same bounded checkpoint bridge used after a council failure.
+          const authorizationFailures = this.structuralAuthorizationFailures.get(upgradeKey) || 0;
+          const capturedAtMs = Date.parse(options?.state?.t);
+          const finishBeforeMs = Date.parse(params?.finishBefore);
+          const shortBridge = Number.isFinite(capturedAtMs) && Number.isFinite(finishBeforeMs) &&
+            finishBeforeMs > capturedAtMs &&
+            finishBeforeMs <= capturedAtMs + FARM_UPGRADE_REVIEW_MAX_BRIDGE_MS;
+          if (authorizationFailures >= STRUCTURAL_AUTHORIZATION_BRIDGE_THRESHOLD && shortBridge) {
+            // Bridge permitted: the upgrade stays selected and must be retried next wake.
+          } else if (authorizationFailures >= STRUCTURAL_AUTHORIZATION_BRIDGE_THRESHOLD) {
+            return {
+              ok: false,
+              guard: true,
+              reason: `the selected Farm upgrade failed council authorization ${authorizationFailures} times this wake; keep the upgrade pending and place only a checkpoint-bound bridge of at most one hour`,
+              buildingId,
+              requiredParameter: 'finishBefore',
+              latestAllowedFinishBefore: Number.isFinite(capturedAtMs)
+                ? new Date(capturedAtMs + FARM_UPGRADE_REVIEW_MAX_BRIDGE_MS).toISOString()
+                : null,
+            };
+          } else {
+            return {
+              ok: false,
+              guard: true,
+              reason: 'strategy_council selected this Farm upgrade; do not hide the upgrade window behind another production order',
+              requiredAction: {
+                action: 'upgrade', buildingId, confirm: false,
+                note: 'refresh the exact quote, fund the measured gap if necessary, then execute the selected upgrade',
+              },
+            };
+          }
         } else {
           const candidate = this.strategyCandidates.get(upgradeKey);
           const candidateIsCurrent = candidate?.previewVersion === this.mutationVersion;
@@ -1237,8 +1294,14 @@ class WakeRuntimeGuard {
       this.ownerAchievementBuildCount += 1;
     }
     if (!actionRequiresRefresh(action, params, result)) return false;
+    // Consume the one-use strategy direction only when the confirmed action IS that direction.
+    // An owner-authorized Prospector REBUILD bypasses strategy selection entirely (PR #30), so it
+    // must not burn an unrelated selected direction: on 2026-08-01 wake 03:50 a rebuild confirm
+    // consumed the council-selected Farm upgrade, every later upgrade attempt was refused as
+    // "direction was consumed", and the wake exhausted its 40 rounds with the Farm left idle.
     if (STRATEGY_DIRECTION_ACTIONS.has(action) && params?.confirm === true &&
         this.strategyCouncilDecision &&
+        strategyDecisionMatchesAction(this.strategyCouncilDecision, action, params) &&
         !structuralAttemptIsExplicitlyRetrySafe(action, params, result)) {
       this.strategyCouncilDecision.consumed = true;
     }
@@ -1260,6 +1323,14 @@ class WakeRuntimeGuard {
       : argsMatch;
     this.structuralPreview.councilAuthorized = authorization.ok;
     this.structuralPreview.councilReason = authorization.reason || null;
+    if (!authorization.ok && this.structuralPreview.action) {
+      const key = strategyDirectionKey(this.structuralPreview.action, {
+        buildingId: this.structuralPreview.terms?.buildingId ?? args?.buildingId ?? null,
+        building: this.structuralPreview.terms?.building ?? null,
+      });
+      this.structuralAuthorizationFailures.set(
+        key, (this.structuralAuthorizationFailures.get(key) || 0) + 1);
+    }
     return authorization;
   }
 
@@ -1356,6 +1427,7 @@ module.exports = {
   actionRequiresRefresh,
   bindStructuralPreviewToCouncilArgs,
   buildAutomaticFinishOnExhaustion,
+  closingBudgetDirective,
   buildSafetyRetryAlarm,
   buildStructuralPreviewEvidence,
   buildWakeAlarm,

@@ -55,3 +55,41 @@ test('bounds object-summary key and scalar scans', () => {
   assert.equal(result.objectSummary.keys.length, 80);
   assert.equal(Object.keys(result.objectSummary.scalars).length, 20);
 });
+
+// Regression (2026-08-01): a failed pointer must describe the container it was applied to. The
+// model probed `/data` on the achievements endpoint (a root ARRAY) on consecutive wakes and
+// `/data/4` on buildings, because "pointer segment not found" alone taught it nothing.
+test('failed pointer reports the container shape so one wrong guess is enough', () => {
+  const arrayRoot = formatApiResponse({
+    ok: true, path: '/api/v2/companies/me/achievements/', status: 200,
+    fetchedAt: 't', data: [{ name: 'Prospector', stars: 1 }, { name: 'Tycoon', stars: 0 }],
+  }, { pointer: '/data' });
+  assert.equal(arrayRoot.ok, false);
+  assert.equal(arrayRoot.shapeHint.containerType, 'array');
+  assert.equal(arrayRoot.shapeHint.length, 2);
+  assert.match(arrayRoot.shapeHint.hint, /ARRAY/);
+
+  const objectRoot = formatApiResponse({
+    ok: true, path: '/api/test/', status: 200, fetchedAt: 't',
+    data: { alpha: 1, beta: { nested: true } },
+  }, { pointer: '/data/4' });
+  assert.equal(objectRoot.ok, false);
+  assert.deepEqual(objectRoot.shapeHint.keys, ['alpha', 'beta']);
+  assert.equal(objectRoot.shapeHint.containerType, 'object');
+
+  // A pointer that fails one level deep describes THAT level, not the root.
+  const nested = formatApiResponse({
+    ok: true, path: '/api/test/', status: 200, fetchedAt: 't',
+    data: { rows: [{ id: 1 }] },
+  }, { pointer: '/rows/data' });
+  assert.equal(nested.shapeHint.containerType, 'array');
+  assert.equal(nested.shapeHint.length, 1);
+
+  // A successful pointer is unchanged.
+  const success = formatApiResponse({
+    ok: true, path: '/api/test/', status: 200, fetchedAt: 't',
+    data: [{ id: 7 }],
+  }, { pointer: '/0/id' });
+  assert.equal(success.ok, true);
+  assert.equal(success.data, 7);
+});

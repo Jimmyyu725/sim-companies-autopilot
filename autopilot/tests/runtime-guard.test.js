@@ -21,6 +21,7 @@ const {
   validateStrategyCouncilCompletion,
   validateFinishSummary,
   buildAutomaticFinishOnExhaustion,
+  closingBudgetDirective,
 } = require('../runtime-guard.js');
 
 for (const filename of ['build.js', 'scrap.js', 'rebuild.js']) {
@@ -1034,3 +1035,121 @@ completedSlotDirective.prospectorExperiment.campaign.status = 'completed';
 assert.equal(activeOwnerAchievementSlotPolicy(completedSlotDirective), null);
 
 console.log('runtime-guard tests passed');
+
+// Regression (2026-08-01 03:50 wake): an owner-authorized Prospector REBUILD confirm on a
+// DIFFERENT building must not consume the council-selected Farm-upgrade direction. The old code
+// consumed it, every later upgrade attempt was refused as "direction was consumed", and the wake
+// exhausted 40 rounds with the Farm idle.
+const crosstalk = new WakeRuntimeGuard();
+authorizeStrategy(crosstalk, {
+  id: 'upgrade_farm_55518748',
+  label: 'Upgrade Farm 55518748 to level 2.',
+  action: 'upgrade',
+  buildingId: 55518748,
+  target: 'farm',
+});
+// Owner-authorized rebuild of an unrelated Quarry executes (it bypasses strategy selection).
+assert.equal(crosstalk.afterAction('rebuild', { buildingId: 55538609, confirm: true }, {
+  ok: true, clicked: true, newBuildingId: 55545964,
+}), true);
+assert.equal(crosstalk.strategyCouncilStatus().decision.consumed, false,
+  'unrelated rebuild confirm must not consume the selected upgrade direction');
+crosstalk.noteRefresh();
+// The selected upgrade must still be executable: preview + council + confirm passes the
+// consumed-direction gate (null = no guard objection from beforeAction).
+crosstalk.afterAction('upgrade',
+  { buildingId: 55518748, maxCost: 50000, minCashAfter: 5000, confirm: false },
+  { ok: true, dry: true, preview: true, cashCost: 7652 });
+assert.equal(crosstalk.noteCouncil(validCouncilResult('APPROVE', 'OK'), {
+  proposal: 'Upgrade Farm 55518748 within the previewed limits.',
+  buildingId: 55518748,
+}).ok, true);
+assert.equal(crosstalk.beforeAction('upgrade',
+  { buildingId: 55518748, maxCost: 50000, minCashAfter: 5000, confirm: true },
+  { councilRequired: true }), null);
+// And a MATCHED confirm still consumes the direction (one-use preserved).
+crosstalk.afterAction('upgrade',
+  { buildingId: 55518748, maxCost: 50000, minCashAfter: 5000, confirm: true },
+  { ok: false, reason: 'commit outcome is ambiguous', mutationAttempted: true, doNotRetry: true });
+assert.equal(crosstalk.strategyCouncilStatus().decision.consumed, true,
+  'a matched confirm attempt must still consume the one-use direction');
+
+// Regression (2026-08-01 wake 04:23): a selected Farm upgrade whose EXECUTION council keeps
+// refusing authorization must not also block bridge production. Live deadlock: strategy council
+// chose the upgrade, the execution council returned COO VALIDATED/UNKNOWN five times, produce was
+// refused as "do not hide the upgrade window", strategy_council could not be re-rolled in the same
+// wake, and the no-voluntary-idle journal gate then blocked finishing — the Farm stayed idle.
+const authDeadlockAt = Date.parse('2026-08-01T09:40:00.000Z');
+const authDeadlockState = {
+  t: new Date(authDeadlockAt).toISOString(),
+  buildings: [{ id: 55518748, name: 'Farm', size: 1, busy: null }],
+};
+const authDeadlockUpgrade = {
+  buildingId: 55518748, maxCost: 50000, minCashAfter: 5000, confirm: false,
+};
+const authDeadlockBridge = {
+  buildingId: 55518748,
+  name: 'SEEDS',
+  qty: 917,
+  targetHours: 1,
+  finishBefore: new Date(authDeadlockAt + 30 * 60 * 1000).toISOString(),
+};
+const authDeadlock = new WakeRuntimeGuard();
+authorizeStrategy(authDeadlock, {
+  id: 'upgrade-farm-l1',
+  label: 'Upgrade Farm L1 to L2.',
+  action: 'upgrade',
+  buildingId: 55518748,
+  target: 'farm',
+}, farmHoldOption);
+// Before any authorization failure the selected upgrade still outranks production.
+assert.match(authDeadlock.beforeAction('produce', authDeadlockBridge, {
+  state: authDeadlockState,
+}).reason, /do not hide the upgrade window/);
+// Two execution-council refusals for that exact upgrade.
+for (let attempt = 0; attempt < 2; attempt += 1) {
+  authDeadlock.afterAction('upgrade', authDeadlockUpgrade,
+    { ok: true, dry: true, preview: true, cashCost: 7663 });
+  const refusal = authDeadlock.noteCouncil({
+    structuralAuthorization: { ok: false, reason: 'COO did not provide a validated non-rejecting verdict' },
+  }, { buildingId: 55518748, proposal: 'Upgrade Farm 55518748 within the previewed limits.' });
+  assert.equal(refusal.ok, false);
+  authDeadlock.noteRefresh();
+}
+// Now a checkpoint-bound bridge of at most one hour is allowed, so the Farm can work.
+assert.equal(authDeadlock.beforeAction('produce', authDeadlockBridge, {
+  state: authDeadlockState,
+}), null, 'a repeatedly unauthorized upgrade must not also block a bounded bridge');
+// A long order is still refused: the upgrade remains the pending direction.
+assert.match(authDeadlock.beforeAction('produce', {
+  ...authDeadlockBridge,
+  targetHours: 6,
+  finishBefore: new Date(authDeadlockAt + 6 * 60 * 60 * 1000).toISOString(),
+}, { state: authDeadlockState }).reason, /failed council authorization/);
+
+// Regression (2026-08-01 wake 05:16): the wake spent all 30 rounds on useful work, wrote the alarm
+// and decision brief on the last round, and never reached `master` — CURRENT stayed stale, the
+// automatic finish correctly refused, and the completed work was retried from scratch. The final
+// rounds must be reserved for the closing sequence.
+assert.equal(closingBudgetDirective(30, { ok: false, missing: ['master after the latest mutation'] }),
+  null, 'no directive while plenty of rounds remain');
+assert.equal(closingBudgetDirective(2, { ok: true }), null,
+  'no directive when nothing is missing');
+assert.equal(closingBudgetDirective(2, { ok: false, missing: [] }), null);
+const closingNow = closingBudgetDirective(3, {
+  ok: false,
+  missing: ['journal after the latest mutation', 'master after the latest mutation'],
+});
+assert.equal(closingNow.roundsRemaining, 3);
+assert.equal(closingNow.requiredTool, 'journal');
+assert.match(closingNow.message, /CLOSING BUDGET: 3 tool rounds remain/);
+assert.match(closingNow.message, /master after the latest mutation/);
+assert.match(closingNow.message, /Start no new work/);
+const closingMaster = closingBudgetDirective(1, {
+  ok: false, missing: ['master after the latest mutation'],
+});
+assert.equal(closingMaster.requiredTool, 'master');
+// An unexpected missing label must not be forced as a tool name.
+assert.equal(closingBudgetDirective(1, {
+  ok: false, missing: ['collect the completed job first'],
+}).requiredTool, null);

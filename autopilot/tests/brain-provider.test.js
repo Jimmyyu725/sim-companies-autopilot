@@ -119,3 +119,48 @@ test('wake runner preflights before browser access and retains both provider pro
   assert.match(runner, /COUNCIL_MODEL=gpt-5\.6-luna/);
   assert.match(runner, /brain-provider\.js" record "\$BRAIN_PROVIDER" "\$rc"/);
 });
+
+// Regression (2026-08-01): the DeepSeek fallback was permanent. After two exhausted DeepSeek wakes
+// the active provider became OpenAI and nothing ever restored the owner's chosen primary, so every
+// later wake cost about seven times more ($0.69 versus $0.09 measured). Recovery must be half-open.
+test('successful fallback wakes restore the primary provider, with backoff', () => {
+  const value = fixture();
+  const options = {
+    activeProviderFile: value.activeProviderFile,
+    healthFile: value.healthFile,
+    readinessCheck: value.readinessCheck,
+  };
+  switchProvider('deepseek', { confirm: true, ...options });
+
+  for (let attempt = 0; attempt < FAILURE_THRESHOLD; attempt += 1) {
+    recordProviderResult('deepseek', 1, options);
+  }
+  assert.equal(readActiveProvider(value.activeProviderFile), 'openai', 'failures fall back');
+
+  // One success is not enough to hand the wake back to the primary.
+  const first = recordProviderResult('openai', 0, options);
+  assert.equal(first.primaryRestored, false);
+  assert.equal(readActiveProvider(value.activeProviderFile), 'openai');
+
+  const second = recordProviderResult('openai', 0, options);
+  assert.equal(second.primaryRestored, true);
+  assert.equal(readActiveProvider(value.activeProviderFile), 'deepseek');
+  assert.equal(readHealth(value.healthFile).fallbackSuccesses, 0);
+
+  // A failing fallback wake resets the streak instead of counting toward recovery.
+  for (let attempt = 0; attempt < FAILURE_THRESHOLD; attempt += 1) {
+    recordProviderResult('deepseek', 1, options);
+  }
+  assert.equal(readActiveProvider(value.activeProviderFile), 'openai');
+  recordProviderResult('openai', 0, options);
+  recordProviderResult('openai', 1, options);
+  assert.equal(readHealth(value.healthFile).fallbackSuccesses, 0, 'a failure clears the streak');
+
+  // Second fallback needs more successes than the first (backoff).
+  recordProviderResult('openai', 0, options);
+  recordProviderResult('openai', 0, options);
+  assert.equal(readActiveProvider(value.activeProviderFile), 'openai', 'backoff still holding');
+  recordProviderResult('openai', 0, options);
+  recordProviderResult('openai', 0, options);
+  assert.equal(readActiveProvider(value.activeProviderFile), 'deepseek');
+});

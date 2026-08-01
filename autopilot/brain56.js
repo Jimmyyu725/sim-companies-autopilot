@@ -16,6 +16,7 @@ const {
 } = require(path.join(BRAIN, 'action-contracts.js'));
 const { FailureBudget, isActionFailure } = require(path.join(BRAIN, 'failure-budget.js'));
 const {
+  summarizeCouncilBlockers,
   runCouncil,
   runStrategyCouncil,
   strategyCouncilToolParameters,
@@ -37,6 +38,7 @@ const {
   validateStrategyCouncilCompletion,
   validateFinishSummary,
   buildAutomaticFinishOnExhaustion,
+  closingBudgetDirective,
 } = require(path.join(BRAIN, 'runtime-guard.js'));
 const { currentMemorySchema, readCurrentMemory, validateCurrentMemory, writeCurrentMemory } = require(path.join(BRAIN, 'current-memory.js'));
 const { formatWakeSnapshot, journalToolSchema, prepareJournalEntry } = require(path.join(BRAIN, 'journal-entry.js'));
@@ -583,7 +585,13 @@ async function runTool(name, args) {   // identical behavior to brain.js
       }
       const result = await runCouncil({ args: reviewArgs, apiKey: KEY, brainDir: BRAIN, simDir: SIM });
       const structuralAuthorization = runtimeGuard.noteCouncil(result, args);
-      return structuralAuthorization ? { structuralAuthorization, ...result } : result;
+      // Keep the blocking role and its stated gap as a short scalar: the full council array is
+      // dropped when the result exceeds the tool-output budget, which previously left the brain
+      // retrying the same proposal blindly.
+      const authorizationBlockedBy = summarizeCouncilBlockers(result);
+      return structuralAuthorization
+        ? { structuralAuthorization, authorizationBlockedBy, ...result }
+        : (authorizationBlockedBy ? { authorizationBlockedBy, ...result } : result);
     }
     if (name === 'refresh_state') { execFileSync('flock', ['-w', '90', path.join(SIM, '.tick.lock'), 'node', path.join(BRAIN, 'state.js')], { cwd: SIM, timeout: 160000, encoding: 'utf8' }); const nextState = JSON.parse(fs.readFileSync(path.join(BRAIN, '.state.json'), 'utf8')); utilityExchangeReviews = createUtilityExchangeReviews(); runtimeGuard.noteRefresh(); return nextState; }
     if (name === 'set_alarm') {
@@ -757,6 +765,13 @@ async function main() {
       outputs.push({ type: 'function_call_output', call_id: c.call_id, output: formatToolOutput(c.name, result) });
     }
     if (done) break;
+    // Reserve the final rounds for the closing sequence so a productive wake is not discarded
+    // for running out before `master` writes the checkpoint.
+    const closing = closingBudgetDirective(30 - (i + 1), runtimeGuard.finishCheck());
+    if (closing) {
+      log('CLOSING_BUDGET', closing.roundsRemaining, closing.missing.join('; '));
+      outputs.push({ role: 'user', content: closing.message });
+    }
     r = await respond(buildChainedResponseRequest(r.id, system, outputs));
     }
     if (!finished) {

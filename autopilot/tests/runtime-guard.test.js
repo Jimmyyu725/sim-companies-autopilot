@@ -21,6 +21,7 @@ const {
   validateStrategyCouncilCompletion,
   validateFinishSummary,
   buildAutomaticFinishOnExhaustion,
+  closingBudgetActive,
   closingBudgetDirective,
 } = require('../runtime-guard.js');
 
@@ -1194,3 +1195,17 @@ assert.equal(holdBlocked.beforeAction('produce', {
   finishBefore: new Date(holdBlockedAt + 30 * 60 * 1000).toISOString(),
 }, { state: holdBlockedState }), null,
 'a hold that blocks the preview must not also block bounded bridge work');
+
+// Regression (2026-08-01 wake 11:57): the utility surplus review — optional by its own message
+// ("Selling is optional") — blocked the journal with two rounds left. The closing budget could not
+// help because the mandatory closing sequence was gated behind optional work, and the whole wake
+// was discarded. Optional gates must yield once the wake is inside its closing rounds.
+assert.equal(closingBudgetActive(30), false, 'not closing while the budget is untouched');
+assert.equal(closingBudgetActive(5), false);
+assert.equal(closingBudgetActive(4), true, 'closing begins at the reserved rounds');
+assert.equal(closingBudgetActive(1), true);
+assert.equal(closingBudgetActive(0), true);
+assert.equal(closingBudgetActive(-1), false, 'a negative count is not a closing signal');
+assert.equal(closingBudgetActive(Number.POSITIVE_INFINITY), false,
+  'an untracked wake must keep every gate');
+assert.equal(closingBudgetActive(1.5), false);

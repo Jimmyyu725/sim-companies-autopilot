@@ -486,6 +486,22 @@ function classifyProspectorCampaignTransition(baseline, progress, expectedIncrem
   return tierAdvanced ? 'tier-advanced' : 'mismatch';
 }
 
+function isUnclaimedProspectorAdvance(baseline, progress, expectedIncrement) {
+  if (!validProspectorCampaignProgress(progress) || progress.complete === true ||
+      !Number.isSafeInteger(Number(baseline?.current)) ||
+      !Number.isSafeInteger(Number(baseline?.target)) ||
+      !Number.isSafeInteger(Number(baseline?.stars)) ||
+      !Number.isSafeInteger(Number(baseline?.starsMax)) ||
+      !Number.isSafeInteger(Number(expectedIncrement)) || Number(expectedIncrement) <= 0) {
+    return false;
+  }
+  const delta = progress.current - Number(baseline.current);
+  return progress.stars === Number(baseline.stars) &&
+    progress.starsMax === Number(baseline.starsMax) &&
+    progress.target === Number(baseline.target) &&
+    progress.current < progress.target && delta > 0 && delta % Number(expectedIncrement) === 0;
+}
+
 function appendVerifiedProspectorAttempt(experiment, evidence, nowMs) {
   const attempt = experiment.rebuildAttempt;
   if (!attempt || attempt.status !== 'awaiting-counter') {
@@ -572,7 +588,29 @@ function recordOwnerProspectorOverview(directiveFile, observation, now = Date.no
       const baseline = experiment.baselineProgress;
       const transition = classifyProspectorCampaignTransition(baseline, progress, expectedIncrement);
       const activeAttempt = ['claimed', 'awaiting-counter'].includes(experiment.rebuildAttempt?.status);
-      if (transition === 'advanced' || transition === 'tier-advanced') {
+      const unclaimedAdvance = !activeAttempt && transition === 'mismatch' &&
+        isUnclaimedProspectorAdvance(baseline, progress, expectedIncrement);
+      if (unclaimedAdvance) {
+        const delta = progress.current - Number(baseline.current);
+        nextExperiment = {
+          ...experiment,
+          status: 'baseline-verified',
+          expectedBaseline: progress.current,
+          expectedTarget: progress.target,
+          baselineProgress: evidence,
+          lastProgressEvidence: evidence,
+          campaign: {
+            ...experiment.campaign,
+            status: 'active',
+            currentStars: progress.stars,
+            starsMax: progress.starsMax,
+            externallyObservedRebuilds:
+              (Number(experiment.campaign?.externallyObservedRebuilds) || 0) + delta,
+            lastExternalProgressAt: new Date(nowMs).toISOString(),
+          },
+        };
+        delete nextExperiment.verificationError;
+      } else if (transition === 'advanced' || transition === 'tier-advanced') {
         const verifiedAttempt = appendVerifiedProspectorAttempt(experiment, evidence, nowMs);
         nextExperiment = {
           ...experiment,

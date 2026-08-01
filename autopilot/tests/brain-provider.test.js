@@ -19,6 +19,7 @@ function fixture() {
     directory,
     activeProviderFile: path.join(directory, 'active-provider'),
     healthFile: path.join(directory, 'health.json'),
+    ownerPrimaryFile: path.join(directory, 'owner-primary'),
     readinessCheck: provider => ({
       ok: true,
       provider,
@@ -128,6 +129,7 @@ test('successful fallback wakes restore the primary provider, with backoff', () 
   const options = {
     activeProviderFile: value.activeProviderFile,
     healthFile: value.healthFile,
+    ownerPrimaryFile: value.ownerPrimaryFile,
     readinessCheck: value.readinessCheck,
   };
   switchProvider('deepseek', { confirm: true, ...options });
@@ -163,4 +165,45 @@ test('successful fallback wakes restore the primary provider, with backoff', () 
   recordProviderResult('openai', 0, options);
   recordProviderResult('openai', 0, options);
   assert.equal(readActiveProvider(value.activeProviderFile), 'deepseek');
+});
+
+// Regression (2026-08-01, found live): recovery keyed off bookkeeping that a fallback activated by
+// the previous release never wrote, so three consecutive successful wakes left the account stranded
+// on the costlier fallback. Recovery must key off the owner's recorded primary instead.
+test('a fallback with no recorded bookkeeping still restores the owner primary', () => {
+  const value = fixture();
+  const options = {
+    activeProviderFile: value.activeProviderFile,
+    healthFile: value.healthFile,
+    ownerPrimaryFile: value.ownerPrimaryFile,
+    readinessCheck: value.readinessCheck,
+  };
+  switchProvider('deepseek', { confirm: true, ...options });
+  // Simulate the stranded live state: active is the fallback and the health record carries none of
+  // the recovery fields (exactly what the pre-recovery release left behind).
+  fs.writeFileSync(value.activeProviderFile, 'openai\n');
+  fs.writeFileSync(value.healthFile, `${JSON.stringify({
+    schemaVersion: 1, provider: 'openai', consecutiveFailures: 0, lastRc: 0,
+    updatedAt: '2026-08-01T12:01:02.050Z',
+  })}\n`);
+
+  assert.equal(recordProviderResult('openai', 0, options).primaryRestored, false);
+  const restored = recordProviderResult('openai', 0, options);
+  assert.equal(restored.primaryRestored, true);
+  assert.equal(readActiveProvider(value.activeProviderFile), 'deepseek');
+});
+
+test('an owner who chose the fallback provider is never auto-reverted', () => {
+  const value = fixture();
+  const options = {
+    activeProviderFile: value.activeProviderFile,
+    healthFile: value.healthFile,
+    ownerPrimaryFile: value.ownerPrimaryFile,
+    readinessCheck: value.readinessCheck,
+  };
+  switchProvider('openai', { confirm: true, ...options });
+  for (let wake = 0; wake < 6; wake += 1) {
+    assert.equal(recordProviderResult('openai', 0, options).primaryRestored, false);
+  }
+  assert.equal(readActiveProvider(value.activeProviderFile), 'openai');
 });

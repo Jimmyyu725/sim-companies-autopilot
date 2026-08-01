@@ -6,6 +6,11 @@ const path = require('path');
 const BRAIN_DIR = __dirname;
 const ACTIVE_PROVIDER_FILE = path.join(BRAIN_DIR, '.active-brain-provider');
 const HEALTH_FILE = path.join(BRAIN_DIR, '.brain-provider-health.json');
+// The provider the owner selected. Recovery needs this because the health record alone cannot tell
+// a fallback that stranded the primary from an owner who deliberately chose the other provider,
+// and because a fallback activated before recovery existed carries no bookkeeping at all (live
+// 2026-08-01: three consecutive successful wakes never restored DeepSeek).
+const OWNER_PRIMARY_FILE = path.join(BRAIN_DIR, '.owner-primary-provider');
 // The fallback used to be permanent: once a DeepSeek failure streak switched the active provider to
 // OpenAI, nothing ever switched it back, so the owner's chosen primary stayed off and every wake
 // cost about seven times more (measured 2026-08-01: $0.69 versus $0.09). Recovery is half-open —
@@ -63,6 +68,11 @@ function providerReadiness(provider) {
   return { ok: true, provider: resolved, credentialSource: OPENAI_ENV_FILE };
 }
 
+function readOwnerPrimary(filePath = OWNER_PRIMARY_FILE) {
+  try { return normalizeProvider(fs.readFileSync(filePath, 'utf8')); }
+  catch (_) { return null; }
+}
+
 function resetHealth(provider, now = new Date().toISOString(), filePath = HEALTH_FILE) {
   writeAtomic(filePath, `${JSON.stringify({
     schemaVersion: 1,
@@ -81,6 +91,7 @@ function switchProvider(provider, options = {}) {
   const activeProviderFile = options.activeProviderFile || ACTIVE_PROVIDER_FILE;
   const healthFile = options.healthFile || HEALTH_FILE;
   writeAtomic(activeProviderFile, `${resolved}\n`);
+  writeAtomic(options.ownerPrimaryFile || OWNER_PRIMARY_FILE, `${resolved}\n`);
   resetHealth(resolved, options.now, healthFile);
   return {
     ok: true,
@@ -121,6 +132,7 @@ function recordProviderResult(provider, rc, options = {}) {
   const activeProviderFile = options.activeProviderFile || ACTIVE_PROVIDER_FILE;
   const healthFile = options.healthFile || HEALTH_FILE;
   const readinessCheck = options.readinessCheck || providerReadiness;
+  const ownerPrimary = readOwnerPrimary(options.ownerPrimaryFile || OWNER_PRIMARY_FILE);
   const previous = readHealth(healthFile);
   const consecutiveFailures = exitCode === 0
     ? 0
@@ -158,15 +170,15 @@ function recordProviderResult(provider, rc, options = {}) {
   if (fallbackActivated) {
     state.fallbackAttempts = fallbackAttempts;
     state.fallbackSuccesses = 0;
-  } else if (resolved === 'openai' && readActiveProvider(activeProviderFile) === 'openai' &&
-      Number(previous?.fallbackAttempts) > 0) {
-    state.fallbackAttempts = Number(previous.fallbackAttempts);
+  } else if (ownerPrimary && resolved !== ownerPrimary &&
+      readActiveProvider(activeProviderFile) === resolved) {
+    state.fallbackAttempts = fallbackAttempts;
     const successes = exitCode === 0 ? (Number(previous?.fallbackSuccesses) || 0) + 1 : 0;
     state.fallbackSuccesses = successes;
     const required = Math.min(MAX_FALLBACK_RECOVERY_SUCCESSES,
       FALLBACK_RECOVERY_SUCCESSES * state.fallbackAttempts);
-    if (successes >= required && readinessCheck('deepseek').ok) {
-      writeAtomic(activeProviderFile, 'deepseek\n');
+    if (successes >= required && readinessCheck(ownerPrimary).ok) {
+      writeAtomic(activeProviderFile, `${ownerPrimary}\n`);
       state.fallbackAttempts += 1;
       state.fallbackSuccesses = 0;
       state.primaryRestoredAt = now;
@@ -225,6 +237,8 @@ module.exports = {
   FALLBACK_RECOVERY_SUCCESSES,
   HEALTH_FILE,
   OPENAI_ENV_FILE,
+  OWNER_PRIMARY_FILE,
+  readOwnerPrimary,
   normalizeProvider,
   providerReadiness,
   readActiveProvider,

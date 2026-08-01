@@ -350,3 +350,29 @@ test('an out-of-range menu index is rejected rather than silently ignored', () =
   assert.equal(result.ok, false);
   assert.match(result.value.unknowns[0], /outside the citation menu/);
 });
+
+// Regression (2026-08-01 live): the strategy council forwards a numbered citation menu, and the
+// provider prompts ask roles to cite by menuIndex first — but validateStrategyCouncilVote dropped
+// the menu when it delegated to validateCouncilVote, so every indexed citation resolved against an
+// empty menu and failed. All three roles returned INVALID_EVIDENCE, the strategy council fell back
+// to safety_hold every wake, and the L1 Farm could never be authorized to upgrade. The menu must
+// reach the delegate.
+test('a strategy vote may cite the forwarded menu by index', () => {
+  const menu = [
+    { i: 0, pointer: '/company/cash', value: 38107 },
+    { i: 1, pointer: '/debt/reconciled', value: true },
+  ];
+  const result = validateStrategyCouncilVote('CFO', {
+    verdict: 'RECOMMEND',
+    optionId: 'upgrade_mill',
+    summary: 'The financing evidence supports the investment direction.',
+    metrics: [{ pointer: null, value: null, menuIndex: 0 }],
+    unknowns: [],
+    conditions: ['Preserve the operating reserve.'],
+  }, evidence, ['hold', 'upgrade_mill'], menu);
+  assert.equal(result.ok, true, result.value?.unknowns?.[0]);
+  assert.equal(result.value.status, 'VALIDATED');
+  assert.equal(result.value.optionId, 'upgrade_mill');
+  assert.equal(result.value.metrics[0].pointer, '/company/cash');
+  assert.equal(result.value.metrics[0].value, 38107);
+});

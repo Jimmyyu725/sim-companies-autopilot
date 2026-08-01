@@ -18,11 +18,37 @@ function selectJsonPointer(value, pointer) {
     }
     if (current == null || (typeof current !== 'object' && !Array.isArray(current))
       || !Object.prototype.hasOwnProperty.call(current, token)) {
-      return { ok: false, error: `pointer segment not found: ${token}` };
+      // Describe the container the failing token was applied to, so one failed guess is enough:
+      // the model kept probing `/data` on the achievements endpoint (a root ARRAY) and `/data/4`
+      // on buildings across wakes because the error alone said nothing about the actual shape.
+      return {
+        ok: false,
+        error: `pointer segment not found: ${token}`,
+        shapeHint: describeContainerShape(current),
+      };
     }
     current = current[token];
   }
   return { ok: true, value: current };
+}
+
+function describeContainerShape(value) {
+  if (Array.isArray(value)) {
+    return {
+      containerType: 'array',
+      length: value.length,
+      hint: 'this level is an ARRAY — address items by index (e.g. /0) or omit the pointer',
+    };
+  }
+  if (value != null && typeof value === 'object') {
+    const keys = Object.keys(value);
+    return {
+      containerType: 'object',
+      keys: keys.slice(0, 25),
+      totalKeys: keys.length,
+    };
+  }
+  return { containerType: value === null ? 'null' : typeof value };
 }
 
 function jsonBytes(value) {
@@ -59,7 +85,11 @@ function formatApiResponse(envelope, options = {}, maxBytes = 7000) {
 
   const selected = selectJsonPointer(envelope.data, options.pointer);
   if (!selected.ok) {
-    return { ...base, ok: false, error: selected.error, pointer: options.pointer || '', truncated: false };
+    const failure = {
+      ...base, ok: false, error: selected.error, pointer: options.pointer || '', truncated: false,
+    };
+    if (selected.shapeHint) failure.shapeHint = selected.shapeHint;
+    return failure;
   }
 
   const value = selected.value;

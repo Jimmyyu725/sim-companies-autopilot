@@ -959,3 +959,42 @@ test('council blocker summary names the refusing role and survives tool-output b
   assert.ok(bounded.length < JSON.stringify(blocked).length);
   assert.match(bounded, /COO UNKNOWN: Portfolio inspection/);
 });
+
+
+// Regression (2026-08-01 audit): 72 of 134 UNKNOWN council votes were mechanical — 33 transport
+// failures and 39 citation-validation failures — not judgement about the proposal. The brain could
+// not tell them apart from a considered UNKNOWN, so it rewrote the same Farm-upgrade proposal six
+// times when re-running the council was the correct move. The blocker summary must name the kind.
+test('blocker summary distinguishes mechanical failures from judgement', () => {
+  const { summarizeCouncilBlockers } = require('../council.js');
+
+  const transport = summarizeCouncilBlockers({
+    council: [{
+      role: 'COO', verdict: 'UNKNOWN', status: 'API_ERROR',
+      summary: 'Required evidence is unavailable.', unknowns: ['Required evidence is unavailable.'],
+    }],
+  });
+  assert.match(transport, /^COO UNKNOWN \[API_ERROR — transport failure, not judgement/);
+  assert.match(transport, /re-run council with the same proposal/);
+
+  const citation = summarizeCouncilBlockers({
+    council: [{
+      role: 'CFO', verdict: 'UNKNOWN', status: 'INVALID_EVIDENCE',
+      unknowns: ['metric value does not match evidence'],
+    }],
+  });
+  assert.match(citation, /INVALID_EVIDENCE — the role's citation failed validation/);
+
+  // A considered UNKNOWN carries no mechanical label: the gap is real and the proposal must change.
+  const judgement = summarizeCouncilBlockers({
+    council: [{
+      role: 'CMO', verdict: 'UNKNOWN', status: 'VALIDATED',
+      unknowns: ['Retail absorption for the added output is unproven.'],
+    }],
+  });
+  assert.equal(judgement, 'CMO UNKNOWN: Retail absorption for the added output is unproven.');
+
+  assert.equal(summarizeCouncilBlockers({
+    council: [{ role: 'COO', verdict: 'APPROVE', status: 'VALIDATED', unknowns: [] }],
+  }), null);
+});

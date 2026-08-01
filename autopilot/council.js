@@ -580,7 +580,16 @@ function summarizeCouncilBlockers(result) {
     const gap = Array.isArray(vote.unknowns) && vote.unknowns.length
       ? String(vote.unknowns[0])
       : (vote.summary ? String(vote.summary) : "no stated gap");
-    return `${vote.role} ${vote.verdict}: ${gap.slice(0, 120)}`;
+    // A fail-closed vote is a transport or citation failure, not a judgement about the proposal.
+    // Measured 2026-08-01: 72 of 134 UNKNOWN votes were mechanical, and the brain could not tell,
+    // so it rewrote the same proposal six times when re-running the council was the correct move.
+    const status = String(vote.status || "").toUpperCase();
+    const kind = status === "API_ERROR"
+      ? " [API_ERROR — transport failure, not judgement: re-run council with the same proposal]"
+      : (status === "INVALID_EVIDENCE"
+        ? " [INVALID_EVIDENCE — the role's citation failed validation, not your proposal]"
+        : "");
+    return `${vote.role} ${vote.verdict}${kind}: ${gap.slice(0, 120)}`;
   }).join(" | ").slice(0, 250);
 }
 

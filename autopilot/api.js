@@ -31,6 +31,14 @@ if (!p || !p.startsWith('/api/')) { console.log(JSON.stringify({ ok: false, path
     data: r.json,
     error: r.status >= 200 && r.status < 300 ? null : `API returned HTTP ${r.status}`,
   }, options);
+  // Buildings and the company warehouse reject an in-page fetch (Cloudflare, long-measured) — they
+  // are only served to the page capture that refresh_state performs. Without this hint the model
+  // burned rounds re-probing them here (live: buildings 403 on 2026-08-01T10:10Z).
+  if (!result.ok && r.status === 403 &&
+      /^\/api\/v2\/companies\/me\/buildings\/|^\/api\/v3\/resources\//.test(p)) {
+    result.hint = 'this endpoint rejects in-page fetch by design; its data is already in ' +
+      'refresh_state output (buildings/stock) — do not re-probe it through read_api';
+  }
   if (p === PROSPECTOR_OVERVIEW_PATH) {
     const ownerDirectiveEvidence = recordOwnerProspectorOverview(
       path.join(__dirname, 'OWNER-DIRECTIVE.json'),

@@ -244,14 +244,23 @@ function synchronizeProspectorTargets(experiment, state, now = Date.now()) {
         completesAt: endsAt || target.completesAt,
       };
     }
-    const pageIdle = building?.activity?.status === 'known' &&
-      building?.activity?.busy === false;
-    if (building?.busy === null || pageIdle) {
+    const hasBusyField = Object.prototype.hasOwnProperty.call(building, 'busy');
+    const activityStatus = String(building?.activity?.status || '').trim().toLowerCase();
+    const activityBusy = building?.activity?.busy;
+    const pageIdle = ['known', 'page-derived'].includes(activityStatus) &&
+      activityBusy === false;
+    const expectedCompletionMs = Date.parse(target.completesAt);
+    const apiOmittedBusyAfterCompletion = !hasBusyField && activityBusy !== true &&
+      Number.isFinite(expectedCompletionMs) && expectedCompletionMs <= nowMs;
+    if (building?.busy === null || pageIdle || apiOmittedBusyAfterCompletion) {
       return {
         ...target,
         status: 'ready',
         completesAt: target.completesAt || validIso(state?.t),
       };
+    }
+    if (!hasBusyField && Number.isFinite(expectedCompletionMs) && expectedCompletionMs > nowMs) {
+      return { ...target, status: 'waiting-construction' };
     }
     return { ...target, status: 'busy' };
   });

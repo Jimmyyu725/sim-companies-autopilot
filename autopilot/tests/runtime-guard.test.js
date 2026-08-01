@@ -1153,3 +1153,44 @@ assert.equal(closingMaster.requiredTool, 'master');
 assert.equal(closingBudgetDirective(1, {
   ok: false, missing: ['collect the completed job first'],
 }).requiredTool, null);
+
+// Regression (2026-08-01 wake 11:57): a safety hold that never considered this exact Farm blocked
+// every exit. Production demanded an upgrade preview; the direction gate refused the preview
+// because the wake's decision was `hold`; the council could not be re-rolled; and the
+// no-voluntary-idle gate blocked finishing. The L2 Farm sat idle while the wake burned rounds.
+const holdBlockedAt = Date.parse('2026-08-01T16:58:23.386Z');
+const holdBlockedState = {
+  t: new Date(holdBlockedAt).toISOString(),
+  buildings: [{ id: 55345580, name: 'Farm', size: 2, busy: null }],
+};
+const holdBlocked = new WakeRuntimeGuard();
+authorizeStrategy(holdBlocked, {
+  id: 'hold',
+  label: 'Hold the current structure.',
+  action: 'hold',
+  buildingId: null,
+  target: null,
+}, {
+  id: 'build_mill',
+  label: 'Build another Mill.',
+  action: 'build',
+  buildingId: null,
+  target: 'mill',
+});
+// A long order is still refused, and the refusal states the exact latest checkpoint.
+const longOrder = holdBlocked.beforeAction('produce', {
+  buildingId: 55345580, name: 'SEEDS', qty: 14500, targetHours: 8, finishBefore: null,
+}, { state: holdBlockedState });
+assert.match(longOrder.reason, /cannot be previewed/);
+assert.equal(longOrder.requiredParameter, 'finishBefore');
+assert.equal(longOrder.latestAllowedFinishBefore,
+  new Date(holdBlockedAt + 60 * 60 * 1000).toISOString());
+// The bounded bridge is allowed, so the Farm can work while the upgrade waits for the next wake.
+assert.equal(holdBlocked.beforeAction('produce', {
+  buildingId: 55345580,
+  name: 'SEEDS',
+  qty: 1800,
+  targetHours: 1,
+  finishBefore: new Date(holdBlockedAt + 30 * 60 * 1000).toISOString(),
+}, { state: holdBlockedState }), null,
+'a hold that blocks the preview must not also block bounded bridge work');

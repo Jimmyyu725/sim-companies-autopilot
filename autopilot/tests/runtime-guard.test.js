@@ -15,6 +15,7 @@ const {
   isApprovedRollingMillUpgrade,
   isOwnerAuthorizedAchievementBuild,
   isOwnerAuthorizedProspectorRebuild,
+  ownerAuthorizedProspectorRebuildTarget,
   ownerAchievementBuildRequirement,
   validateCouncilAuthorization,
   validateStrategyCouncilCompletion,
@@ -801,6 +802,8 @@ campaignDirective.prospectorExperiment = {
 };
 assert.equal(isOwnerAuthorizedProspectorRebuild(
   campaignState, { buildingId: 55282591 }, campaignDirective, prospectorNow), true);
+assert.equal(ownerAuthorizedProspectorRebuildTarget(
+  campaignState, campaignDirective, prospectorNow), 55282591);
 const unfinishedCampaignState = clone(campaignState);
 unfinishedCampaignState.buildings[0].busy = {
   type: 'construction',
@@ -808,6 +811,42 @@ unfinishedCampaignState.buildings[0].busy = {
 };
 assert.equal(isOwnerAuthorizedProspectorRebuild(
   unfinishedCampaignState, { buildingId: 55282591 }, campaignDirective, prospectorNow), false);
+assert.equal(ownerAuthorizedProspectorRebuildTarget(
+  unfinishedCampaignState, campaignDirective, prospectorNow), null);
+
+const parallelCampaignDirective = clone(campaignDirective);
+parallelCampaignDirective.prospectorExperiment.buildingId = 55282592;
+parallelCampaignDirective.prospectorExperiment.campaign = {
+  ...parallelCampaignDirective.prospectorExperiment.campaign,
+  activeTargetId: 'second',
+  targetCapacity: 2,
+  slotPolicy: { parallelizeWhenSafe: true },
+  targets: [
+    {
+      targetId: 'first', building: 'Quarry', buildingId: 55282591, level: 1,
+      status: 'ready', completesAt: new Date(prospectorNow - 120e3).toISOString(),
+    },
+    {
+      targetId: 'second', building: 'Quarry', buildingId: 55282592, level: 1,
+      status: 'ready', completesAt: new Date(prospectorNow - 60e3).toISOString(),
+    },
+  ],
+};
+parallelCampaignDirective.prospectorExperiment.completesAt =
+  new Date(prospectorNow - 60e3).toISOString();
+const parallelCampaignState = clone(campaignState);
+parallelCampaignState.buildings = [
+  { id: 55282591, name: 'Quarry', size: 1, busy: null },
+  { id: 55282592, name: 'Quarry', size: 1, busy: null },
+];
+assert.equal(ownerAuthorizedProspectorRebuildTarget(
+  parallelCampaignState, parallelCampaignDirective, prospectorNow), 55282592);
+assert.equal(isOwnerAuthorizedProspectorRebuild(
+  parallelCampaignState,
+  { buildingId: 55282591 },
+  parallelCampaignDirective,
+  prospectorNow,
+), false);
 const completedCampaignDirective = clone(campaignDirective);
 completedCampaignDirective.prospectorExperiment.campaign.status = 'completed';
 assert.equal(isOwnerAuthorizedProspectorRebuild(

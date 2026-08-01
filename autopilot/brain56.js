@@ -32,6 +32,7 @@ const {
   buildWakeAlarm,
   councilRequiredForStructuralAction,
   isOwnerAuthorizedProspectorRebuild,
+  ownerAuthorizedProspectorRebuildTarget,
   ownerAchievementBuildRequirement,
   validateStrategyCouncilCompletion,
   validateFinishSummary,
@@ -350,6 +351,10 @@ function runAction(action, rawParams) {
     ownerDirectiveForAction,
     checked.params.buildingId,
   );
+  const selectedOwnerProspectorTarget = ownerAuthorizedProspectorRebuildTarget(
+    guardState,
+    ownerDirectiveForAction,
+  );
   if (action === 'produce' && ownerProspectorPoolTarget) {
     return {
       ok: false,
@@ -358,6 +363,33 @@ function runAction(action, rawParams) {
       ...(ownerProspectorEligible ? {
         requiredAction: { action: 'rebuild', buildingId: Number(checked.params.buildingId), confirm: false },
       } : {}),
+    };
+  }
+  if (action === 'rebuild' && ownerProspectorPoolTarget && !ownerProspectorEligible) {
+    if (Number.isSafeInteger(selectedOwnerProspectorTarget) &&
+        selectedOwnerProspectorTarget !== Number(checked.params.buildingId)) {
+      return {
+        ok: false,
+        guard: true,
+        reason: `the owner-authorized Prospector campaign selected building ${selectedOwnerProspectorTarget}; building ${Number(checked.params.buildingId)} is enrolled but is not the current one-use target`,
+        requiredTool: 'rebuild',
+        requiredAction: {
+          action: 'rebuild',
+          buildingId: selectedOwnerProspectorTarget,
+          confirm: false,
+        },
+        ownerDirectivePriority: true,
+        councilRequired: false,
+      };
+    }
+    return {
+      ok: false,
+      guard: true,
+      reason: 'the owner-authorized Prospector target lacks fresh exact one-use authorization; refresh state instead of submitting this campaign action to Council',
+      requiredTool: 'refresh_state',
+      requiredAction: { action: 'refresh_state' },
+      ownerDirectivePriority: true,
+      councilRequired: false,
     };
   }
   const sequencingBlock = runtimeGuard.beforeAction(action, checked.params, {

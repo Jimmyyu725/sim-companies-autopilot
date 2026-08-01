@@ -336,7 +336,9 @@ Every exact Prospector REBUILD cycle named by the active owner campaign is alrea
 not need stochastic council re-review. This exception applies only to the pool's selected current
 target and authenticated expected baseline. Run `confirm:false`, follow its
 `requiredNextAction` with `confirm:true`, then refresh and verify exactly one increment before the
-next replacement can become eligible. Any other REBUILD still follows the full council protocol.
+next replacement can become eligible. If an enrolled but non-selected target is requested, follow
+the runtime's exact selected-target redirect; never ask Council to reconsider the campaign. Any
+non-campaign REBUILD still follows the full council protocol.
 The same exception covers only the bounded target-pool enrollment build required by the active owner
 directive; unrelated builds still follow the full strategy and council protocol.
 

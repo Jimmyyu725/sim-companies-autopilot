@@ -19,7 +19,9 @@ const DEEPSEEK_COUNCIL_JSON_INSTRUCTION = [
   '"metrics":[{"pointer":"/exact/path/from/evidence","value":"exact primitive from evidence"}],',
   '"unknowns":["Required evidence is unavailable."],"conditions":[]}.',
   'Do not copy the example pointer or value. Cite only an exact pointer and primitive value present in the supplied evidence.',
-  'Copy citation pairs from the AUTHORITATIVE CITATION MENU; never invent, shorten, or relocate a pointer.',
+  'Prefer citing menu rows by index: {"pointer":null,"value":null,"menuIndex":3}. The runtime resolves the exact pointer and value, so an indexed citation cannot be mistyped.',
+  'Only use an explicit pointer and value pair when the menu does not carry the fact; then set menuIndex to null and copy the pair exactly.',
+  'Never invent, shorten, or relocate a pointer.',
 ].join(' ');
 const DEEPSEEK_STRATEGY_JSON_INSTRUCTION = [
   'Return only one valid JSON object with exactly these keys: verdict, optionId, summary, metrics, unknowns, conditions.',
@@ -29,6 +31,7 @@ const DEEPSEEK_STRATEGY_JSON_INSTRUCTION = [
   'unknowns and conditions MUST each be a JSON array of non-empty qualitative strings, or an empty array.',
   'summary, unknowns, and conditions MUST contain no digit characters; put every numeric fact only in metrics.',
   'For a recommendation, prefer unknowns:[] and conditions:[] unless a real qualitative caveat remains.',
+  'Prefer citing menu rows by index: {"pointer":null,"value":null,"menuIndex":3}; the runtime resolves the exact pointer and value. Use an explicit pointer and value pair only when the menu lacks the fact, with menuIndex null.',
   'Cite only exact evidence pointers and primitive values present in the supplied evidence.',
 ].join(' ');
 const STRATEGY_ACTIONS = new Set([
@@ -265,7 +268,12 @@ function buildAuthoritativeCitationMenu(role, evidence, reviewType = 'authorizat
     if (!added) break;
   }
   const roleSpecific = dedupe(interleaved, 18);
+  // Flat numbered rows: a role can cite `menuIndex` instead of retyping a pointer and value, which
+  // the runtime then resolves deterministically. Free-form pointers still work for anything the
+  // menu does not carry.
+  const rows = [...preview, ...roleSpecific].map((row, index) => ({ i: index, ...row }));
   return {
+    rows,
     rule: reviewType === 'authorization'
       ? 'Copy at least one exact preview pair and one exact role-specific pair. Never cite /authorizationPreview/terms.'
       : 'Copy at least one exact role-specific pair. Candidate terms are labels, not measured evidence.',
@@ -714,8 +722,8 @@ async function reviewCouncilRole({ role, system, evidence, args, apiKey, brainDi
         parsed = normalizeDeepSeekCouncilVote(parsed);
       }
       const validated = reviewType === 'strategy'
-        ? validateStrategyCouncilVote(role, parsed, evidenceView, optionIds)
-        : validateCouncilVote(role, parsed, evidenceView);
+        ? validateStrategyCouncilVote(role, parsed, evidenceView, optionIds, citationMenu.rows)
+        : validateCouncilVote(role, parsed, evidenceView, citationMenu.rows);
       if (!validated.ok) {
         validationFeedback = String(validated.value?.unknowns?.[0] ||
           'deterministic evidence validation failed').slice(0, 300);

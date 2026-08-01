@@ -142,7 +142,22 @@ function samePrimitive(left, right) {
   return ['string', 'number', 'boolean'].includes(typeof left) && Object.is(left, right);
 }
 
-function validateCouncilVote(role, vote, evidence) {
+function resolveMenuCitation(metric, menu) {
+  if (!metric || typeof metric !== 'object') return metric;
+  const index = metric.menuIndex;
+  if (index == null) return metric;
+  if (!Number.isSafeInteger(index) || index < 0) {
+    throw new Error(`menuIndex must be a non-negative integer, received ${JSON.stringify(index)}`);
+  }
+  const rows = Array.isArray(menu) ? menu : [];
+  const row = rows[index];
+  if (!row) {
+    throw new Error(`menuIndex ${index} is outside the citation menu of ${rows.length} rows`);
+  }
+  return { pointer: row.pointer, value: row.value };
+}
+
+function validateCouncilVote(role, vote, evidence, menu = []) {
   try {
     if (!vote || typeof vote !== 'object' || Array.isArray(vote)) throw new Error('vote is not an object');
     if (!['APPROVE', 'AMEND', 'REJECT', 'UNKNOWN'].includes(vote.verdict)) throw new Error('invalid verdict');
@@ -155,7 +170,11 @@ function validateCouncilVote(role, vote, evidence) {
       throw new Error('metrics must contain one to eight evidence citations');
     }
     let hasRoleEvidence = false;
-    const metrics = vote.metrics.map(metric => {
+    const metrics = vote.metrics.map(rawMetric => {
+      // A menuIndex citation is resolved deterministically from the authoritative menu, so it
+      // cannot be mistyped or invented. Measured 2026-08-01: 39 of 134 UNKNOWN votes were roles
+      // failing their own free-form citations, not judgements about the proposal.
+      const metric = resolveMenuCitation(rawMetric, menu);
       if (!metric || typeof metric.pointer !== 'string') throw new Error('metric pointer missing');
       const resolved = resolvePointer(evidence, metric.pointer);
       if (!resolved.ok) throw new Error(resolved.error);
@@ -225,7 +244,7 @@ function invalidStrategyVote(role, error) {
   };
 }
 
-function validateStrategyCouncilVote(role, vote, evidence, optionIds) {
+function validateStrategyCouncilVote(role, vote, evidence, optionIds, menu = []) {
   try {
     if (!vote || typeof vote !== 'object' || Array.isArray(vote)) {
       throw new Error('vote is not an object');
@@ -277,10 +296,11 @@ const councilVoteSchema = {
       items: {
         type: 'object', additionalProperties: false,
         properties: {
-          pointer: { type: 'string', description: 'RFC 6901 pointer into the supplied automatic evidence.' },
+          pointer: { type: ['string', 'null'], description: 'RFC 6901 pointer into the supplied automatic evidence. Use null when citing by menuIndex.' },
           value: { type: ['string', 'number', 'boolean', 'null'] },
+          menuIndex: { type: ['integer', 'null'], minimum: 0, description: 'Index of a row in the AUTHORITATIVE CITATION MENU. Preferred: the runtime resolves the exact pointer and value, so a citation cannot be mistyped or invented.' },
         },
-        required: ['pointer', 'value'],
+        required: ['pointer', 'value', 'menuIndex'],
       },
     },
     unknowns: { type: 'array', maxItems: 8, items: { type: 'string', maxLength: 300 }, description: 'Qualitative only; no digits.' },
@@ -316,6 +336,7 @@ module.exports = {
   metricIsAuthoritative,
   resolvePointer,
   strategyCouncilVoteSchema,
+  resolveMenuCitation,
   validateCouncilVote,
   validateStrategyCouncilVote,
 };

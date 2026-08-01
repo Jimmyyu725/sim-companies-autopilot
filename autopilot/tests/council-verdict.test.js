@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
+  resolveMenuCitation,
   validateCouncilVote,
   validateStrategyCouncilVote,
 } = require('../council-verdict.js');
@@ -297,4 +298,55 @@ test('COO and CMO may cite their fresh portfolio and Grocery evidence', () => {
     unknowns: [],
     conditions: [],
   }, roleEvidence).ok, true);
+});
+
+// Regression (2026-08-01 audit): 39 of 134 UNKNOWN council votes were roles failing their OWN
+// free-form citations — inventing a pointer such as
+// /decisionModel/coffeeChain/current/retailEvidence/status, or mistyping a value — not judgements
+// about the proposal. A role can now cite a menu row by index, which the runtime resolves
+// deterministically, so that failure mode is unavailable to it.
+const citationMenu = [
+  { i: 0, pointer: '/company/cash', value: 38107 },
+  { i: 1, pointer: '/debt/reconciled', value: true },
+];
+
+test('a menu-index citation is resolved from the menu and cannot be mistyped', () => {
+  assert.deepEqual(resolveMenuCitation({ pointer: null, value: null, menuIndex: 0 }, citationMenu),
+    { pointer: '/company/cash', value: 38107 });
+  // A wrong pointer or value alongside a valid index cannot corrupt the citation.
+  assert.deepEqual(resolveMenuCitation({ pointer: '/wrong', value: 1, menuIndex: 1 }, citationMenu),
+    { pointer: '/debt/reconciled', value: true });
+  // Free-form citations are untouched.
+  assert.deepEqual(
+    resolveMenuCitation({ pointer: '/company/cash', value: 38107, menuIndex: null }, citationMenu),
+    { pointer: '/company/cash', value: 38107, menuIndex: null });
+
+  assert.throws(() => resolveMenuCitation({ menuIndex: 9 }, citationMenu), /outside the citation menu/);
+  assert.throws(() => resolveMenuCitation({ menuIndex: -1 }, citationMenu), /non-negative integer/);
+  assert.throws(() => resolveMenuCitation({ menuIndex: 1.5 }, citationMenu), /non-negative integer/);
+});
+
+test('a vote citing only by menu index validates', () => {
+  const result = validateCouncilVote('CFO', {
+    verdict: 'APPROVE',
+    summary: 'Cash covers the measured cost with the reserve intact.',
+    metrics: [{ pointer: null, value: null, menuIndex: 0 }],
+    unknowns: [],
+    conditions: [],
+  }, evidence, citationMenu);
+  assert.equal(result.ok, true, result.value?.unknowns?.[0]);
+  assert.equal(result.value.metrics[0].pointer, '/company/cash');
+  assert.equal(result.value.metrics[0].value, 38107);
+});
+
+test('an out-of-range menu index is rejected rather than silently ignored', () => {
+  const result = validateCouncilVote('CFO', {
+    verdict: 'APPROVE',
+    summary: 'Cash covers the measured cost.',
+    metrics: [{ pointer: null, value: null, menuIndex: 7 }],
+    unknowns: [],
+    conditions: [],
+  }, evidence, citationMenu);
+  assert.equal(result.ok, false);
+  assert.match(result.value.unknowns[0], /outside the citation menu/);
 });

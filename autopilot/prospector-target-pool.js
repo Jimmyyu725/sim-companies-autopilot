@@ -223,12 +223,83 @@ function completeProspectorTargets(experiment) {
   };
 }
 
+function reconcileExternalReplacementTargets(experiment, targets, rows, nowMs) {
+  const campaign = experiment?.campaign || {};
+  const observedAtMs = Date.parse(campaign.lastExternalProgressAt);
+  const previousRebindAtMs = Date.parse(campaign.lastExternalRebindAt);
+  const explicitDelta = positiveInteger(campaign.lastExternalProgressDelta);
+  const fallbackDelta = (!Number.isFinite(previousRebindAtMs) ||
+      previousRebindAtMs < observedAtMs)
+    ? positiveInteger(campaign.externallyObservedRebuilds)
+    : null;
+  const expectedReplacements = explicitDelta || fallbackDelta;
+  const missingTargets = targets.filter(target => target.status === 'missing');
+  if (!expectedReplacements || missingTargets.length !== expectedReplacements ||
+      !Number.isFinite(observedAtMs) || observedAtMs > nowMs + 60e3 ||
+      nowMs - observedAtMs > 10 * 60e3) return null;
+
+  const configuredWindowStartMs = Date.parse(campaign.externalProgressWindowStartAt);
+  const windowStartMs = Number.isFinite(configuredWindowStartMs)
+    ? configuredWindowStartMs - 10e3
+    : observedAtMs - 5 * 60e3;
+  const trackedBuildingIds = new Set(targets.map(target => target.buildingId));
+  const candidates = rows.filter(building => {
+    const buildingId = positiveInteger(building?.id);
+    const busyType = canonicalBuildingName(building?.busy?.type || building?.busy?.rawCategory);
+    const startedAtMs = Date.parse(building?.busy?.startedAt);
+    const endsAtMs = Date.parse(building?.busy?.endsAt);
+    return buildingId && !trackedBuildingIds.has(buildingId) && Number(building?.size) === 1 &&
+      PROSPECTOR_BUILDING_NAMES.has(canonicalBuildingName(building?.name)) &&
+      ['construction', 'b'].includes(busyType) && building?.busy?.expanding === true &&
+      Number.isFinite(startedAtMs) && startedAtMs >= windowStartMs &&
+      startedAtMs <= observedAtMs + 60e3 && Number.isFinite(endsAtMs) && endsAtMs > nowMs;
+  });
+  if (candidates.length !== expectedReplacements) return null;
+
+  const replacements = new Map();
+  for (const buildingName of PROSPECTOR_BUILDING_NAMES) {
+    const namedTargets = missingTargets.filter(target =>
+      canonicalBuildingName(target.building) === buildingName)
+      .sort((left, right) => (Date.parse(left.completesAt) || 0) -
+        (Date.parse(right.completesAt) || 0));
+    const namedCandidates = candidates.filter(building =>
+      canonicalBuildingName(building?.name) === buildingName)
+      .sort((left, right) => Date.parse(left.busy.startedAt) - Date.parse(right.busy.startedAt));
+    if (namedTargets.length !== namedCandidates.length) return null;
+    namedTargets.forEach((target, index) => replacements.set(target.targetId, namedCandidates[index]));
+  }
+  if (replacements.size !== expectedReplacements) return null;
+
+  const mappings = [];
+  const reboundTargets = targets.map(target => {
+    const replacement = replacements.get(target.targetId);
+    if (!replacement) return target;
+    mappings.push({
+      targetId: target.targetId,
+      previousBuildingId: target.buildingId,
+      buildingId: Number(replacement.id),
+      startedAt: validIso(replacement.busy.startedAt),
+      completesAt: validIso(replacement.busy.endsAt),
+    });
+    return {
+      ...target,
+      previousBuildingId: target.buildingId,
+      buildingId: Number(replacement.id),
+      building: replacement.name,
+      status: 'waiting-construction',
+      completesAt: validIso(replacement.busy.endsAt),
+      lastExternallyRebuiltAt: validIso(replacement.busy.startedAt),
+    };
+  });
+  return { targets: reboundTargets, mappings };
+}
+
 function synchronizeProspectorTargets(experiment, state, now = Date.now()) {
   const normalized = normalizeProspectorExperiment(experiment);
   if (!poolIsConfigured(normalized)) return { applicable: false, changed: false, experiment };
   const nowMs = Number(now);
   const rows = Array.isArray(state?.buildings) ? state.buildings : [];
-  const targets = normalized.campaign.targets.map(target => {
+  let targets = normalized.campaign.targets.map(target => {
     const matches = rows.filter(building => Number(building?.id) === target.buildingId);
     if (matches.length !== 1) return { ...target, status: 'missing' };
     const building = matches[0];
@@ -264,6 +335,13 @@ function synchronizeProspectorTargets(experiment, state, now = Date.now()) {
     }
     return { ...target, status: 'busy' };
   });
+  const externalRebind = reconcileExternalReplacementTargets(
+    normalized,
+    targets,
+    rows,
+    nowMs,
+  );
+  if (externalRebind) targets = externalRebind.targets;
 
   const activeAttempt = ['claimed', 'awaiting-counter'].includes(
     normalized?.rebuildAttempt?.status,
@@ -288,6 +366,12 @@ function synchronizeProspectorTargets(experiment, state, now = Date.now()) {
       ...normalized.campaign,
       activeTargetId: selected?.targetId || null,
       targets,
+      ...(externalRebind ? {
+        lastExternalRebindAt: new Date(nowMs).toISOString(),
+        lastExternalProgressDelta: 0,
+        externalProgressWindowStartAt: null,
+        lastExternalRebindEvidence: externalRebind.mappings,
+      } : {}),
     },
   };
   if (selected) {

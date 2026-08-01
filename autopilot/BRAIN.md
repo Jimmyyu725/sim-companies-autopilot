@@ -290,8 +290,12 @@ sustain both; inventory and one temporary modifier do not prove long-run capacit
   owned inventory has no route. Do not voluntarily idle the retailer while waiting for preferred
   stock; if every game-valid order is genuinely impossible, the wake must safe-retry rather than
   record idle as a successful decision.
-- Farm production must serve the chain or a named profitable filler/experiment with reserve, route,
-  and economics stated. Never produce a filler by habit.
+- Before starting another order on an idle level-1 or level-2 Farm, preview that exact Farm's next
+  upgrade and let Strategy Council compare upgrade/financing against hold. A Council hold permits
+  ordinary production. A failed or different decision permits only a `finishBefore` bridge of at
+  most one hour; an upgrade selection must proceed to funding and upgrade instead of being hidden
+  behind a long order. Farm production must serve the chain or a named profitable filler/experiment
+  with reserve, route, and economics stated. Never produce a filler by habit.
 - Surplus Seeds, Beans, Powder, Water, and Power may go to exchange after reserves when current net
   economics, transport, and depth are positive.
 

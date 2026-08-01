@@ -607,6 +607,8 @@ function recordOwnerProspectorOverview(directiveFile, observation, now = Date.no
             externallyObservedRebuilds:
               (Number(experiment.campaign?.externallyObservedRebuilds) || 0) + delta,
             lastExternalProgressAt: new Date(nowMs).toISOString(),
+            lastExternalProgressDelta: delta,
+            externalProgressWindowStartAt: baseline.observedAt || null,
           },
         };
         delete nextExperiment.verificationError;

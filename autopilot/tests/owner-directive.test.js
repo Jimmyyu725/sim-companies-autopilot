@@ -726,7 +726,10 @@ test('parallel Prospector pool recognizes completed targets when the API omits b
         busy: { type: 'construction', expanding: true,
           endsAt: new Date(now + 20 * 60e3).toISOString() },
       },
-      { id: 201, name: 'Quarry', size: 1, activity: { status: 'unknown', busy: null } },
+      {
+        id: 201, name: 'Quarry', size: 1, busy: undefined,
+        activity: { status: 'unknown', busy: null },
+      },
       { id: 202, name: 'Quarry', size: 1, activity: { status: 'unknown', busy: null } },
     ],
   };

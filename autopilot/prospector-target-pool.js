@@ -315,7 +315,10 @@ function synchronizeProspectorTargets(experiment, state, now = Date.now()) {
         completesAt: endsAt || target.completesAt,
       };
     }
-    const hasBusyField = Object.prototype.hasOwnProperty.call(building, 'busy');
+    // State capture may construct `busy: undefined`; JSON then omits it. Treat both in-memory and
+    // persisted representations as the same API-omitted state.
+    const hasBusyField = Object.prototype.hasOwnProperty.call(building, 'busy') &&
+      building.busy !== undefined;
     const activityStatus = String(building?.activity?.status || '').trim().toLowerCase();
     const activityBusy = building?.activity?.busy;
     const pageIdle = ['known', 'page-derived'].includes(activityStatus) &&

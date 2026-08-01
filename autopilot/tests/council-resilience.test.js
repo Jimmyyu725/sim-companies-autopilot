@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { formatToolOutput } = require('../tool-output.js');
 const {
   DEEPSEEK_STRATEGY_JSON_INSTRUCTION,
   aggregateStrategyDecision,
@@ -918,4 +919,43 @@ test('stale state blocks strategy advisors before any model call', async () => {
   assert.equal(result.ok, false);
   assert.equal(result.requiredTool, 'refresh_state');
   assert.equal(result.decision.status, 'INCOMPLETE');
+});
+
+// Regression (2026-08-01 wake 04:23): a council result larger than the tool-output budget is
+// bounded by whole fields, so `council: [votes]` collapsed to an item count and the brain never saw
+// WHY authorization failed. It reissued the same Farm-upgrade proposal six times while the COO
+// returned VALIDATED/UNKNOWN. The blocker summary must survive that bounding.
+test('council blocker summary names the refusing role and survives tool-output bounding', () => {
+  const { summarizeCouncilBlockers } = require('../council.js');
+  const approving = {
+    council: [
+      { role: 'CFO', verdict: 'APPROVE', summary: 'Cash covers the upgrade.', unknowns: [] },
+      { role: 'COO', verdict: 'APPROVE', summary: 'Capacity supports it.', unknowns: [] },
+    ],
+  };
+  assert.equal(summarizeCouncilBlockers(approving), null);
+
+  const blocked = {
+    structuralAuthorization: { ok: false, reason: 'COO did not provide a validated non-rejecting verdict' },
+    council: [
+      { role: 'CFO', verdict: 'APPROVE', summary: 'Cash covers the upgrade.', unknowns: [] },
+      { role: 'CMO', verdict: 'APPROVE', summary: 'Retail absorbs the output.', unknowns: [] },
+      {
+        role: 'COO',
+        verdict: 'UNKNOWN',
+        summary: 'Portfolio activity could not be confirmed.',
+        unknowns: ['Portfolio inspection did not confirm the idle activity of every building.'],
+      },
+    ],
+    evidence: { padding: 'x'.repeat(9000) },
+  };
+  const summary = summarizeCouncilBlockers(blocked);
+  assert.match(summary, /^COO UNKNOWN: Portfolio inspection/);
+  assert.ok(summary.length <= 250);
+
+  // The realistic payload exceeds the budget, so the council array is dropped; the scalar summary
+  // must still reach the brain.
+  const bounded = formatToolOutput('council', { authorizationBlockedBy: summary, ...blocked });
+  assert.ok(bounded.length < JSON.stringify(blocked).length);
+  assert.match(bounded, /COO UNKNOWN: Portfolio inspection/);
 });

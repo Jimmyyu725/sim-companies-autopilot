@@ -14,6 +14,7 @@ const {
 } = require(path.join(BRAIN, 'action-contracts.js'));
 const { FailureBudget, isActionFailure } = require(path.join(BRAIN, 'failure-budget.js'));
 const {
+  summarizeCouncilBlockers,
   runCouncil,
   runStrategyCouncil,
   strategyCouncilToolParameters,
@@ -596,7 +597,13 @@ async function runTool(name, args) {
       }
       const result = await runCouncil({ args: reviewArgs, apiKey: KEY, brainDir: BRAIN, simDir: SIM });
       const structuralAuthorization = runtimeGuard.noteCouncil(result, args);
-      return structuralAuthorization ? { structuralAuthorization, ...result } : result;
+      // Keep the blocking role and its stated gap as a short scalar: the full council array is
+      // dropped when the result exceeds the tool-output budget, which previously left the brain
+      // retrying the same proposal blindly.
+      const authorizationBlockedBy = summarizeCouncilBlockers(result);
+      return structuralAuthorization
+        ? { structuralAuthorization, authorizationBlockedBy, ...result }
+        : (authorizationBlockedBy ? { authorizationBlockedBy, ...result } : result);
     }
     if (name === 'refresh_state') {
       execFileSync('flock', ['-w', '90', path.join(SIM, '.tick.lock'), 'node', path.join(BRAIN, 'state.js')], { cwd: SIM, timeout: 160000, encoding: 'utf8' });

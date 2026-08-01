@@ -482,6 +482,89 @@ assert.equal(missingCandidate.prepareStrategyCouncil({ options: candidateOptions
 missingCandidate.noteRefresh();
 assert.equal(missingCandidate.prepareStrategyCouncil({ options: candidateOptions }).ok, false);
 
+const farmReviewAt = Date.parse('2026-08-01T02:49:49.494Z');
+const farmReviewState = {
+  t: new Date(farmReviewAt).toISOString(),
+  buildings: [{ id: 55518748, name: 'Farm', size: 1, busy: null }],
+};
+const farmUpgradePreview = {
+  buildingId: 55518748,
+  maxCost: 20000,
+  minCashAfter: 5000,
+  confirm: false,
+};
+const farmProduction = {
+  buildingId: 55518748,
+  name: 'COFFEE BEANS',
+  qty: 3080,
+  targetHours: 6,
+  finishBefore: null,
+};
+const farmUpgradeOption = {
+  id: 'upgrade-farm-l1',
+  label: 'Upgrade Farm L1 to L2.',
+  action: 'upgrade',
+  buildingId: 55518748,
+  target: 'farm',
+};
+const farmHoldOption = {
+  id: 'hold-farm-l1',
+  label: 'Hold Farm L1 and continue production.',
+  action: 'hold',
+  buildingId: null,
+  target: null,
+};
+const farmReview = new WakeRuntimeGuard();
+assert.equal(farmReview.beforeAction('produce', farmProduction, {
+  state: farmReviewState,
+}).requiredAction.action, 'upgrade');
+farmReview.afterAction('upgrade', farmUpgradePreview, {
+  ok: true, dry: true, preview: true, cashCost: 11000,
+});
+assert.equal(farmReview.beforeAction('produce', farmProduction, {
+  state: farmReviewState,
+}).requiredTool, 'strategy_council');
+authorizeStrategy(farmReview, farmHoldOption, farmUpgradeOption);
+assert.equal(farmReview.beforeAction('produce', farmProduction, {
+  state: farmReviewState,
+}), null);
+
+const selectedFarmUpgrade = new WakeRuntimeGuard();
+selectedFarmUpgrade.afterAction('upgrade', farmUpgradePreview, {
+  ok: true, dry: true, preview: true, cashCost: 11000,
+});
+authorizeStrategy(selectedFarmUpgrade, farmUpgradeOption, farmHoldOption);
+assert.match(selectedFarmUpgrade.beforeAction('produce', farmProduction, {
+  state: farmReviewState,
+}).reason, /selected this Farm upgrade/);
+
+const failedFarmReview = new WakeRuntimeGuard();
+failedFarmReview.afterAction('upgrade', farmUpgradePreview, {
+  ok: true, dry: true, preview: true, cashCost: 11000,
+});
+failedFarmReview.noteStrategyCouncil({}, {
+  focusBuildingId: 55518748,
+  options: [farmHoldOption, farmUpgradeOption],
+});
+assert.match(failedFarmReview.beforeAction('produce', farmProduction, {
+  state: farmReviewState,
+}).reason, /bridge of at most one hour/);
+assert.equal(failedFarmReview.beforeAction('produce', {
+  ...farmProduction,
+  finishBefore: new Date(farmReviewAt + 45 * 60e3).toISOString(),
+}, { state: farmReviewState }), null);
+assert.match(failedFarmReview.beforeAction('produce', {
+  ...farmProduction,
+  finishBefore: new Date(farmReviewAt + 2 * 60 * 60e3).toISOString(),
+}, { state: farmReviewState }).reason, /bridge of at most one hour/);
+const levelThreeFarmState = {
+  ...farmReviewState,
+  buildings: [{ id: 55518748, name: 'Farm', size: 3, busy: null }],
+};
+assert.equal(new WakeRuntimeGuard().beforeAction('produce', farmProduction, {
+  state: levelThreeFarmState,
+}), null);
+
 const changedTerms = new WakeRuntimeGuard();
 authorizeStrategy(changedTerms, {
   id: 'issue_bonds',

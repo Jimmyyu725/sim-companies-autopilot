@@ -899,6 +899,130 @@ test('continuous Prospector campaign safely rebaselines authenticated manual pro
   assert.equal(persisted.prospectorExperiment.verificationError, undefined);
 });
 
+test('parallel Prospector pool safely rebinds exact manual replacement constructions', t => {
+  const files = fixture();
+  t.after(() => fs.rmSync(files.directory, { recursive: true, force: true }));
+  const now = Date.parse('2026-08-01T03:00:23.501Z');
+  const observedAt = new Date(now - 1000).toISOString();
+  const directive = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
+  directive.action = OWNER_SUBTASK_ACTION;
+  directive.prospectorExperiment = {
+    status: 'waiting-construction', building: 'Quarry', buildingId: 400, level: 1,
+    completesAt: new Date(now + 10 * 60e3).toISOString(),
+    expectedBaseline: 32, expectedTarget: 50, expectedIncrement: 1,
+    campaign: {
+      mode: 'repeat-until-achievement-complete', status: 'active',
+      currentStars: 1, starsMax: 7, targetCapacity: 3, activeTargetId: 'primary',
+      externallyObservedRebuilds: 2, lastExternalProgressAt: observedAt,
+      targets: [
+        {
+          targetId: 'primary', building: 'Quarry', buildingId: 400, level: 1,
+          status: 'waiting-construction', completesAt: new Date(now + 10 * 60e3).toISOString(),
+        },
+        {
+          targetId: 'manual-a', building: 'Quarry', buildingId: 401, level: 1,
+          status: 'missing', completesAt: new Date(now - 40 * 60e3).toISOString(),
+        },
+        {
+          targetId: 'manual-b', building: 'Quarry', buildingId: 402, level: 1,
+          status: 'missing', completesAt: new Date(now - 20 * 60e3).toISOString(),
+        },
+      ],
+    },
+    baselineProgress: {
+      path: PROSPECTOR_OVERVIEW_PATH, status: 200, observedAt,
+      current: 32, target: 50, stars: 1, starsMax: 7,
+    },
+    lastProgressEvidence: {
+      path: PROSPECTOR_OVERVIEW_PATH, status: 200, observedAt,
+      current: 32, target: 50, stars: 1, starsMax: 7,
+    },
+  };
+  fs.writeFileSync(files.directiveFile, JSON.stringify(directive));
+  const replacementStartA = new Date(now - 4 * 60e3).toISOString();
+  const replacementStartB = new Date(now - 3 * 60e3).toISOString();
+  const state = {
+    t: new Date(now).toISOString(),
+    sources: { buildings: { status: 'ok', asOf: new Date(now).toISOString() } },
+    buildings: [
+      {
+        id: 400, name: 'Quarry', size: 1,
+        busy: { type: 'construction', expanding: true,
+          startedAt: new Date(now - 3 * 60 * 60e3).toISOString(),
+          endsAt: new Date(now + 10 * 60e3).toISOString() },
+      },
+      {
+        id: 501, name: 'Quarry', size: 1,
+        busy: { type: 'construction', expanding: true, startedAt: replacementStartA,
+          endsAt: new Date(now + 3 * 60 * 60e3).toISOString() },
+      },
+      {
+        id: 502, name: 'Quarry', size: 1,
+        busy: { type: 'construction', expanding: true, startedAt: replacementStartB,
+          endsAt: new Date(now + 3 * 60 * 60e3 + 1000).toISOString() },
+      },
+    ],
+  };
+
+  assert.equal(synchronizeOwnerProspectorConstruction(files.directiveFile, state, now), true);
+  const persisted = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
+  const targets = persisted.prospectorExperiment.campaign.targets;
+  assert.deepEqual(targets.map(target => target.buildingId), [400, 501, 502]);
+  assert.deepEqual(targets.slice(1).map(target => target.previousBuildingId), [401, 402]);
+  assert.deepEqual(targets.slice(1).map(target => target.status),
+    ['waiting-construction', 'waiting-construction']);
+  assert.equal(persisted.prospectorExperiment.campaign.lastExternalProgressDelta, 0);
+  assert.equal(persisted.prospectorExperiment.campaign.lastExternalRebindEvidence.length, 2);
+});
+
+test('parallel Prospector pool refuses ambiguous external replacement rebinding', t => {
+  const files = fixture();
+  t.after(() => fs.rmSync(files.directory, { recursive: true, force: true }));
+  const now = Date.parse('2026-08-01T03:00:23.501Z');
+  const directive = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
+  directive.action = OWNER_SUBTASK_ACTION;
+  directive.prospectorExperiment = {
+    status: 'counter-mismatch', building: 'Quarry', buildingId: 601, level: 1,
+    completesAt: new Date(now - 60e3).toISOString(),
+    expectedBaseline: 32, expectedTarget: 50, expectedIncrement: 1,
+    campaign: {
+      mode: 'repeat-until-achievement-complete', status: 'active', targetCapacity: 1,
+      activeTargetId: 'primary', externallyObservedRebuilds: 1,
+      lastExternalProgressAt: new Date(now).toISOString(),
+      targets: [{
+        targetId: 'primary', building: 'Quarry', buildingId: 601, level: 1,
+        status: 'missing', completesAt: new Date(now - 60e3).toISOString(),
+      }],
+    },
+    baselineProgress: {
+      path: PROSPECTOR_OVERVIEW_PATH, status: 200, current: 32, target: 50,
+      stars: 1, starsMax: 7,
+    },
+    lastProgressEvidence: {
+      path: PROSPECTOR_OVERVIEW_PATH, status: 200, current: 32, target: 50,
+      stars: 1, starsMax: 7,
+    },
+  };
+  fs.writeFileSync(files.directiveFile, JSON.stringify(directive));
+  const construction = id => ({
+    id, name: 'Quarry', size: 1,
+    busy: { type: 'construction', expanding: true,
+      startedAt: new Date(now - 60e3).toISOString(),
+      endsAt: new Date(now + 3 * 60 * 60e3).toISOString() },
+  });
+  const state = {
+    t: new Date(now).toISOString(),
+    sources: { buildings: { status: 'ok', asOf: new Date(now).toISOString() } },
+    buildings: [construction(602), construction(603)],
+  };
+
+  assert.equal(synchronizeOwnerProspectorConstruction(files.directiveFile, state, now), true);
+  const persisted = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
+  assert.equal(persisted.prospectorExperiment.campaign.targets[0].buildingId, 601);
+  assert.equal(persisted.prospectorExperiment.campaign.targets[0].status, 'missing');
+  assert.equal(persisted.prospectorExperiment.campaign.lastExternalRebindEvidence, undefined);
+});
+
 test('manual progress reconciliation stays fail-closed while an automatic click is unresolved', t => {
   const files = fixture();
   t.after(() => fs.rmSync(files.directory, { recursive: true, force: true }));

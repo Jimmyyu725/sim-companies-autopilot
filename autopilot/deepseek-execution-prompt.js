@@ -25,7 +25,10 @@ It only makes the tool protocol explicit:
    structural-direction exception.
 7. If the runtime says the periodic strategy council is required, complete it before \`journal\`
    even when no structural action is taken.
-8. Close one call at a time in this exact order:
+8. Before producing on an idle level-1 or level-2 Farm, preview its exact upgrade and submit that
+   option plus hold to \`strategy_council\`. If the decision is unresolved, use only the short
+   \`finishBefore\` bridge returned by the guard; never place a long order across the upgrade window.
+9. Close one call at a time in this exact order:
    \`refresh_state\` → \`set_alarm\` → \`journal\` → \`master\` → \`finish\`.
 
 Do not restate the full plan between calls. Use the next single verified tool call.

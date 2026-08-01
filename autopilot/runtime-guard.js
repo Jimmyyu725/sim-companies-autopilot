@@ -84,6 +84,7 @@ const DEFAULT_LOOP_RETRY_MS = 5 * 60 * 1000;
 const MIN_ALARM_DELAY_MS = 2 * 60 * 1000;
 const MAX_ALARM_DELAY_MS = 4 * 60 * 60 * 1000;
 const OWNER_DIRECTIVE_MAX_STATE_AGE_MS = 5 * 60 * 1000;
+const FARM_UPGRADE_REVIEW_MAX_BRIDGE_MS = 60 * 60 * 1000;
 const PROSPECTOR_OVERVIEW_PATH = '/api/v2/companies/me/achievements/';
 const PROSPECTOR_CAMPAIGN_MODE = 'repeat-until-achievement-complete';
 const ACHIEVEMENT_SLOT_POLICY_MODE = 'reserve-all-free-standard-slots';
@@ -816,6 +817,7 @@ class WakeRuntimeGuard {
     this.strategyCouncilAttempted = false;
     this.strategyCouncilCompleted = false;
     this.strategyCouncilDecision = null;
+    this.strategyCouncilConsideredDirections = new Set();
     this.ownerAchievementBuildCount = 0;
   }
 
@@ -833,12 +835,18 @@ class WakeRuntimeGuard {
     this.strategyCouncilAttempted = false;
     this.strategyCouncilCompleted = false;
     this.strategyCouncilDecision = null;
+    this.strategyCouncilConsideredDirections.clear();
     this.strategyCandidates.clear();
     return this.strategyCouncilStatus();
   }
 
   noteStrategyCouncil(result, args = {}) {
     this.strategyCouncilAttempted = true;
+    this.strategyCouncilConsideredDirections = new Set(
+      (Array.isArray(args?.options) ? args.options : [])
+        .map(strategyOptionKey)
+        .filter(Boolean),
+    );
     const completion = validateStrategyCouncilCompletion(result, {
       buildingInspectionRequired: args?.focusBuildingId != null,
       portfolioInspectionRequired: true,
@@ -970,6 +978,78 @@ class WakeRuntimeGuard {
         reason: `live state changed after ${this.lastMutation}; call refresh_state before another state-changing action`,
         requiredTool: 'refresh_state',
       };
+    }
+    if (action === 'produce') {
+      const buildingId = Number(params?.buildingId);
+      const building = (Array.isArray(options?.state?.buildings)
+        ? options.state.buildings : []).find(row => Number(row?.id) === buildingId);
+      const isLowLevelFarm = canonicalBuildingName(building?.name) === 'farm' &&
+        Number.isSafeInteger(Number(building?.size)) && Number(building.size) >= 1 &&
+        Number(building.size) < 3;
+      const ownerUpgradeTarget = options?.ownerDirective?.action === 'fund-and-upgrade-building' &&
+        Number(options.ownerDirective?.buildingId) === buildingId;
+      if (isLowLevelFarm && !ownerUpgradeTarget) {
+        const upgradeKey = strategyDirectionKey('upgrade', { buildingId });
+        const considered = this.strategyCouncilConsideredDirections.has(upgradeKey);
+        const decision = this.strategyCouncilDecision;
+        if (this.strategyCouncilCompleted && considered && decision?.action === 'hold') {
+          // Council explicitly chose continued operation after reviewing this exact Farm upgrade.
+        } else if (this.strategyCouncilCompleted && considered &&
+            decision?.action === 'upgrade' && Number(decision.buildingId) === buildingId) {
+          return {
+            ok: false,
+            guard: true,
+            reason: 'strategy_council selected this Farm upgrade; do not hide the upgrade window behind another production order',
+            requiredAction: {
+              action: 'upgrade', buildingId, confirm: false,
+              note: 'refresh the exact quote, fund the measured gap if necessary, then execute the selected upgrade',
+            },
+          };
+        } else {
+          const candidate = this.strategyCandidates.get(upgradeKey);
+          const candidateIsCurrent = candidate?.previewVersion === this.mutationVersion;
+          if (!candidateIsCurrent && !considered) {
+            return {
+              ok: false,
+              guard: true,
+              reason: 'a level-1 or level-2 Farm must receive an exact upgrade preview before another production commitment',
+              requiredAction: {
+                action: 'upgrade', buildingId, confirm: false,
+                note: 'quote the upgrade before deciding whether to upgrade, finance, or continue production',
+              },
+            };
+          }
+          if (!this.strategyCouncilAttempted) {
+            return {
+              ok: false,
+              guard: true,
+              reason: 'the Farm upgrade preview must be considered by strategy_council before ordinary production resumes',
+              requiredTool: 'strategy_council',
+              requiredOptions: [
+                { action: 'upgrade', buildingId, target: 'farm' },
+                { action: 'hold', buildingId: null, target: null },
+              ],
+            };
+          }
+          const capturedAtMs = Date.parse(options?.state?.t);
+          const finishBeforeMs = Date.parse(params?.finishBefore);
+          const shortBridge = Number.isFinite(capturedAtMs) && Number.isFinite(finishBeforeMs) &&
+            finishBeforeMs > capturedAtMs &&
+            finishBeforeMs <= capturedAtMs + FARM_UPGRADE_REVIEW_MAX_BRIDGE_MS;
+          if (!shortBridge) {
+            return {
+              ok: false,
+              guard: true,
+              reason: 'the Farm upgrade decision is unresolved; only a checkpoint-bound bridge of at most one hour is allowed after a Council failure or a different selected direction',
+              buildingId,
+              requiredParameter: 'finishBefore',
+              latestAllowedFinishBefore: Number.isFinite(capturedAtMs)
+                ? new Date(capturedAtMs + FARM_UPGRADE_REVIEW_MAX_BRIDGE_MS).toISOString()
+                : null,
+            };
+          }
+        }
+      }
     }
     const achievementSlotPolicy = activeOwnerAchievementSlotPolicy(options.ownerDirective);
     if (action === 'build' && params.confirm === true && achievementSlotPolicy) {

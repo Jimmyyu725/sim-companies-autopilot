@@ -584,6 +584,12 @@ function writeCouncilAudit(brainDir, role, vote, details = {}) {
     errorKind: details.errorKind || null,
     repairAttempted: details.repairAttempted === true,
     validationError,
+    // Deliberately no vote prose here: the audit must never carry model-authored summaries,
+    // unknowns, or evidence values (see the bounded-diagnostics test). The per-role reasons are
+    // already returned to the brain in `council: votes` and land in the wake diary; the audit only
+    // records deterministic outcome fields. `unknownCount` keeps a VALIDATED/UNKNOWN verdict
+    // distinguishable from a silent one without leaking any text.
+    unknownCount: Array.isArray(vote?.unknowns) ? vote.unknowns.length : 0,
   }) + '\n');
 }
 

@@ -6,6 +6,14 @@ const path = require('path');
 const BRAIN_DIR = __dirname;
 const ACTIVE_PROVIDER_FILE = path.join(BRAIN_DIR, '.active-brain-provider');
 const HEALTH_FILE = path.join(BRAIN_DIR, '.brain-provider-health.json');
+// The fallback used to be permanent: once a DeepSeek failure streak switched the active provider to
+// OpenAI, nothing ever switched it back, so the owner's chosen primary stayed off and every wake
+// cost about seven times more (measured 2026-08-01: $0.69 versus $0.09). Recovery is half-open —
+// after enough consecutive successful fallback wakes the primary is tried again, and the existing
+// failure threshold simply falls back once more if it is still broken. The required number of
+// successes doubles per fallback so a genuinely broken primary is not retried in a tight loop.
+const FALLBACK_RECOVERY_SUCCESSES = 2;
+const MAX_FALLBACK_RECOVERY_SUCCESSES = 16;
 const DEEPSEEK_KEY_FILE = '/home/jimmy/.config/sim-benchmark/deepseek-v4-pro.txt';
 const OPENAI_ENV_FILE = '/srv/appdata/ledgerwall/.env';
 const PROVIDERS = new Set(['openai', 'deepseek']);
@@ -85,12 +93,21 @@ function switchProvider(provider, options = {}) {
 function readHealth(filePath = HEALTH_FILE) {
   try {
     const value = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    return {
+    const health = {
       schemaVersion: 1,
       provider: normalizeProvider(value.provider),
       consecutiveFailures: Math.max(0, Number(value.consecutiveFailures) || 0),
       updatedAt: value.updatedAt || null,
     };
+    // Fallback bookkeeping must survive this normalization: recovery reads it back on the next
+    // wake, and dropping it silently pinned the account to the fallback provider forever.
+    const attempts = Math.max(0, Number(value.fallbackAttempts) || 0);
+    if (attempts > 0) health.fallbackAttempts = attempts;
+    const successes = Math.max(0, Number(value.fallbackSuccesses) || 0);
+    if (attempts > 0) health.fallbackSuccesses = successes;
+    if (value.fallbackProvider) health.fallbackProvider = normalizeProvider(value.fallbackProvider);
+    if (value.primaryRestoredAt) health.primaryRestoredAt = value.primaryRestoredAt;
+    return health;
   } catch (_) {
     return null;
   }
@@ -115,6 +132,13 @@ function recordProviderResult(provider, rc, options = {}) {
     lastRc: exitCode,
     updatedAt: now,
   };
+  // Carry the fallback bookkeeping through every write. A wake that neither falls back nor counts
+  // toward recovery must not silently reset the backoff.
+  const carriedAttempts = Math.max(0, Number(previous?.fallbackAttempts) || 0);
+  if (carriedAttempts > 0) {
+    state.fallbackAttempts = carriedAttempts;
+    state.fallbackSuccesses = Math.max(0, Number(previous?.fallbackSuccesses) || 0);
+  }
   let fallbackActivated = false;
   if (resolved === 'deepseek' &&
       consecutiveFailures >= FAILURE_THRESHOLD &&
@@ -129,6 +153,26 @@ function recordProviderResult(provider, rc, options = {}) {
       state.fallbackBlocked = readiness.reason;
     }
   }
+  let primaryRestored = false;
+  const fallbackAttempts = Math.max(1, carriedAttempts);
+  if (fallbackActivated) {
+    state.fallbackAttempts = fallbackAttempts;
+    state.fallbackSuccesses = 0;
+  } else if (resolved === 'openai' && readActiveProvider(activeProviderFile) === 'openai' &&
+      Number(previous?.fallbackAttempts) > 0) {
+    state.fallbackAttempts = Number(previous.fallbackAttempts);
+    const successes = exitCode === 0 ? (Number(previous?.fallbackSuccesses) || 0) + 1 : 0;
+    state.fallbackSuccesses = successes;
+    const required = Math.min(MAX_FALLBACK_RECOVERY_SUCCESSES,
+      FALLBACK_RECOVERY_SUCCESSES * state.fallbackAttempts);
+    if (successes >= required && readinessCheck('deepseek').ok) {
+      writeAtomic(activeProviderFile, 'deepseek\n');
+      state.fallbackAttempts += 1;
+      state.fallbackSuccesses = 0;
+      state.primaryRestoredAt = now;
+      primaryRestored = true;
+    }
+  }
   writeAtomic(healthFile, `${JSON.stringify(state)}\n`);
   return {
     ok: true,
@@ -136,6 +180,7 @@ function recordProviderResult(provider, rc, options = {}) {
     rc: exitCode,
     consecutiveFailures,
     fallbackActivated,
+    primaryRestored,
     activeProvider: readActiveProvider(activeProviderFile),
   };
 }
@@ -177,6 +222,7 @@ module.exports = {
   ACTIVE_PROVIDER_FILE,
   DEEPSEEK_KEY_FILE,
   FAILURE_THRESHOLD,
+  FALLBACK_RECOVERY_SUCCESSES,
   HEALTH_FILE,
   OPENAI_ENV_FILE,
   normalizeProvider,

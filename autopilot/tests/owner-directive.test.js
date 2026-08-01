@@ -857,6 +857,86 @@ test('continuous Prospector campaign accepts one exact tier transition and rejec
   }, now).experimentStatus, 'counter-mismatch');
 });
 
+test('continuous Prospector campaign safely rebaselines authenticated manual progress', t => {
+  const files = fixture();
+  t.after(() => fs.rmSync(files.directory, { recursive: true, force: true }));
+  const now = Date.parse('2026-08-01T02:56:58.457Z');
+  const baselineAt = new Date(now - 4 * 60e3).toISOString();
+  const directive = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
+  directive.action = OWNER_SUBTASK_ACTION;
+  directive.prospectorExperiment = {
+    status: 'counter-mismatch', building: 'Quarry', buildingId: 201, level: 1,
+    completesAt: new Date(now - 30 * 60e3).toISOString(),
+    expectedBaseline: 30, expectedTarget: 50, expectedIncrement: 1,
+    campaign: {
+      mode: 'repeat-until-achievement-complete', status: 'active',
+      currentStars: 1, starsMax: 7, verifiedRebuilds: 21,
+    },
+    baselineProgress: {
+      path: PROSPECTOR_OVERVIEW_PATH, status: 200, observedAt: baselineAt,
+      current: 30, target: 50, stars: 1, starsMax: 7,
+    },
+    lastProgressEvidence: {
+      path: PROSPECTOR_OVERVIEW_PATH, status: 200, observedAt: baselineAt,
+      current: 32, target: 50, stars: 1, starsMax: 7,
+    },
+    rebuildAttempt: { status: 'verified' },
+  };
+  fs.writeFileSync(files.directiveFile, JSON.stringify(directive));
+
+  assert.equal(recordOwnerProspectorOverview(files.directiveFile, {
+    path: PROSPECTOR_OVERVIEW_PATH,
+    status: 200,
+    fetchedAt: new Date(now).toISOString(),
+    data: prospectorOverview(32, 50, { stars: 1 }),
+  }, now).experimentStatus, 'baseline-verified');
+  const persisted = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
+  assert.equal(persisted.prospectorExperiment.expectedBaseline, 32);
+  assert.equal(persisted.prospectorExperiment.baselineProgress.current, 32);
+  assert.equal(persisted.prospectorExperiment.lastProgressEvidence.current, 32);
+  assert.equal(persisted.prospectorExperiment.campaign.verifiedRebuilds, 21);
+  assert.equal(persisted.prospectorExperiment.campaign.externallyObservedRebuilds, 2);
+  assert.equal(persisted.prospectorExperiment.verificationError, undefined);
+});
+
+test('manual progress reconciliation stays fail-closed while an automatic click is unresolved', t => {
+  const files = fixture();
+  t.after(() => fs.rmSync(files.directory, { recursive: true, force: true }));
+  const now = Date.parse('2026-08-01T03:00:00.000Z');
+  const baselineAt = new Date(now - 60e3).toISOString();
+  const directive = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
+  directive.action = OWNER_SUBTASK_ACTION;
+  directive.prospectorExperiment = {
+    status: 'awaiting-counter', building: 'Quarry', buildingId: 201, level: 1,
+    completesAt: new Date(now - 30 * 60e3).toISOString(),
+    expectedBaseline: 30, expectedTarget: 50, expectedIncrement: 1,
+    campaign: {
+      mode: 'repeat-until-achievement-complete', status: 'active',
+      currentStars: 1, starsMax: 7,
+    },
+    baselineProgress: {
+      path: PROSPECTOR_OVERVIEW_PATH, status: 200, observedAt: baselineAt,
+      current: 30, target: 50, stars: 1, starsMax: 7,
+    },
+    lastProgressEvidence: {
+      path: PROSPECTOR_OVERVIEW_PATH, status: 200, observedAt: baselineAt,
+      current: 30, target: 50, stars: 1, starsMax: 7,
+    },
+    rebuildAttempt: { attemptId: 'unresolved', status: 'awaiting-counter' },
+  };
+  fs.writeFileSync(files.directiveFile, JSON.stringify(directive));
+
+  assert.equal(recordOwnerProspectorOverview(files.directiveFile, {
+    path: PROSPECTOR_OVERVIEW_PATH,
+    status: 200,
+    fetchedAt: new Date(now).toISOString(),
+    data: prospectorOverview(32, 50, { stars: 1 }),
+  }, now).experimentStatus, 'counter-mismatch');
+  const persisted = JSON.parse(fs.readFileSync(files.directiveFile, 'utf8'));
+  assert.equal(persisted.prospectorExperiment.expectedBaseline, 30);
+  assert.equal(persisted.prospectorExperiment.campaign.externallyObservedRebuilds, undefined);
+});
+
 test('continuous Prospector campaign stops only when the authenticated achievement is fully complete', t => {
   const files = fixture({ level: 2, busy: null });
   t.after(() => fs.rmSync(files.directory, { recursive: true, force: true }));

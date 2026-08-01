@@ -1089,6 +1089,33 @@ class WakeRuntimeGuard {
         } else {
           const candidate = this.strategyCandidates.get(upgradeKey);
           const candidateIsCurrent = candidate?.previewVersion === this.mutationVersion;
+          // The preview requirement is only reachable while an upgrade preview is still legal. Once
+          // this wake holds a validated decision for a DIFFERENT direction the direction gate
+          // refuses the preview itself, and the wake can no longer be re-rolled — demanding a
+          // preview then leaves the Farm with no legal move at all. Live 2026-08-01 wake 11:57: a
+          // safety hold that never considered Farm 55345580 blocked its preview, its production and
+          // a fresh council in turn, and the Farm sat idle. Allow the bounded checkpoint bridge.
+          const decisionBlocksPreview = this.strategyCouncilCompleted && decision &&
+            !strategyDecisionMatchesAction(decision, 'upgrade', { buildingId });
+          const capturedAtMsForHold = Date.parse(options?.state?.t);
+          const finishBeforeMsForHold = Date.parse(params?.finishBefore);
+          const holdBridge = Number.isFinite(capturedAtMsForHold) &&
+            Number.isFinite(finishBeforeMsForHold) &&
+            finishBeforeMsForHold > capturedAtMsForHold &&
+            finishBeforeMsForHold <= capturedAtMsForHold + FARM_UPGRADE_REVIEW_MAX_BRIDGE_MS;
+          if (decisionBlocksPreview && !candidateIsCurrent && !considered) {
+            if (holdBridge) return null;
+            return {
+              ok: false,
+              guard: true,
+              reason: `strategy_council selected ${decision.action} this wake, so this Farm upgrade cannot be previewed; place only a checkpoint-bound bridge of at most one hour and revisit the upgrade next wake`,
+              buildingId,
+              requiredParameter: 'finishBefore',
+              latestAllowedFinishBefore: Number.isFinite(capturedAtMsForHold)
+                ? new Date(capturedAtMsForHold + FARM_UPGRADE_REVIEW_MAX_BRIDGE_MS).toISOString()
+                : null,
+            };
+          }
           if (!candidateIsCurrent && !considered) {
             return {
               ok: false,

@@ -28,6 +28,7 @@ const {
   summarizeBonds,
   summarizeVolumeRows,
   stockSourceIsComplete,
+  summarizeLevelingProgress,
   withExplicitStockKinds,
 } = require(path.join(AUTOPILOT, 'state-helpers.js'));
 const { calculateCoffeeReservePolicy } = require(path.join(AUTOPILOT, 'coffee-reserve-policy.js'));

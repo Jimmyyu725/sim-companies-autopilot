@@ -198,3 +198,41 @@ test('an invalid gate clock cannot clear utilization evidence', () => {
   assert.equal(result.ok, false);
   assert.equal(result.requiredTool, 'refresh_state');
 });
+
+// Regression (2026-08-02): the runtime refuses production on an idle level-1 extraction site while
+// the Prospector campaign runs, so that it stays scrappable. But enrolment is capped (3 targets),
+// and this gate counted every unenrolled idle Quarry as a no-voluntary-idle failure — leaving the
+// wake with no legal move at all: it could neither work them nor close the journal. Idle campaign
+// capacity is reserved, not a failure.
+test('idle level-1 extraction sites are reserved while the campaign runs', () => {
+  const buildings = [
+    { id: 10, name: 'Quarry', size: 1, category: 'production', busy: null },
+    { id: 11, name: 'Quarry', size: 1, category: 'production', busy: null },
+    { id: 12, name: 'Mill', size: 3, category: 'production', busy: null },
+  ];
+  const activeCampaign = { prospectorExperiment: { campaign: { status: 'active' } } };
+
+  const gate = buildingUtilizationJournalGate(state(buildings), NOW, {
+    ownerDirective: activeCampaign,
+  });
+  // The Mill is still a genuine idle failure; the Quarries are not.
+  assert.equal(gate.ok, false);
+  assert.deepEqual(gate.idleBuildings.map(row => row.buildingId), [12]);
+  assert.deepEqual(gate.reservedIdleBuildings.map(row => row.buildingId).sort(), [10, 11]);
+
+  // With every non-campaign building busy, the wake can close even with idle Quarries.
+  const onlyQuarriesIdle = buildingUtilizationJournalGate(state([
+    { id: 10, name: 'Quarry', size: 1, category: 'production', busy: null },
+    { id: 11, name: 'Quarry', size: 1, category: 'production', busy: null },
+    { id: 12, name: 'Mill', size: 3, category: 'production', busy: { type: 'production' } },
+  ]), NOW, { ownerDirective: activeCampaign });
+  assert.equal(onlyQuarriesIdle, null,
+    'idle campaign capacity alone must not block the journal');
+
+  // Without an active campaign an idle Quarry is an ordinary idle failure again.
+  const noCampaign = buildingUtilizationJournalGate(state(buildings), NOW, {
+    ownerDirective: { prospectorExperiment: { campaign: { status: 'complete' } } },
+  });
+  assert.equal(noCampaign.ok, false);
+  assert.deepEqual(noCampaign.idleBuildings.map(row => row.buildingId).sort(), [10, 11, 12]);
+});

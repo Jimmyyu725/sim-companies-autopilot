@@ -278,8 +278,15 @@ Three consequences follow, and they are counter-intuitive enough to state plainl
 - **Retail is a price maker; the exchange is a price taker.** The book caps what the exchange pays,
   but the store sells at whatever price we set. Four listings between $38.75 and $39.50 sold at
   172, 168, 169 and 172 units/h — demand barely moved, so that range was underpriced and the
-  store-versus-exchange comparison above is not a verdict on retail itself. Probe upward with the
-  dialog's printed profit/hour before concluding either channel wins.
+  store-versus-exchange comparison above is not a verdict on retail itself.
+
+**The channel and the price are decided by measured profit/hour, nothing else.** Owner directive,
+2026-08-01: take whichever route the game itself prints as highest profit/hour. Compare the retail
+dialog's printed figure against `inspect_exchange_sale` for the same goods, and pick the larger.
+Because the retail price is ours to choose, its printed profit/hour is not one number but a curve:
+step the asking price up while the printed profit/hour keeps rising, and stop at the first step that
+prints less than the previous one. Do not settle at a price merely because it sells quickly, and do
+not assume either channel wins — the measured figure decides every time.
 - **Buying Beans can beat farming them.** Own beans cost $0.64 versus $0.745 on the exchange, but a
   Farm slot supports far less profit than a Mill slot at the same level. When construction slots are
   the binding constraint, buy Beans and spend the slot on Mill capacity. When slots are free, farm

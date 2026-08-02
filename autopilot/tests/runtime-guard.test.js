@@ -1231,9 +1231,25 @@ const sandGuardBlocked = sandGuardRuntime.beforeAction('produce',
   { buildingId: 55599317, name: 'sand', qty: 1000 },
   { state: sandGuardState, ownerDirective: sandGuardDirective });
 assert.equal(sandGuardBlocked.ok, false);
-assert.match(sandGuardBlocked.reason, /REBUILD it instead of producing/);
+assert.match(sandGuardBlocked.reason, /REBUILD it, or place only a checkpoint-bound bridge/);
 assert.equal(sandGuardBlocked.requiredAction.action, 'rebuild');
 assert.equal(sandGuardBlocked.requiredAction.buildingId, 55599317);
+assert.equal(sandGuardBlocked.requiredParameter, 'finishBefore');
+
+// Only one campaign site may rebuild per wake. The rest must still earn XP rather than sit idle,
+// so a bridge inside the hour is allowed — it is idle again in time for its own rebuild turn.
+const sandBridgeAt = Date.parse(sandGuardState.t);
+assert.equal(sandGuardRuntime.beforeAction('produce', {
+  buildingId: 55599317, name: 'sand', qty: 200,
+  finishBefore: new Date(sandBridgeAt + 30 * 60 * 1000).toISOString(),
+}, { state: sandGuardState, ownerDirective: sandGuardDirective }), null,
+'a checkpoint-bound bridge keeps the site earning without blocking its rebuild');
+
+// A bridge past the checkpoint would hold the site busy for hours and block the scrap.
+assert.equal(sandGuardRuntime.beforeAction('produce', {
+  buildingId: 55599317, name: 'sand', qty: 5000,
+  finishBefore: new Date(sandBridgeAt + 4 * 60 * 60 * 1000).toISOString(),
+}, { state: sandGuardState, ownerDirective: sandGuardDirective }).ok, false);
 
 // A level-2 Quarry is not a rebuild target — REBUILD only applies at level 1.
 assert.equal(sandGuardRuntime.beforeAction('produce',

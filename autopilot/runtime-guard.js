@@ -95,6 +95,8 @@ const OWNER_SUBTASK_ACTION = 'complete-owner-subtasks';
 
 // The three abundance building types the Prospector achievement counts.
 const EXTRACTION_BUILDING_NAMES = new Set(['quarry', 'mine', 'oil rig']);
+// A campaign site may bridge at most this far so it is idle again for its next rebuild turn.
+const PROSPECTOR_BRIDGE_MAX_MS = 60 * 60 * 1000;
 
 function canonicalBuildingName(value) {
   return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -1059,13 +1061,30 @@ class WakeRuntimeGuard {
         || options?.prospectorCampaignActive === true;
       const extraction = EXTRACTION_BUILDING_NAMES.has(canonicalBuildingName(building?.name));
       if (campaignActive && extraction && Number(building?.size) === 1) {
-        return {
-          ok: false,
-          guard: true,
-          reason: 'the Prospector campaign is active and this is an idle level-1 extraction site; REBUILD it instead of producing, because a production order makes it busy and blocks the scrap',
-          buildingId,
-          requiredAction: { action: 'rebuild', buildingId, confirm: false },
-        };
+        // Only one campaign target is authorised to rebuild per wake, so the rest wait their turn.
+        // Waiting idle is the worst option: a running building earns 12 XP/h and one under
+        // construction about 36, but an idle one earns nothing at all, and levelling is the point
+        // of this campaign. Allow a checkpoint-bound bridge so the site works until the next wake
+        // and is idle again in time for its rebuild. A long order would make it busy for hours and
+        // block the scrap, which is what this guard originally caught.
+        const capturedAtMs = Date.parse(options?.state?.t);
+        const finishBeforeMs = Date.parse(params?.finishBefore);
+        const bridged = Number.isFinite(capturedAtMs) && Number.isFinite(finishBeforeMs) &&
+          finishBeforeMs > capturedAtMs &&
+          finishBeforeMs <= capturedAtMs + PROSPECTOR_BRIDGE_MAX_MS;
+        if (!bridged) {
+          return {
+            ok: false,
+            guard: true,
+            reason: 'the Prospector campaign is active and this is a level-1 extraction site; REBUILD it, or place only a checkpoint-bound bridge of at most one hour so it is idle again for its rebuild turn',
+            buildingId,
+            requiredParameter: 'finishBefore',
+            latestAllowedFinishBefore: Number.isFinite(capturedAtMs)
+              ? new Date(capturedAtMs + PROSPECTOR_BRIDGE_MAX_MS).toISOString()
+              : null,
+            requiredAction: { action: 'rebuild', buildingId, confirm: false },
+          };
+        }
       }
       const isLowLevelFarm = canonicalBuildingName(building?.name) === 'farm' &&
         Number.isSafeInteger(Number(building?.size)) && Number(building.size) >= 1 &&

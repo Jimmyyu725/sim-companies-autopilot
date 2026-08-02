@@ -93,6 +93,9 @@ const ACHIEVEMENT_SLOT_POLICY_MODE = 'reserve-all-free-standard-slots';
 const PROSPECTOR_BUILD_TARGETS = new Set(['quarry', 'mine', 'oil rig']);
 const OWNER_SUBTASK_ACTION = 'complete-owner-subtasks';
 
+// The three abundance building types the Prospector achievement counts.
+const EXTRACTION_BUILDING_NAMES = new Set(['quarry', 'mine', 'oil rig']);
+
 function canonicalBuildingName(value) {
   return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
@@ -1046,6 +1049,24 @@ class WakeRuntimeGuard {
       const buildingId = Number(params?.buildingId);
       const building = (Array.isArray(options?.state?.buildings)
         ? options.state.buildings : []).find(row => Number(row?.id) === buildingId);
+      // A running production order makes a building busy, and REBUILD requires it to be idle — so
+      // producing on a level-1 extraction site silently blocks the very campaign it belongs to.
+      // The campaign enrols one target at a time; the no-voluntary-idle rule then handed every
+      // other finished Quarry a sand order. Measured live 2026-08-02: eight of eleven Quarries were
+      // producing sand while the achievement stalled. While the campaign is active, an idle level-1
+      // Quarry, Mine or Oil rig is campaign capacity, not spare capacity.
+      const campaignActive = options?.ownerDirective?.prospectorExperiment?.campaign?.status === 'active'
+        || options?.prospectorCampaignActive === true;
+      const extraction = EXTRACTION_BUILDING_NAMES.has(canonicalBuildingName(building?.name));
+      if (campaignActive && extraction && Number(building?.size) === 1) {
+        return {
+          ok: false,
+          guard: true,
+          reason: 'the Prospector campaign is active and this is an idle level-1 extraction site; REBUILD it instead of producing, because a production order makes it busy and blocks the scrap',
+          buildingId,
+          requiredAction: { action: 'rebuild', buildingId, confirm: false },
+        };
+      }
       const isLowLevelFarm = canonicalBuildingName(building?.name) === 'farm' &&
         Number.isSafeInteger(Number(building?.size)) && Number(building.size) >= 1 &&
         Number(building.size) < 3;

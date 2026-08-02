@@ -255,6 +255,37 @@ absorption in powder units/hour, the recipe requirements are:
 The Farm shares time between Seeds and Beans. Use live printed rates to determine whether it can
 sustain both; inventory and one temporary modifier do not prove long-run capacity.
 
+### Measured chain economics (2026-08-01, read off the live building pages)
+
+Re-measure before relying on these; they are a baseline, not a constant.
+
+| Quantity | Measured value | Source |
+|---|---|---|
+| Mill L3 output | 71.01 powder/h (23.67 per level) | building page |
+| Grocery store L2 absorption | ~170 powder/h (~85 per level) | four consecutive listings sold out in 17.5h, 17.9h, 1.8h, 4.6h |
+| Powder all-in cost, own beans | $23.83/unit | Mill page "cost per unit" |
+| Powder all-in cost, bought beans | $25.74/unit | Mill labour $18.29 + 10 beans at market |
+| Retail net proceeds | $36.15/unit | listing revenue / units, after the retail fee |
+| Exchange net proceeds | $37.34/unit | market price less the ~3% fee |
+
+Three consequences follow, and they are counter-intuitive enough to state plainly:
+
+- **Exchange beats retail per unit.** Powder nets $1.19 more on the exchange than through the store,
+  so powder produced beyond store absorption is the highest-margin part of the chain, not waste.
+  Coffee powder traded 1.29M units market-wide in 24h, so our whole output is ~1.6% of volume and
+  does not move the price. Never throttle Mills merely because the store is saturated.
+- **Do not upgrade the Grocery store to chase volume.** Extra store levels sell at the lower net
+  price and add wages; every extra level measured strictly worse than routing the same units to the
+  exchange. The store's job is the retail slice, not growth.
+- **Buying Beans can beat farming them.** Own beans cost $0.64 versus $0.745 on the exchange, but a
+  Farm slot supports far less profit than a Mill slot at the same level. When construction slots are
+  the binding constraint, buy Beans and spend the slot on Mill capacity. When slots are free, farm
+  them. Decide on slots, not on unit price.
+
+The all-in "cost per unit" on a building page already includes upstream inputs and their labour.
+Adding Farm, Water, or Power wages on top of it double-counts and understates profit by roughly a
+third — an earlier plan in this project made exactly that error.
+
 - Keep Power and Water producing whenever technically and economically feasible. Retain planned
   Coffee needs, then exchange-sell verified surplus when current proceeds are sensible. High
   inventory alone is not a reason to stop production. `state.surplusPlan` reserves 24 hours of the

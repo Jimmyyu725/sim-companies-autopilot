@@ -10,6 +10,7 @@ const {
   normalizeProductionModifiers,
   parseBuilding,
   slotCapacityForLevel,
+  summarizeLevelingProgress,
   stockSourceIsComplete,
   summarizeBonds,
   summarizeVolumeRows,
@@ -361,4 +362,43 @@ test('reconciles sold units with balance-sheet payable without consulting the of
   assert.equal(summary.dailyInterest, 450);
   assert.equal(summary.consistencyWarning, null);
   assert.equal(summary.offerFormExcluded, true);
+});
+
+// Regression (2026-08-02): a building auction looked like a strong buy, then turned out to need
+// company level 20 — a gate nothing in this project tracked. auth-data carries the leveling state
+// on every capture and it was being thrown away except for the bare level number. Surface enough
+// of it that a wake can see how far the next level is and which capabilities are still locked.
+test('leveling progress is summarized from the auth payload', () => {
+  const live = {
+    levelName: 'Sole trader', ratingCode: 'BBB-', level: 16,
+    experience: 413, experienceToNextLevel: 16000, maxBuildings: 8,
+    capabilities: {
+      contracts: true, research: true, bonds: true, executives: true, seasonal: true,
+      governmentOrders: false, buildingAuctions: false, buyOrders: false,
+    },
+  };
+  const summary = summarizeLevelingProgress(live);
+  assert.equal(summary.experience, 413);
+  assert.equal(summary.experienceToNextLevel, 16000);
+  assert.equal(summary.remaining, 15587);
+  assert.equal(summary.percent, 2.6);
+  assert.equal(summary.levelName, 'Sole trader');
+  assert.equal(summary.maxBuildings, 8);
+  // Locked capabilities are what a plan can trip over; report them sorted and by name.
+  assert.deepEqual(summary.lockedCapabilities,
+    ['buildingAuctions', 'buyOrders', 'governmentOrders']);
+});
+
+test('an unusable leveling payload is UNKNOWN rather than zero', () => {
+  assert.equal(summarizeLevelingProgress(null), null);
+  assert.equal(summarizeLevelingProgress({}), null);
+  assert.equal(summarizeLevelingProgress([]), null);
+  // A zero or missing denominator must not become a divide-by-zero percentage.
+  assert.equal(summarizeLevelingProgress({ experience: 5, experienceToNextLevel: 0 }), null);
+  assert.equal(summarizeLevelingProgress({ experience: 5 }), null);
+  assert.equal(summarizeLevelingProgress({ experience: 'x', experienceToNextLevel: 100 }), null);
+  // Already past the threshold clamps at zero remaining instead of going negative.
+  const past = summarizeLevelingProgress({ experience: 120, experienceToNextLevel: 100 });
+  assert.equal(past.remaining, 0);
+  assert.equal(past.lockedCapabilities.length, 0);
 });

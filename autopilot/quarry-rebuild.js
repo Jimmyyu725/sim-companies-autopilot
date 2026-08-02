@@ -26,10 +26,11 @@ const DIRECTIVE = path.join(AUTOPILOT, 'OWNER-DIRECTIVE.json');
 const LOG = path.join(AUTOPILOT, 'quarry-rebuild.log');
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+// cron redirects stdout into the same file, so writing to both duplicated every line.
 function log(...parts) {
   const line = `${new Date().toISOString()} ${parts.join(' ')}\n`;
-  try { fs.appendFileSync(LOG, line); } catch (_) {}
-  process.stdout.write(line);
+  if (process.stdout.isTTY) process.stdout.write(line);
+  else { try { fs.appendFileSync(LOG, line); } catch (_) {} }
 }
 
 function campaignActive() {
@@ -39,8 +40,26 @@ function campaignActive() {
   } catch (_) { return false; }
 }
 
-// Candidates only: the capture can be minutes stale, and a rebuilt site is issued a brand new id,
-// so every entry is re-verified on its own page below.
+// The capture is written by the brain, roughly every twenty minutes. Reading it blindly turned a
+// one-minute loop into a twenty-minute one: a Quarry that finished construction stayed invisible
+// until the next wake refreshed the file. Refresh it here when it is too old to be useful.
+const MAX_STATE_AGE_MS = 4 * 60 * 1000;
+
+function stateAgeMs() {
+  try { return Date.now() - Date.parse(JSON.parse(fs.readFileSync(STATE, 'utf8')).t); }
+  catch (_) { return Infinity; }
+}
+
+function refreshState() {
+  try {
+    require('child_process').execFileSync('/usr/bin/node', [path.join(AUTOPILOT, 'state.js')],
+      { encoding: 'utf8', timeout: 120000, cwd: path.join(AUTOPILOT, '..'), stdio: 'ignore' });
+    return true;
+  } catch (_) { return false; }
+}
+
+// Candidates only: a rebuilt site is issued a brand new id, so every entry is re-verified on its
+// own page below.
 function candidates() {
   try {
     const state = JSON.parse(fs.readFileSync(STATE, 'utf8'));
@@ -103,6 +122,10 @@ async function rebuildOne(id) {
 
 (async () => {
   if (!campaignActive()) { log('campaign not active — nothing to do'); return; }
+  if (stateAgeMs() > MAX_STATE_AGE_MS && !refreshState()) {
+    log('state refresh failed — skipping this minute');
+    return;
+  }
   const ids = candidates();
   if (!ids.length) { log('no idle level-1 extraction sites'); return; }
 

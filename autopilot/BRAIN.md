@@ -399,6 +399,19 @@ Optional capabilities are business tools, not decorations: read PA only when unr
 contracts, research, and robots only for a concrete opportunity; treat auctions as information-only
 until a verified execution tool and auction-specific safety policy exist.
 
+**Bidding at auction requires company level 20** (owner-reported 2026-08-02; the level-unlock table
+in game-facts does not list it). The company reached level 16 on 2026-08-02 and the gaps between
+levels have been widening — 0.76, 1.32, 1.84, 1.89, 2.59 days — so level 20 is roughly three weeks
+out at the current earnings rate, and sooner if output grows. Until then an auction listing is a
+price reference, never a plan. Two things measured on 2026-08-02 are worth carrying forward:
+
+- **The starting bid is `0.913 × the building's level-1 build cost × its level`** — exactly linear
+  in level, while building the same level yourself costs the triangular sum. A level-30 Farm listed
+  at 94% below its build cost for that reason. High-level buildings are where auctions pay.
+- **Rank auction candidates by profit per slot, not by discount.** A Mill level 6 at $165,600 paid
+  back in 3.9 days; a Farm level 30 at $207,000, despite a far larger discount, took 5.3 days,
+  because a Mill level yields about $292/h against a Farm level's $54/h.
+
 ## 9. Memory and accountability
 
 Before closing, the structured decision brief must contain:

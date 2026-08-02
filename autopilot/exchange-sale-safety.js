@@ -63,6 +63,27 @@ function validateFreshSurplus(state, kind, qty, now = Date.now(), options = {}) 
     return { ok: false, reason: 'warehouse source is not authoritative or tied to the captured state' };
   }
 
+  // The surplus plan reserves inputs for the Coffee chain. When the owner has authorized
+  // liquidation the chain is being dismantled, so there is nothing left to reserve and the plan
+  // legitimately cannot be built — refusing every sale would block the very instruction given.
+  // Everything else below still applies: warehouse completeness, staleness, the available-vs-blocked
+  // reconciliation, and the Transport rule above.
+  if (options.ownerLiquidation === true) {
+    const entry = (state?.stock || []).find(row => Number(row?.kind) === numericKind);
+    const liquidAvailable = availableStock(entry);
+    if (liquidAvailable == null) {
+      return { ok: false, reason: 'warehouse does not report a reconciled available amount for this kind' };
+    }
+    if (requestedQty > liquidAvailable) {
+      return {
+        ok: false,
+        reason: 'requested quantity exceeds the reconciled available amount',
+        safeSellable: liquidAvailable,
+      };
+    }
+    return { ok: true, safeSellable: liquidAvailable, reserve: 0, ownerLiquidation: true };
+  }
+
   const plan = state?.surplusPlan;
   if (!plan || plan.complete !== true || plan.status !== 'ok') {
     return { ok: false, reason: 'deterministic surplus plan is missing or incomplete' };

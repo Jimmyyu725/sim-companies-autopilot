@@ -748,7 +748,16 @@ if (action === 'exchange_sell') {
   }
   const kind = exchangeKindFromName(p.name);
   if (!kind) refuse('exchange_sell could not resolve the resource kind from the current resource definitions', { name: p.name });
-  const safety = validateFreshSurplus(latestCapturedState(), kind, p.qty);
+  // An owner liquidation directive dismantles the chain the surplus plan exists to protect, so the
+  // plan can no longer be built and every sale would be refused. Honour the instruction; the rest of
+  // the safety checks (warehouse completeness, staleness, Transport) still apply.
+  // A separate file: the brain rewrites OWNER-DIRECTIVE.json during a wake and would drop this.
+  let ownerLiquidation = false;
+  try {
+    const raw = JSON.parse(fs.readFileSync(path.join(AUTOPILOT, 'OWNER-LIQUIDATION.json'), 'utf8'));
+    ownerLiquidation = raw?.status === 'pending' && raw?.sellEverythingElse === true;
+  } catch (_) { ownerLiquidation = false; }
+  const safety = validateFreshSurplus(latestCapturedState(), kind, p.qty, Date.now(), { ownerLiquidation });
   if (!safety.ok) {
     refuse(`exchange_sell surplus guard: ${safety.reason}`, {
       kind,

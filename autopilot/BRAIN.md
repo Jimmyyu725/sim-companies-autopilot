@@ -266,17 +266,20 @@ Re-measure before relying on these; they are a baseline, not a constant.
 | Powder all-in cost, own beans | $23.83/unit | Mill page "cost per unit" |
 | Powder all-in cost, bought beans | $25.74/unit | Mill labour $18.29 + 10 beans at market |
 | Retail net proceeds | $36.15/unit | listing revenue / units, after the retail fee |
-| Exchange net proceeds | $37.34/unit | market price less the ~3% fee |
+| Exchange net proceeds | $37.92/unit | best book price $39.50 less the game's 4% exchange fee |
 
 Three consequences follow, and they are counter-intuitive enough to state plainly:
 
-- **Exchange beats retail per unit.** Powder nets $1.19 more on the exchange than through the store,
-  so powder produced beyond store absorption is the highest-margin part of the chain, not waste.
+- **Exchange absorbs overflow at a good price.** Powder netted $1.77 more per unit on the exchange
+  than through the store *at the price the store happened to be listing*, so powder produced beyond
+  store absorption is profitable output, not waste.
   Coffee powder traded 1.29M units market-wide in 24h, so our whole output is ~1.6% of volume and
   does not move the price. Never throttle Mills merely because the store is saturated.
-- **Do not upgrade the Grocery store to chase volume.** Extra store levels sell at the lower net
-  price and add wages; every extra level measured strictly worse than routing the same units to the
-  exchange. The store's job is the retail slice, not growth.
+- **Retail is a price maker; the exchange is a price taker.** The book caps what the exchange pays,
+  but the store sells at whatever price we set. Four listings between $38.75 and $39.50 sold at
+  172, 168, 169 and 172 units/h — demand barely moved, so that range was underpriced and the
+  store-versus-exchange comparison above is not a verdict on retail itself. Probe upward with the
+  dialog's printed profit/hour before concluding either channel wins.
 - **Buying Beans can beat farming them.** Own beans cost $0.64 versus $0.745 on the exchange, but a
   Farm slot supports far less profit than a Mill slot at the same level. When construction slots are
   the binding constraint, buy Beans and spend the slot on Mill capacity. When slots are free, farm

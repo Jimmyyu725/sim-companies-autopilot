@@ -1209,3 +1209,46 @@ assert.equal(closingBudgetActive(-1), false, 'a negative count is not a closing 
 assert.equal(closingBudgetActive(Number.POSITIVE_INFINITY), false,
   'an untracked wake must keep every gate');
 assert.equal(closingBudgetActive(1.5), false);
+
+// Regression (2026-08-02): the Prospector campaign enrols one target at a time, so when the other
+// rebuilt Quarries finished construction the no-voluntary-idle rule handed each of them a sand
+// order. A producing building is busy, and REBUILD requires idle — so the campaign the owner had
+// asked to keep running was blocked by the system's own idle guard. Measured live: eight of eleven
+// Quarries were producing sand while the achievement stalled at 51 rebuilds.
+const sandGuardState = {
+  t: '2026-08-02T11:50:58.000Z',
+  buildings: [
+    { id: 55599317, name: 'Quarry', size: 1, busy: null },
+    { id: 55042846, name: 'Mill', size: 3, busy: null },
+    { id: 55620000, name: 'Quarry', size: 2, busy: null },
+  ],
+};
+const sandGuardDirective = { prospectorExperiment: { campaign: { status: 'active' } } };
+const sandGuardRuntime = new WakeRuntimeGuard();
+
+// An idle level-1 Quarry is campaign capacity while the campaign runs.
+const sandGuardBlocked = sandGuardRuntime.beforeAction('produce',
+  { buildingId: 55599317, name: 'sand', qty: 1000 },
+  { state: sandGuardState, ownerDirective: sandGuardDirective });
+assert.equal(sandGuardBlocked.ok, false);
+assert.match(sandGuardBlocked.reason, /REBUILD it instead of producing/);
+assert.equal(sandGuardBlocked.requiredAction.action, 'rebuild');
+assert.equal(sandGuardBlocked.requiredAction.buildingId, 55599317);
+
+// A level-2 Quarry is not a rebuild target — REBUILD only applies at level 1.
+assert.equal(sandGuardRuntime.beforeAction('produce',
+  { buildingId: 55620000, name: 'sand', qty: 100 },
+  { state: sandGuardState, ownerDirective: sandGuardDirective }), null,
+'a level-2 Quarry is outside the campaign and may still produce');
+
+// Ordinary buildings are untouched.
+assert.equal(sandGuardRuntime.beforeAction('produce',
+  { buildingId: 55042846, name: 'coffee powder', qty: 100 },
+  { state: sandGuardState, ownerDirective: sandGuardDirective }), null,
+'the campaign guard must not touch a Mill');
+
+// With no active campaign the Quarry may produce normally.
+assert.equal(new WakeRuntimeGuard().beforeAction('produce',
+  { buildingId: 55599317, name: 'sand', qty: 1000 },
+  { state: sandGuardState, ownerDirective: { prospectorExperiment: { campaign: { status: 'complete' } } } }),
+null, 'without an active campaign a level-1 Quarry produces normally');

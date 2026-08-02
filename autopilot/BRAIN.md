@@ -399,6 +399,12 @@ Optional capabilities are business tools, not decorations: read PA only when unr
 contracts, research, and robots only for a concrete opportunity; treat auctions as information-only
 until a verified execution tool and auction-specific safety policy exist.
 
+`state.levelingProgress` carries the live leveling position on every capture: experience,
+`experienceToNextLevel`, `remaining`, `percent`, and `lockedCapabilities`. Read it before planning
+anything that a level gates. Experience comes only from buildings that are actually running — 12
+XP/h each, about 36.5 XP/h while under construction — so idle capacity costs levels as well as
+cash, and the Prospector rebuild loop earns roughly triple a producing building.
+
 **Bidding at auction requires company level 20** (owner-reported 2026-08-02; the level-unlock table
 in game-facts does not list it). The company reached level 16 on 2026-08-02 and the gaps between
 levels have been widening — 0.76, 1.32, 1.84, 1.89, 2.59 days — so level 20 is roughly three weeks

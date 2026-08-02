@@ -116,6 +116,37 @@ function normalizeProductionModifiers(payload, now = Date.now()) {
   return { ok: true, modifiers: normalized };
 }
 
+
+// Leveling is a live constraint, not trivia: building slots and whole capabilities (auctions, buy
+// orders, government orders) unlock by level, and only RUNNING buildings earn the 12 XP/h that gets
+// there. Surfacing progress every wake lets a decision weigh "this also buys levels" instead of
+// discovering the gate later. Owner asked for it 2026-08-02, when a promising building auction
+// turned out to need level 20.
+function summarizeLevelingProgress(levelInfo) {
+  if (!levelInfo || typeof levelInfo !== 'object' || Array.isArray(levelInfo)) return null;
+  const experience = Number(levelInfo.experience);
+  const toNext = Number(levelInfo.experienceToNextLevel);
+  if (!Number.isFinite(experience) || !Number.isFinite(toNext) || toNext <= 0) return null;
+  const capabilities = levelInfo.capabilities && typeof levelInfo.capabilities === 'object'
+    ? levelInfo.capabilities
+    : {};
+  return {
+    experience,
+    experienceToNextLevel: toNext,
+    remaining: Math.max(0, toNext - experience),
+    percent: Math.round((experience / toNext) * 1000) / 10,
+    levelName: typeof levelInfo.levelName === 'string' ? levelInfo.levelName : null,
+    ratingCode: typeof levelInfo.ratingCode === 'string' ? levelInfo.ratingCode : null,
+    maxBuildings: Number.isSafeInteger(Number(levelInfo.maxBuildings))
+      ? Number(levelInfo.maxBuildings)
+      : null,
+    lockedCapabilities: Object.entries(capabilities)
+      .filter(([, enabled]) => enabled === false)
+      .map(([name]) => name)
+      .sort(),
+  };
+}
+
 function slotCapacityForLevel(level, schedule = DEFAULT_SLOT_SCHEDULE) {
   if ((typeof level !== 'number' && typeof level !== 'string')
     || (typeof level === 'string' && !level.trim())) return null;
@@ -426,6 +457,7 @@ module.exports = {
   parseBuilding,
   parseBusy,
   slotCapacityForLevel,
+  summarizeLevelingProgress,
   stockSourceIsComplete,
   summarizeBonds,
   summarizeVolumeRows,

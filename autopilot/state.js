@@ -126,6 +126,7 @@ const PA_PENDING_FILE = path.join(AUTOPILOT, '.pa-pending.json');
   const tickerAgeSeconds = tickerLiveKnown ? 0 : (trackerPriceUsed ? trackerAgeSeconds : null);
 
   const level = auth.levelInfo?.level ?? null;
+  const levelingProgress = summarizeLevelingProgress(auth.levelInfo);
   const blds = buildings.map(parseBuilding);
   const storeBuilding = blds.find(building => Number(building?.id) === Number(CFG.storeId));
   const storeActivityInspection = buildPageActivityInspection({
@@ -464,6 +465,7 @@ const PA_PENDING_FILE = path.join(AUTOPILOT, '.pa-pending.json');
     paUnread: pa.unread,
     money: auth.money ?? auth.authCompany?.money ?? null,
     level,
+    levelingProgress,
     buildings: blds,
     baseSlotCapacity: baseSlotCapacity != null && Number.isSafeInteger(Number(baseSlotCapacity)) &&
       Number(baseSlotCapacity) >= 0

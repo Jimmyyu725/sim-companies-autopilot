@@ -80,8 +80,16 @@ function act(action, params) {
 // A target is actionable only when the authoritative capture proves the exact building exists,
 // still carries the expected name, is idle, and has not yet reached its target level. A rebuilt or
 // re-numbered slot must never inherit an upgrade budget aimed at something else.
+// Returns null when the target may be upgraded now, or a string explaining why not. 'DONE' and
+// 'REACHED' are outcomes rather than blockers and the caller handles them separately.
+//
+// 'complete' MUST NOT map to null. It did on 2026-08-03 and null is the go-ahead signal, so a
+// finished target skipped every guard below it — busy, level, and name — and the loop re-confirmed
+// an upgrade on it once a minute. It was saved only by the game hiding the button while the
+// building was already under construction; with the button present it would have kept upgrading
+// past the level the owner asked for.
 function actionable(target, state) {
-  if (target.status === 'complete') return null;
+  if (target.status === 'complete') return 'DONE';
   const rows = (Array.isArray(state?.buildings) ? state.buildings : [])
     .filter(building => Number(building?.id) === Number(target.buildingId));
   if (rows.length !== 1) return `building ${target.buildingId} is missing or duplicated`;
@@ -125,6 +133,7 @@ if (require.main !== module) {
 
   for (const target of plan.targets) {
     const blocker = actionable(target, state);
+    if (blocker === 'DONE') continue;
     if (blocker === 'REACHED') {
       target.status = 'complete';
       target.completedAt = new Date().toISOString();

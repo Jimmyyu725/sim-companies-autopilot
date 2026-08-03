@@ -62,9 +62,41 @@ test('an unreadable level is refused, never treated as level zero', () => {
     /unreadable level/);
 });
 
-test('a completed target is skipped entirely', () => {
+// Regression (2026-08-03, live): 'complete' returned null, and null is the go-ahead signal, so a
+// finished target skipped every guard below it and the loop re-confirmed an upgrade on it once a
+// minute. The first version of this test asserted null and therefore certified the bug — a
+// completed target must return a value that is NOT the go-ahead.
+test('a completed target reports DONE and never the go-ahead signal', () => {
   const done = { ...FARM, status: 'complete' };
-  assert.equal(actionable(done, stateWith({ id: 55648404, name: 'Farm', size: 1, busy: null })), null);
+  const verdict = actionable(done, stateWith({ id: 55648404, name: 'Farm', size: 1, busy: null }));
+  assert.notEqual(verdict, null, 'null would send a finished target straight to an upgrade confirm');
+  assert.equal(verdict, 'DONE');
+});
+
+// The same bypass also skipped the busy check, so it would have confirmed against a building that
+// was mid-construction from its own previous upgrade.
+test('a completed target stays DONE even when it looks otherwise actionable', () => {
+  const done = { ...FARM, status: 'complete' };
+  for (const building of [
+    { id: 55648404, name: 'Farm', size: 2, busy: null },
+    { id: 55648404, name: 'Farm', size: 1, busy: { type: 'construction', endsAt: '2026-08-03T05:10:10.195Z' } },
+    { id: 55648404, name: 'Mill', size: 1, busy: null },
+  ]) {
+    assert.equal(actionable(done, stateWith(building)), 'DONE');
+  }
+});
+
+// Only null may reach the upgrade confirm. Anything else is a blocker or an outcome.
+test('the go-ahead signal is reserved for a live, idle, under-target, name-matched building', () => {
+  assert.equal(actionable(FARM, stateWith({ id: 55648404, name: 'Farm', size: 1, busy: null })), null);
+  for (const building of [
+    { id: 55648404, name: 'Farm', size: 2, busy: null },
+    { id: 55648404, name: 'Farm', size: 1, busy: { type: 'production', endsAt: 'x' } },
+    { id: 55648404, name: 'Mill', size: 1, busy: null },
+    { id: 999, name: 'Farm', size: 1, busy: null },
+  ]) {
+    assert.notEqual(actionable(FARM, stateWith(building)), null);
+  }
 });
 
 // A capture older than the poll interval cannot prove a building is idle right now.

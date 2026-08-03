@@ -13,13 +13,6 @@ const cdp = require(path.join(SHARED, 'cdp.js'));
 const CFG = require(path.join(SHARED, 'config.json'));
 const { aggregateVolumeRecords } = require(path.join(SHARED, 'price-tracker', 'data-quality.js'));
 const {
-  calculateCompanyValue,
-  collectInventoryLots,
-  deriveQualityMarketPrices,
-  derivePreviousDayReferencePrices,
-  inventoryAmountsByQuality,
-} = require(path.join(AUTOPILOT, 'company-value.js'));
-const {
   ageSeconds,
   aggregateStock,
   calculateSlots,
@@ -284,112 +277,6 @@ const PA_PENDING_FILE = path.join(AUTOPILOT, '.pa-pending.json');
     scope: 'Mixed building IDs and levels; values are cache anchors, never proof for a different building or current modifier.',
     values: printedRateValues,
   };
-  let companyValue;
-  try {
-    const volumeText = fs.readFileSync(
-      path.join(SHARED, 'price-tracker', 'data', 'volume.jsonl'),
-      'utf8',
-    );
-    const facts = JSON.parse(fs.readFileSync(FACTS, 'utf8'));
-    const definitions = JSON.parse(fs.readFileSync(DEFS, 'utf8')).resources;
-    const referencePrices = derivePreviousDayReferencePrices(
-      volumeText,
-      supplementalData.balance?.date,
-      aggregateVolumeRecords,
-    );
-    const inventoryPreview = collectInventoryLots({
-      warehouse: resourcesKnown ? resourcesRaw : null,
-      marketOrders: supplementalData.marketOrders,
-      outgoingContracts: supplementalData.outgoingContracts,
-      buildings,
-      resourceDefinitions: definitions,
-    });
-    const requiredQualityAmounts = inventoryAmountsByQuality(inventoryPreview.lots);
-    const marketKinds = [...new Set(
-      Object.keys(requiredQualityAmounts)
-        .map(key => Number(key.split(':')[0]))
-        .filter(kind => Number.isSafeInteger(kind) && kind > 0),
-    )];
-    let marketSummaries = [];
-    if (marketKinds.length) {
-      try {
-        marketSummaries = await cdp.evaluate(`
-          const kinds = ${JSON.stringify(marketKinds)};
-          const summaries = [];
-          for (let offset = 0; offset < kinds.length; offset += 6) {
-            const batch = kinds.slice(offset, offset + 6);
-            const rows = await Promise.all(batch.map(async kind => {
-              const response = await api('/api/v3/market/0/' + kind + '/');
-              const qualities = {};
-              for (const order of Array.isArray(response.json) ? response.json : []) {
-                const quality = Number(order?.quality);
-                const bestAsk = Number(order?.price);
-                const quantity = Number(order?.quantity);
-                if (!Number.isSafeInteger(quality) || quality < 0
-                    || !Number.isFinite(bestAsk) || bestAsk <= 0
-                    || !Number.isFinite(quantity) || quantity <= 0) continue;
-                if (!qualities[quality]) {
-                  qualities[quality] = {
-                    quality,
-                    bestAsk,
-                    listedUnits: 0,
-                    orderCount: 0,
-                  };
-                }
-                qualities[quality].bestAsk = Math.min(qualities[quality].bestAsk, bestAsk);
-                qualities[quality].listedUnits += quantity;
-                qualities[quality].orderCount += 1;
-              }
-              return {
-                kind,
-                status: response.status,
-                qualities: Object.values(qualities).sort((a, b) => a.quality - b.quality),
-              };
-            }));
-            summaries.push(...rows);
-          }
-          return summaries;
-        `);
-      } catch (error) { /* Explicit local VWAP and sourcing-cost fallbacks remain available. */ }
-    }
-    const qualityMarketPrices = deriveQualityMarketPrices(
-      marketSummaries,
-      requiredQualityAmounts,
-      { capturedAt },
-    );
-    companyValue = calculateCompanyValue({
-      capturedAt,
-      balanceSheet: supplementalData.balance,
-      liveCash: auth.money ?? auth.authCompany?.money,
-      liveBondsPayable: bonds.principalOutstanding,
-      buildings,
-      warehouse: resourcesKnown ? resourcesRaw : null,
-      marketOrders: supplementalData.marketOrders,
-      outgoingContracts: supplementalData.outgoingContracts,
-      resourceDefinitions: definitions,
-      researchProgress: supplementalData.research,
-      patentRequirements: facts.mechanics?.patents_needed_per_quality,
-      patentValuesByResearchKind: facts.mechanics?.patent_value_by_research_kind,
-      referencePriceResult: referencePrices,
-      qualityMarketPriceResult: qualityMarketPrices,
-      tickerPrices: P,
-    });
-  } catch (error) {
-    companyValue = {
-      methodVersion: 3,
-      capturedAt,
-      official: {
-        status: 'unavailable',
-        asOf: supplementalData.balance?.date || null,
-        total: null,
-      },
-      realtimeEstimate: {
-        status: 'unavailable',
-        total: null,
-        reason: `company value calculation failed: ${String(error.message || error).slice(0, 180)}`,
-      },
-    };
-  }
   let paUiStatus = readPaStatus(PA_STATUS_FILE);
   if (process.env.SIM_PA_SCAN === '1') {
     const paObservedAt = new Date().toISOString();
@@ -452,13 +339,6 @@ const PA_PENDING_FILE = path.join(AUTOPILOT, '.pa-pending.json');
       asOf: Array.isArray(supplementalData.research) ? capturedAt : null,
       source: '/api/v3/players/research/',
     },
-    companyValue: {
-      status: companyValue.realtimeEstimate?.status || 'unavailable',
-      asOf: companyValue.realtimeEstimate?.asOf || null,
-      source: 'live assets + live research + official balance baseline + quality-specific live market proxies',
-      officialAsOf: companyValue.official?.asOf || null,
-      supplementalStatus: supplementalData.status,
-    },
     printedRates: { status: printedRateStatus, asOf: printedRateAsOf, ageSeconds: printedRateAgeSeconds, source: 'shared/config.json' },
   };
 
@@ -491,7 +371,6 @@ const PA_PENDING_FILE = path.join(AUTOPILOT, '.pa-pending.json');
     },
     stock,
     bonds,
-    companyValue,
     keyPrices: Object.fromEntries([1, 2, 13, 66, 115, 116, 118, 119, 5, 7, 8].map(k => [N[k] || k, P[k] ?? null])),
     printedRates,
     modifiers,

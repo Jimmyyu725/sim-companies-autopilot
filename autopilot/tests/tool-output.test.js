@@ -62,27 +62,21 @@ test('large refresh output preserves unknown busy instead of inventing idle', ()
   assert.equal(result._transport.omitted.includes('retail[6:]'), false);
 });
 
-test('large refresh output preserves the compact company-value KPI', () => {
-  const companyValue = {
-    official: { status: 'ok', total: 385783, asOf: '2026-07-30T01:08:16Z' },
-    realtimeEstimate: {
-      status: 'estimated',
-      total: 421043,
-      confidence: 'medium',
-      inventory: { coveragePct: 100 },
-    },
-  };
+// The company-value estimator was removed on 2026-08-03. Its field must not reappear in refresh
+// output: the model treated it as a decision KPI, and a stale or resurrected one would be worse
+// than none at all.
+test('large refresh output does not carry a company-value KPI', () => {
   const result = JSON.parse(formatToolOutput('refresh_state', {
     t: '2026-07-30T04:00:00Z',
     sources: {},
-    companyValue,
+    companyValue: { official: { total: 385783 } },
     warehouse: { complete: true, allPositiveProductsIncluded: true },
     stock: [],
     buildings: [],
     recipes: Array.from({ length: 100 }, () => 'x'.repeat(100)),
     retail: Array.from({ length: 100 }, () => ({ noise: 'x'.repeat(100) })),
   }, 900));
-  assert.deepEqual(result.companyValue, companyValue);
+  assert.equal(result.companyValue, undefined);
 });
 
 test('large refresh output preserves pending PA state', () => {

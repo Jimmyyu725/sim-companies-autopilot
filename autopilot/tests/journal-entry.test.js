@@ -12,10 +12,6 @@ const state = {
   freeSlots: 3,
   warehouse: { complete: true, allPositiveProductsIncluded: true },
   bonds: { principalOutstanding: 90000 },
-  companyValue: {
-    official: { status: 'ok', total: 385783 },
-    realtimeEstimate: { status: 'estimated', total: 421043 },
-  },
   stock: [
     { kind: 1, name: 'power', amount: 56428 },
     { kind: 2, name: 'water', amount: 46754 },
@@ -42,7 +38,6 @@ test('formats a concise decision entry with the entire captured warehouse', () =
   const result = prepareJournalEntry(args, state);
   assert.equal(result.ok, true);
   assert.match(result.markdown, /slots 7\/10 used; 3 free/);
-  assert.match(result.markdown, /company value estimate \$421,043 \(official daily \$385,783\)/);
   assert.match(result.markdown, /power \[1\]=56,428/);
   assert.match(result.markdown, /oranges \[4\]=403/);
   assert.match(result.markdown, /Opportunity or risk: Three free slots/);

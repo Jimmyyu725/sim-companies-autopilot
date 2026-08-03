@@ -38,6 +38,10 @@ const STRUCTURAL_ACTIONS = new Set([
   'robots',
   'contract_send',
 ]);
+// Three is one genuine repair round beyond the first try. Each attempt costs three reasoning-model
+// calls, so the ceiling is about spend as much as it is about termination.
+const MAX_STRATEGY_COUNCIL_ATTEMPTS = 3;
+
 const STRATEGY_DIRECTION_ACTIONS = new Set([
   'build',
   'upgrade',
@@ -690,6 +694,11 @@ class WakeRuntimeGuard {
     this.strategyCouncilCompleted = false;
     this.strategyCouncilDecision = null;
     this.strategyCouncilConsideredDirections = new Set();
+    // Structural previews that were ATTEMPTED and FAILED this wake, keyed by direction. Only
+    // successes were ever recorded before, so the missing-preview guard could not tell "never
+    // previewed" from "previewed and refused", and told the model to retry either way.
+    this.strategyPreviewFailures = new Map();
+    this.strategyCouncilAttempts = 0;
     // How often the execution council refused to authorize a selected direction this wake, keyed by
     // direction. A repeatedly unauthorized selection must not also block bridge work (see the
     // produce guard): on 2026-08-01 the COO returned VALIDATED/UNKNOWN five times for one Farm
@@ -713,11 +722,14 @@ class WakeRuntimeGuard {
     this.strategyCouncilDecision = null;
     this.strategyCouncilConsideredDirections.clear();
     this.strategyCandidates.clear();
+    this.strategyPreviewFailures.clear();
+    this.strategyCouncilAttempts = 0;
     return this.strategyCouncilStatus();
   }
 
   noteStrategyCouncil(result, args = {}) {
     this.strategyCouncilAttempted = true;
+    this.strategyCouncilAttempts += 1;
     this.strategyCouncilConsideredDirections = new Set(
       (Array.isArray(args?.options) ? args.options : [])
         .map(strategyOptionKey)
@@ -834,12 +846,34 @@ class WakeRuntimeGuard {
       });
     }
     if (missing.length) {
+      // Split by WHY the preview is missing. Telling the model to re-preview an option the game
+      // has already refused is a loop: on 2026-08-03 every building was busy, so the Farm upgrade
+      // preview could never succeed, and six councils ran before the wake was stopped by hand.
+      const blocked = [];
+      const retryable = [];
+      for (const item of missing) {
+        const failure = this.strategyPreviewFailures.get(
+          strategyDirectionKey(item.action, { buildingId: item.buildingId, building: item.target }));
+        if (failure) blocked.push({ ...item, previewRefusedBecause: failure.reason });
+        else retryable.push(item);
+      }
+      const steps = [];
+      if (blocked.length) {
+        steps.push(`remove option(s) ${blocked.map(item => item.optionId || item.action).join(', ')} from the option set — the game already refused their preview this wake, so they are not executable now; record each as a deferred option with its blocker`);
+      }
+      if (retryable.length) {
+        steps.push(`run ${retryable.map(item => item.optionId || item.action).join(', ')} with confirm:false`);
+      }
+      steps.push('then call strategy_council again');
       return {
         ok: false,
         guard: true,
-        reason: 'every executable strategy option requires a successful same-wake read-only candidate preview',
-        requiredNextStep: 'run each missing structural action with confirm:false, then call strategy_council again',
+        reason: blocked.length
+          ? 'a strategy option whose preview the game refused this wake is not executable and must be dropped from the option set'
+          : 'every executable strategy option requires a successful same-wake read-only candidate preview',
+        requiredNextStep: steps.join('; '),
         missingCandidates: missing,
+        blockedCandidates: blocked,
       };
     }
     return { ok: true, strategyCandidates: candidates };
@@ -851,6 +885,28 @@ class WakeRuntimeGuard {
         ok: false,
         guard: true,
         reason: 'this wake already has a validated strategy council decision; it cannot be rerolled',
+        strategyGovernance: this.strategyCouncilStatus(),
+      };
+    }
+    // Each council is three reasoning-model calls. Without a ceiling a wake that cannot assemble a
+    // valid option set retries forever: on 2026-08-03 six councils ran — eighteen calls — before a
+    // human stopped it. At the ceiling the checkpoint is satisfied conservatively, exactly as it is
+    // when a role stays unavailable: a hold that authorizes no structural action.
+    if (this.strategyCouncilAttempts >= MAX_STRATEGY_COUNCIL_ATTEMPTS) {
+      this.strategyCouncilCompleted = true;
+      this.strategyCouncilDecision = {
+        optionId: 'hold',
+        method: 'safety_hold',
+        action: 'hold',
+        buildingId: null,
+        target: null,
+        consumed: false,
+      };
+      return {
+        ok: false,
+        guard: true,
+        reason: `strategy council reached its ${MAX_STRATEGY_COUNCIL_ATTEMPTS}-attempt ceiling for this wake; the checkpoint is recorded as a conservative safety hold and no structural action is authorized`,
+        requiredNextStep: 'record the unresolved options as deferred with their blockers, then close the wake normally',
         strategyGovernance: this.strategyCouncilStatus(),
       };
     }
@@ -1136,6 +1192,19 @@ class WakeRuntimeGuard {
           this.mutationVersion,
         );
         if (candidate) this.strategyCandidates.set(candidate.key, candidate);
+      }
+    }
+    // A refused preview is evidence too: it proves the option is not executable in this wake.
+    // Recording it is what lets the guard below say "drop this option" instead of "preview it
+    // again", which is a loop whenever the refusal is durable — a busy building, for instance.
+    if (params?.confirm !== true && STRATEGY_DIRECTION_ACTIONS.has(action) &&
+        !this.strategyCouncilCompleted && result?.ok !== true) {
+      const failedKey = strategyDirectionKey(action, params);
+      if (failedKey) {
+        this.strategyPreviewFailures.set(failedKey, {
+          reason: String(result?.reason || 'preview failed').slice(0, 200),
+          version: this.mutationVersion,
+        });
       }
     }
     if (!actionRequiresRefresh(action, params, result)) return false;

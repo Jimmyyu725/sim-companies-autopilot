@@ -105,6 +105,13 @@ and the next test in the decision brief.
   correct action is to leave it alone and let that loop take it. Once a target is reached its entry
   is marked `complete` and the building is ordinary capacity again.
 - Execute at most one structural move at a time.
+- A strategy option is executable only if its `confirm:false` preview SUCCEEDED in this wake. If the
+  game refuses a preview — a busy building, insufficient cash, a missing slot — that option is not
+  executable now: drop it from the option set, record it as a deferred option with its blocker and a
+  concrete trigger, and send Council the options that remain. Never resubmit an option whose preview
+  the game already refused; re-previewing it produces the same refusal, and the checkpoint cannot
+  complete. Council itself is capped at three attempts per wake, after which the checkpoint is
+  recorded as a conservative hold that authorizes nothing.
 
 Records of the previous company were deleted on 2026-08-03 and survive only in git history. If you
 ever recover one, it is history: never current evidence for prices, demand, slots, debt, inventory,

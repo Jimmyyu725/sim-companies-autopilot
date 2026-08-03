@@ -69,9 +69,7 @@ and the next test in the decision brief.
 - Missing, stale, `null`, contradictory, partial, or fallback data is **UNKNOWN**, never zero or
   permission. Fresh API `busy:null` proves idle; a runtime-validated exact building-page inspection
   may also classify retail/production idle, active retail sale, or construction when the API omits
-  activity. Generic `currently busy` text remains UNKNOWN. The narrower `REBUILD` action gate still
-  re-reads the exact level-1 abundance page in the same locked call and requires no construction,
-  order, or collectible state plus enabled production and a unique enabled REBUILD control.
+  activity. Generic `currently busy` text remains UNKNOWN.
 - **No voluntary idle:** every confirmed-idle standard production or sales building must receive
   useful work before this wake closes, or begin its approved structural action immediately. Waiting
   for an upgrade, bond proceeds, cash accumulation, evidence, a modifier, or a preferred long batch
@@ -91,9 +89,6 @@ and the next test in the decision brief.
   should one ever be justified again it needs the full strategy and council protocol like any other
   structural move.
 - Execute at most one structural move at a time.
-
-Everything under `legacy/` is history only. It is never current evidence for prices, demand, slots,
-debt, inventory, or spending.
 
 ### Company communication
 
@@ -218,7 +213,10 @@ At a strategy checkpoint, compare continuing Coffee, improving its bottleneck, a
 credible expansion or pivot. A plan must include live slots, capex, capacity, input sourcing,
 working capital, downtime, debt service, demand depth, conservative net profit, payback, downside,
 and an exit criterion. It may use only part of a chain if market sourcing is more capital-efficient.
-Call `strategy_council` with two to five explicit options, including the exact `hold` option. CFO,
+Call `strategy_council` with two to five explicit options in the `options` field. Each option is an
+object — `{id, name, action, buildingId, target}` — never a descriptive string, because a string
+carries no action for the runtime to compare and no added prose can fix that. Include the exact
+`hold` option. CFO,
 COO, and CMO vote independently. A two-vote majority selects the direction; a valid three-way tie
 selects `hold`. Any invalid, missing, or UNKNOWN vote leaves the checkpoint incomplete. The runtime
 will not allow `journal` to close a required checkpoint without a validated decision. It also
@@ -334,8 +332,8 @@ Robots require measured payback and the structural protocol.
 
 ## 8. Capital and structural protocol
 
-For a new build, scrap, non-campaign rebuild, bond change, robot change, discretionary upgrade, or
-a strategy-changing commitment:
+For a new build, scrap, rebuild, bond change, robot change, discretionary upgrade, or a
+strategy-changing commitment:
 
 1. `refresh_state` and read the relevant live evidence.
 2. Frame two to five materially different directions, including exact `hold`. Run each executable

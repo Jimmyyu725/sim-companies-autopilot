@@ -18,8 +18,8 @@ Since 2026-07-29, the sole company operator is the provider-routed LLM autopilot
 The production path uses DeepSeek V4 Flash at Max reasoning for the main brain and CFO/COO/CMO.
 The prior OpenAI Terra/Luna path remains intact as a one-command rollback and is activated
 automatically after two consecutive failed DeepSeek wakes. The former fast-loop, strategist, and
-board layers are preserved under `legacy/` as history only. They are inactive and their old data is
-not current business evidence.
+board layers were deleted on 2026-08-02; they had been inactive for weeks and their old data was
+never current business evidence. Git history holds them if they are ever needed again.
 
 - Sim root: `/srv/appdata/chrome-automation/sim/`
 - Company ID: `5714348`
@@ -41,11 +41,7 @@ sim/
 │   └── tests/                 deterministic unit tests
 ├── shared/                    CDP, config, market tracker, measured facts
 │   ├── facts/
-│   └── price-tracker/
-└── legacy/                    historical pre-LLM system
-    ├── fast-loop/
-    ├── strategist/
-    └── board/
+    └── price-tracker/
 ```
 
 Compatibility symlinks remain at the root (`brain`, `pages`, `price-tracker`, `cdp.js`,
@@ -456,13 +452,10 @@ clients. `price-tracker.service` intentionally continues to use the root compati
 
 ## 7. Historical archive
 
-- `legacy/fast-loop/` — former tick loop, plan executor, learner, state, backups, and one-shot tools.
-- `legacy/strategist/` — former strategist workflow, probes, snapshots, and logs.
-- `legacy/board/` — former board workflow, minutes, accounting, reports, and realizable-demand model.
-
-These files are retained for audit/history. Their original relative paths were not rewritten and
-they are not rollback-ready executables in their new locations. Do not uncomment legacy cron lines
-without a deliberate restoration and fresh validation.
+The pre-LLM fast-loop, strategist and board layers, the DeepSeek V4 Pro shadow benchmark, and the
+repo-root one-off probe and report scripts were all deleted on 2026-08-02. They were unreferenced
+by any live code path and their cron entries had already been marked not runnable. Recover any of
+them from git history rather than from disk.
 
 ## 8. Cron
 

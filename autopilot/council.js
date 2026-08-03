@@ -643,7 +643,7 @@ async function reviewCouncilRole({ role, system, evidence, args, apiKey, brainDi
     const councilProvider = resolveCouncilProvider(
       dependencies.provider || process.env.COUNCIL_PROVIDER || 'openai');
     const councilModel = process.env.COUNCIL_MODEL ||
-      (councilProvider === 'deepseek' ? 'deepseek-v4-pro' : 'gpt-5.6-luna');
+      (councilProvider === 'deepseek' ? 'deepseek-v4-flash' : 'gpt-5.6-luna');
     const councilEffort = process.env.COUNCIL_EFFORT ||
       (councilProvider === 'deepseek' ? 'max' : 'high');
     const councilMaxTokens = Number(process.env.COUNCIL_MAX_TOKENS) || 16384;

@@ -83,24 +83,13 @@ and the next test in the decision brief.
   arbitrary quantity; preserve the reserve and schedule the structural/evidence retry.
 - Never scrap a productive building or make a structural pivot merely to free a slot. Require a
   full replacement plan, measured economics, opportunity cost, and the structural protocol.
-- `REBUILD` is a structural action only for an exact, idle, level-1 Quarry, Mine, or Oil rig. Dry
-  preview it first, because the live UI can commit directly when every abundance is at most 80%.
-  The pending owner Prospector campaign may track several level-1 extraction targets independently.
-  After any target finishes: refresh, select a ready target, verify the exact authenticated counter
-  baseline, preview, claim and confirm one click, verify exactly one increment, bind that target's
-  replacement building ID and construction end, then rotate to another ready target.
-  Dynamically follow an authenticated one-star tier transition; never guess its next target. The
-  campaign is already approved and needs no council re-review, but every individual cycle still
-  requires fresh state, exact UI evidence, a one-use claim, and post-click verification. Stop only
-  when authenticated `stars == starsMax`; do not produce on an executable campaign target.
-- While that campaign carries an active `reserve-all-free-standard-slots` owner policy, reserve
-  every free standard slot for its listed Quarry, Mine, or Oil rig targets. Read-only previews of
-  other builds remain available for portfolio comparison, but never confirm one until authenticated
-  campaign completion releases the policy or the owner changes it. While `parallelizeWhenSafe` is
-  active, enroll exactly one eligible Quarry per wake until `targetCapacity` is reached. This exact
-  owner-authorized enrollment skips strategy/Council re-approval, but it still requires fresh free-
-  slot evidence, an exact dry preview, cash reserve and spend caps, one confirmation, authoritative
-  build verification, and atomic target registration. Never produce on any enrolled target.
+- The Prospector achievement campaign is over. Owner directive, 2026-08-02: the company is back on
+  Coffee, every Quarry has been scrapped, and no slot is reserved for extraction any more. Skip
+  Quarries, Mines and Oil rigs entirely: never rebuild one, never enroll one, never plan around one.
+  If an extraction site somehow appears in state, treat it as an ordinary building with no special
+  standing. `REBUILD` is no longer an approved structural action and carries no campaign exception —
+  should one ever be justified again it needs the full strategy and council protocol like any other
+  structural move.
 - Execute at most one structural move at a time.
 
 Everything under `legacy/` is history only. It is never current evidence for prices, demand, slots,
@@ -373,22 +362,6 @@ a strategy-changing commitment:
 Contract mutations use exact preview and the final `council` authorization, but do not require a
 portfolio-direction vote unless the contract itself changes strategy.
 
-The Prospector campaign farms COUNT ONLY. The achievement is "scrap 100 mines, quarries or rigs";
-each rebuild is worth the same whatever comes out of it. Never evaluate, compare, or wait on a
-rebuilt extraction site's abundance, and never skip or redo a cycle because the abundance looks
-poor — a low roll still counts. Owner directive, 2026-08-01: "盲拆凑数量就行刷成就". Spending
-rounds on abundance analysis is wasted work, not diligence.
-
-Every exact Prospector REBUILD cycle named by the active owner campaign is already approved and does
-not need stochastic council re-review. This exception applies only to the pool's selected current
-target and authenticated expected baseline. Run `confirm:false`, follow its
-`requiredNextAction` with `confirm:true`, then refresh and verify exactly one increment before the
-next replacement can become eligible. If an enrolled but non-selected target is requested, follow
-the runtime's exact selected-target redirect; never ask Council to reconsider the campaign. Any
-non-campaign REBUILD still follows the full council protocol.
-The same exception covers only the bounded target-pool enrollment build required by the active owner
-directive; unrelated builds still follow the full strategy and council protocol.
-
 Outstanding sold debt is `state.bonds.principalOutstanding`; one sold API unit is `$5,000`
 principal. The Finance form and `/api/bonds/` amount show the current unsold offer, not outstanding
 debt. For new debt, reconcile sold records, balance-sheet payable, cashflow, cash, and timestamps;
@@ -403,7 +376,7 @@ until a verified execution tool and auction-specific safety policy exist.
 `experienceToNextLevel`, `remaining`, `percent`, and `lockedCapabilities`. Read it before planning
 anything that a level gates. Experience comes only from buildings that are actually running — 12
 XP/h each, about 36.5 XP/h while under construction — so idle capacity costs levels as well as
-cash, and the Prospector rebuild loop earns roughly triple a producing building.
+cash.
 
 **Bidding at auction requires company level 20** (owner-reported 2026-08-02; the level-unlock table
 in game-facts does not list it). The company reached level 16 on 2026-08-02 and the gaps between

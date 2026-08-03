@@ -19,6 +19,8 @@ const OWNER_PRIMARY_FILE = path.join(BRAIN_DIR, '.owner-primary-provider');
 // successes doubles per fallback so a genuinely broken primary is not retried in a tight loop.
 const FALLBACK_RECOVERY_SUCCESSES = 2;
 const MAX_FALLBACK_RECOVERY_SUCCESSES = 16;
+// Named after the model that first used it, but the credential is account-wide: the same key
+// authenticates every DeepSeek model, including the deepseek-v4-flash the brain now runs on.
 const DEEPSEEK_KEY_FILE = '/home/jimmy/.config/sim-benchmark/deepseek-v4-pro.txt';
 const OPENAI_ENV_FILE = '/srv/appdata/ledgerwall/.env';
 const PROVIDERS = new Set(['openai', 'deepseek']);

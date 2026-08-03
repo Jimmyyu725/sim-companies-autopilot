@@ -4,7 +4,6 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const {
-  activeOwnerAchievementSlotPolicy,
   WakeRuntimeGuard,
   actionChangedState,
   actionRequiresRefresh,
@@ -13,10 +12,6 @@ const {
   buildWakeAlarm,
   councilRequiredForStructuralAction,
   isApprovedRollingMillUpgrade,
-  isOwnerAuthorizedAchievementBuild,
-  isOwnerAuthorizedProspectorRebuild,
-  ownerAuthorizedProspectorRebuildTarget,
-  ownerAchievementBuildRequirement,
   validateCouncilAuthorization,
   validateStrategyCouncilCompletion,
   validateFinishSummary,
@@ -682,365 +677,18 @@ const rollingState = {
   ],
 };
 assert.equal(isApprovedRollingMillUpgrade(rollingState, { buildingId: 2 }), true);
-assert.equal(councilRequiredForStructuralAction('upgrade', { buildingId: 2 }, rollingState), true);
-assert.equal(councilRequiredForStructuralAction('build', {}, rollingState), true);
-assert.equal(councilRequiredForStructuralAction('rebuild', { buildingId: 5 }, rollingState), true);
+assert.equal(councilRequiredForStructuralAction('upgrade'), true);
+assert.equal(councilRequiredForStructuralAction('build'), true);
+assert.equal(councilRequiredForStructuralAction('rebuild'), true);
+assert.equal(councilRequiredForStructuralAction('produce'), false);
 assert.equal(isApprovedRollingMillUpgrade({ buildings: rollingState.buildings.concat(
   { id: 5, name: 'Mill', size: 1 }) }, { buildingId: 2 }), false);
-
-const prospectorNow = Date.parse('2026-07-27T15:23:30.000Z');
-const prospectorState = {
-  t: new Date(prospectorNow - 1000).toISOString(),
-  sources: {
-    buildings: {
-      status: 'ok',
-      asOf: new Date(prospectorNow - 1000).toISOString(),
-    },
-  },
-  buildings: [{
-    id: 55258164,
-    name: 'Quarry',
-    size: 1,
-    busy: null,
-    activity: { status: 'unknown', busy: null },
-  }],
-};
-const prospectorDirective = {
-  schemaVersion: 1,
-  status: 'pending',
-  priority: 'owner',
-  program: { status: 'completed' },
-  prospectorExperiment: {
-    status: 'baseline-verified',
-    building: 'Quarry',
-    buildingId: 55258164,
-    level: 1,
-    expectedBaseline: 1,
-    expectedTarget: 10,
-    expectedIncrement: 1,
-    completesAt: new Date(prospectorNow - 60e3).toISOString(),
-    baselineProgress: {
-      path: '/api/v2/companies/me/achievements/', status: 200, current: 1, target: 10,
-    },
-    lastProgressEvidence: {
-      path: '/api/v2/companies/me/achievements/', status: 200, current: 1, target: 10,
-    },
-  },
-};
-const clone = value => JSON.parse(JSON.stringify(value));
-assert.equal(isOwnerAuthorizedProspectorRebuild(
-  prospectorState, { buildingId: 55258164 }, prospectorDirective, prospectorNow), true);
-assert.equal(councilRequiredForStructuralAction(
-  'rebuild', { buildingId: 55258164 }, prospectorState, prospectorDirective, prospectorNow), false);
-assert.equal(councilRequiredForStructuralAction(
-  'rebuild', { buildingId: 55258164 }, prospectorState, null, prospectorNow), true);
-const compactCampaignDirective = clone(prospectorDirective);
-delete compactCampaignDirective.program;
-compactCampaignDirective.action = 'complete-owner-subtasks';
-compactCampaignDirective.prospectorExperiment.campaign = {
-  mode: 'repeat-until-achievement-complete',
-  status: 'active',
-};
-for (const evidence of [
-  compactCampaignDirective.prospectorExperiment.baselineProgress,
-  compactCampaignDirective.prospectorExperiment.lastProgressEvidence,
-]) {
-  evidence.stars = 1;
-  evidence.starsMax = 7;
-}
-assert.equal(isOwnerAuthorizedProspectorRebuild(
-  prospectorState, { buildingId: 55258164 }, compactCampaignDirective, prospectorNow), true);
-assert.equal(councilRequiredForStructuralAction(
-  'rebuild', { buildingId: 55258164 }, prospectorState, compactCampaignDirective, prospectorNow), false);
-assert.equal(isOwnerAuthorizedProspectorRebuild(
-  prospectorState, { buildingId: 99 }, prospectorDirective, prospectorNow), false);
-
-for (const status of ['claimed', 'awaiting-counter']) {
-  const active = clone(prospectorDirective);
-  active.prospectorExperiment.rebuildAttempt = { status };
-  assert.equal(isOwnerAuthorizedProspectorRebuild(
-    prospectorState, { buildingId: 55258164 }, active, prospectorNow), false);
-}
-const advanced = clone(prospectorDirective);
-advanced.prospectorExperiment.status = 'verified';
-advanced.prospectorExperiment.lastProgressEvidence.current = 2;
-assert.equal(isOwnerAuthorizedProspectorRebuild(
-  prospectorState, { buildingId: 55258164 }, advanced, prospectorNow), false);
-const busyProspectorState = clone(prospectorState);
-busyProspectorState.buildings[0].busy = { type: 'production' };
-assert.equal(isOwnerAuthorizedProspectorRebuild(
-  busyProspectorState, { buildingId: 55258164 }, prospectorDirective, prospectorNow), false);
-const staleProspectorState = clone(prospectorState);
-staleProspectorState.t = new Date(prospectorNow - 6 * 60e3).toISOString();
-staleProspectorState.sources.buildings.asOf = staleProspectorState.t;
-assert.equal(isOwnerAuthorizedProspectorRebuild(
-  staleProspectorState, { buildingId: 55258164 }, prospectorDirective, prospectorNow), false);
-
-const campaignState = clone(prospectorState);
-campaignState.buildings[0].id = 55282591;
-const campaignDirective = clone(prospectorDirective);
-campaignDirective.prospectorExperiment = {
-  ...campaignDirective.prospectorExperiment,
-  status: 'waiting-construction',
-  buildingId: 55282591,
-  expectedBaseline: 2,
-  expectedTarget: 10,
-  completesAt: new Date(prospectorNow - 60e3).toISOString(),
-  campaign: {
-    mode: 'repeat-until-achievement-complete',
-    status: 'active',
-    currentStars: 0,
-    starsMax: 7,
-  },
-  baselineProgress: {
-    path: '/api/v2/companies/me/achievements/', status: 200,
-    current: 2, target: 10, stars: 0, starsMax: 7,
-  },
-  lastProgressEvidence: {
-    path: '/api/v2/companies/me/achievements/', status: 200,
-    current: 2, target: 10, stars: 0, starsMax: 7,
-  },
-  rebuildAttempt: { status: 'verified' },
-};
-assert.equal(isOwnerAuthorizedProspectorRebuild(
-  campaignState, { buildingId: 55282591 }, campaignDirective, prospectorNow), true);
-assert.equal(ownerAuthorizedProspectorRebuildTarget(
-  campaignState, campaignDirective, prospectorNow), 55282591);
-const unfinishedCampaignState = clone(campaignState);
-unfinishedCampaignState.buildings[0].busy = {
-  type: 'construction',
-  endsAt: new Date(prospectorNow + 60e3).toISOString(),
-};
-assert.equal(isOwnerAuthorizedProspectorRebuild(
-  unfinishedCampaignState, { buildingId: 55282591 }, campaignDirective, prospectorNow), false);
-assert.equal(ownerAuthorizedProspectorRebuildTarget(
-  unfinishedCampaignState, campaignDirective, prospectorNow), null);
-
-const parallelCampaignDirective = clone(campaignDirective);
-parallelCampaignDirective.prospectorExperiment.buildingId = 55282592;
-parallelCampaignDirective.prospectorExperiment.campaign = {
-  ...parallelCampaignDirective.prospectorExperiment.campaign,
-  activeTargetId: 'second',
-  targetCapacity: 2,
-  slotPolicy: { parallelizeWhenSafe: true },
-  targets: [
-    {
-      targetId: 'first', building: 'Quarry', buildingId: 55282591, level: 1,
-      status: 'ready', completesAt: new Date(prospectorNow - 120e3).toISOString(),
-    },
-    {
-      targetId: 'second', building: 'Quarry', buildingId: 55282592, level: 1,
-      status: 'ready', completesAt: new Date(prospectorNow - 60e3).toISOString(),
-    },
-  ],
-};
-parallelCampaignDirective.prospectorExperiment.completesAt =
-  new Date(prospectorNow - 60e3).toISOString();
-const parallelCampaignState = clone(campaignState);
-parallelCampaignState.buildings = [
-  { id: 55282591, name: 'Quarry', size: 1, busy: null },
-  { id: 55282592, name: 'Quarry', size: 1, busy: null },
-];
-assert.equal(ownerAuthorizedProspectorRebuildTarget(
-  parallelCampaignState, parallelCampaignDirective, prospectorNow), 55282592);
-assert.equal(isOwnerAuthorizedProspectorRebuild(
-  parallelCampaignState,
-  { buildingId: 55282591 },
-  parallelCampaignDirective,
-  prospectorNow,
-), false);
-const completedCampaignDirective = clone(campaignDirective);
-completedCampaignDirective.prospectorExperiment.campaign.status = 'completed';
-assert.equal(isOwnerAuthorizedProspectorRebuild(
-  campaignState, { buildingId: 55282591 }, completedCampaignDirective, prospectorNow), false);
-
-const recoveredCampaignState = clone(prospectorState);
-recoveredCampaignState.buildings[0] = {
-  id: 55389445,
-  name: 'Quarry',
-  size: 1,
-  activity: { status: 'unknown', busy: null },
-  freeAndLocked: false,
-};
-const recoveredCampaignDirective = clone(campaignDirective);
-recoveredCampaignDirective.prospectorExperiment = {
-  ...recoveredCampaignDirective.prospectorExperiment,
-  status: 'counter-mismatch',
-  buildingId: 55282591,
-  expectedBaseline: 3,
-  expectedTarget: 10,
-  baselineProgress: {
-    path: '/api/v2/companies/me/achievements/', status: 200,
-    current: 3, target: 10, stars: 0, starsMax: 7,
-  },
-  lastProgressEvidence: {
-    path: '/api/v2/companies/me/achievements/', status: 200,
-    current: 12, target: 50, stars: 1, starsMax: 7,
-  },
-  rebuildAttempt: { status: 'verified' },
-};
-assert.equal(isOwnerAuthorizedProspectorRebuild(
-  recoveredCampaignState,
-  { buildingId: 55389445 },
-  recoveredCampaignDirective,
-  prospectorNow,
-), true);
-assert.equal(councilRequiredForStructuralAction(
-  'rebuild',
-  { buildingId: 55389445 },
-  recoveredCampaignState,
-  recoveredCampaignDirective,
-  prospectorNow,
-), false);
-for (const unsafeState of [
-  {
-    ...clone(recoveredCampaignState),
-    buildings: recoveredCampaignState.buildings.concat({
-      id: 55389446, name: 'Quarry', size: 1, busy: null, freeAndLocked: false,
-    }),
-  },
-  {
-    ...clone(recoveredCampaignState),
-    buildings: recoveredCampaignState.buildings.concat({
-      id: 55282591, name: 'Quarry', size: 1, busy: null, freeAndLocked: false,
-    }),
-  },
-]) {
-  assert.equal(isOwnerAuthorizedProspectorRebuild(
-    unsafeState,
-    { buildingId: 55389445 },
-    recoveredCampaignDirective,
-    prospectorNow,
-  ), false);
-}
-const activeRecoveryDirective = clone(recoveredCampaignDirective);
-activeRecoveryDirective.prospectorExperiment.rebuildAttempt = { status: 'awaiting-counter' };
-assert.equal(isOwnerAuthorizedProspectorRebuild(
-  recoveredCampaignState,
-  { buildingId: 55389445 },
-  activeRecoveryDirective,
-  prospectorNow,
-), false);
-
-const ownerProspectorGuard = new WakeRuntimeGuard();
-ownerProspectorGuard.afterAction('rebuild', { buildingId: 55258164, confirm: false },
-  { ok: true, preview: true });
-assert.equal(ownerProspectorGuard.beforeAction(
-  'rebuild', { buildingId: 55258164, confirm: true }, { councilRequired: false }), null);
-assert.match(ownerProspectorGuard.beforeAction(
-  'rebuild', { buildingId: 55258164, confirm: true }, { councilRequired: false }).reason,
-  /requires a successful same-wake preview/);
-
-const achievementSlotDirective = {
-  schemaVersion: 1,
-  status: 'pending',
-  priority: 'owner',
-  action: 'complete-owner-subtasks',
-  prospectorExperiment: {
-    campaign: {
-      mode: 'repeat-until-achievement-complete',
-      status: 'active',
-      slotPolicy: {
-        status: 'active',
-        mode: 'reserve-all-free-standard-slots',
-        purpose: 'achievement-campaign',
-        currentAchievement: 'Prospector',
-        eligibleBuildings: ['Quarry', 'Mine', 'Oil rig', 'Farm'],
-        reservedFreeSlots: 2,
-      },
-    },
-  },
-};
-assert.deepEqual(activeOwnerAchievementSlotPolicy(achievementSlotDirective), {
-  mode: 'reserve-all-free-standard-slots',
-  currentAchievement: 'Prospector',
-  eligibleBuildings: ['quarry', 'mine', 'oil rig'],
-  reservedFreeSlots: 2,
-  parallelizeWhenSafe: false,
-  targetCount: 0,
-  targetCapacity: null,
-  openTargetSlots: 0,
-});
-const reservedSlots = new WakeRuntimeGuard();
-assert.equal(reservedSlots.beforeAction('build', {
-  building: 'Farm', maxCost: 20000, minCashAfter: 5000, confirm: false,
-}, { councilRequired: false, ownerDirective: achievementSlotDirective }), null);
-const blockedRoutineBuild = reservedSlots.beforeAction('build', {
-  building: 'Farm', maxCost: 20000, minCashAfter: 5000, confirm: true,
-}, { councilRequired: false, ownerDirective: achievementSlotDirective });
-assert.match(blockedRoutineBuild.reason, /reserved for the active Prospector achievement campaign/);
-assert.deepEqual(blockedRoutineBuild.allowedBuildingTypes, ['quarry', 'mine', 'oil rig']);
-const eligibleAchievementBuild = new WakeRuntimeGuard();
-const quarryPreview = {
-  building: 'Quarry', maxCost: 30000, minCashAfter: 5000, confirm: false,
-};
-eligibleAchievementBuild.afterAction('build', quarryPreview, {
-  ok: true, dry: true, preview: true,
-});
-assert.equal(eligibleAchievementBuild.beforeAction('build', {
-  ...quarryPreview, confirm: true,
-}, { councilRequired: false, ownerDirective: achievementSlotDirective }), null);
-
-const parallelSlotDirective = JSON.parse(JSON.stringify(achievementSlotDirective));
-const parallelNow = Date.now();
-parallelSlotDirective.prospectorExperiment = {
-  status: 'waiting-construction',
-  building: 'Quarry',
-  buildingId: 99,
-  level: 1,
-  completesAt: new Date(parallelNow + 60e3).toISOString(),
-  campaign: {
-    ...parallelSlotDirective.prospectorExperiment.campaign,
-    slotPolicy: {
-      ...parallelSlotDirective.prospectorExperiment.campaign.slotPolicy,
-      parallelizeWhenSafe: true,
-    },
-  },
-};
-const parallelBuildState = {
-  t: new Date(parallelNow).toISOString(),
-  sources: { buildings: { status: 'ok', asOf: new Date(parallelNow).toISOString() } },
-  freeSlots: 2,
-  money: 120000,
-  config: { minCash: 800 },
-  buildings: [{ id: 99, name: 'Quarry', size: 1,
-    busy: { type: 'construction', expanding: true,
-      endsAt: new Date(parallelNow + 60e3).toISOString() } }],
-};
-assert.equal(isOwnerAuthorizedAchievementBuild(
-  parallelBuildState,
-  quarryPreview,
-  parallelSlotDirective,
-  parallelNow,
-), true);
-assert.equal(councilRequiredForStructuralAction(
-  'build', quarryPreview, parallelBuildState, parallelSlotDirective, parallelNow), false);
-assert.equal(ownerAchievementBuildRequirement(
-  parallelBuildState, parallelSlotDirective, parallelNow).requiredAction.building, 'Quarry');
-const parallelBuildGuard = new WakeRuntimeGuard();
-parallelBuildGuard.afterAction('build', quarryPreview, { ok: true, preview: true });
-assert.equal(parallelBuildGuard.beforeAction('build', {
-  ...quarryPreview, confirm: true,
-}, {
-  councilRequired: false,
-  ownerDirective: parallelSlotDirective,
-  state: parallelBuildState,
-}), null);
-parallelBuildGuard.afterAction('build', { ...quarryPreview, confirm: true }, {
-  ok: true,
-  ownerAchievementTargetRegistered: true,
-});
-assert.equal(parallelBuildGuard.ownerAchievementBuildCount, 1);
-const completedSlotDirective = JSON.parse(JSON.stringify(achievementSlotDirective));
-completedSlotDirective.prospectorExperiment.campaign.status = 'completed';
-assert.equal(activeOwnerAchievementSlotPolicy(completedSlotDirective), null);
-
 console.log('runtime-guard tests passed');
 
-// Regression (2026-08-01 03:50 wake): an owner-authorized Prospector REBUILD confirm on a
-// DIFFERENT building must not consume the council-selected Farm-upgrade direction. The old code
-// consumed it, every later upgrade attempt was refused as "direction was consumed", and the wake
-// exhausted 40 rounds with the Farm idle.
+// Regression (2026-08-01 03:50 wake): a REBUILD confirm on a DIFFERENT building must not consume
+// the council-selected Farm-upgrade direction. The old code consumed it, every later upgrade
+// attempt was refused as "direction was consumed", and the wake exhausted 40 rounds with the Farm
+// idle.
 const crosstalk = new WakeRuntimeGuard();
 authorizeStrategy(crosstalk, {
   id: 'upgrade_farm_55518748',
@@ -1049,7 +697,7 @@ authorizeStrategy(crosstalk, {
   buildingId: 55518748,
   target: 'farm',
 });
-// Owner-authorized rebuild of an unrelated Quarry executes (it bypasses strategy selection).
+// A rebuild of an unrelated Quarry executes without touching the selected upgrade.
 assert.equal(crosstalk.afterAction('rebuild', { buildingId: 55538609, confirm: true }, {
   ok: true, clicked: true, newBuildingId: 55545964,
 }), true);
@@ -1210,61 +858,29 @@ assert.equal(closingBudgetActive(Number.POSITIVE_INFINITY), false,
   'an untracked wake must keep every gate');
 assert.equal(closingBudgetActive(1.5), false);
 
-// Regression (2026-08-02): the Prospector campaign enrols one target at a time, so when the other
-// rebuilt Quarries finished construction the no-voluntary-idle rule handed each of them a sand
-// order. A producing building is busy, and REBUILD requires idle — so the campaign the owner had
-// asked to keep running was blocked by the system's own idle guard. Measured live: eight of eleven
-// Quarries were producing sand while the achievement stalled at 51 rebuilds.
-const sandGuardState = {
-  t: '2026-08-02T11:50:58.000Z',
+// Owner directive 2026-08-02: the Prospector campaign is retired and the company is back on
+// Coffee. Extraction sites carry no special standing any more — the guard that used to refuse
+// production on an idle level-1 Quarry (so it stayed scrappable) must be gone, or a Quarry left
+// standing after the pivot would be permanently unable to work.
+const retiredCampaignState = {
+  t: '2026-08-03T01:42:26.000Z',
   buildings: [
     { id: 55599317, name: 'Quarry', size: 1, busy: null },
     { id: 55042846, name: 'Mill', size: 3, busy: null },
-    { id: 55620000, name: 'Quarry', size: 2, busy: null },
   ],
 };
-const sandGuardDirective = { prospectorExperiment: { campaign: { status: 'active' } } };
-const sandGuardRuntime = new WakeRuntimeGuard();
-
-// An idle level-1 Quarry is campaign capacity while the campaign runs.
-const sandGuardBlocked = sandGuardRuntime.beforeAction('produce',
-  { buildingId: 55599317, name: 'sand', qty: 1000 },
-  { state: sandGuardState, ownerDirective: sandGuardDirective });
-assert.equal(sandGuardBlocked.ok, false);
-assert.match(sandGuardBlocked.reason, /REBUILD it, or place only a checkpoint-bound bridge/);
-assert.equal(sandGuardBlocked.requiredAction.action, 'rebuild');
-assert.equal(sandGuardBlocked.requiredAction.buildingId, 55599317);
-assert.equal(sandGuardBlocked.requiredParameter, 'finishBefore');
-
-// Only one campaign site may rebuild per wake. The rest must still earn XP rather than sit idle,
-// so a bridge inside the hour is allowed — it is idle again in time for its own rebuild turn.
-const sandBridgeAt = Date.parse(sandGuardState.t);
-assert.equal(sandGuardRuntime.beforeAction('produce', {
-  buildingId: 55599317, name: 'sand', qty: 200,
-  finishBefore: new Date(sandBridgeAt + 30 * 60 * 1000).toISOString(),
-}, { state: sandGuardState, ownerDirective: sandGuardDirective }), null,
-'a checkpoint-bound bridge keeps the site earning without blocking its rebuild');
-
-// A bridge past the checkpoint would hold the site busy for hours and block the scrap.
-assert.equal(sandGuardRuntime.beforeAction('produce', {
-  buildingId: 55599317, name: 'sand', qty: 5000,
-  finishBefore: new Date(sandBridgeAt + 4 * 60 * 60 * 1000).toISOString(),
-}, { state: sandGuardState, ownerDirective: sandGuardDirective }).ok, false);
-
-// A level-2 Quarry is not a rebuild target — REBUILD only applies at level 1.
-assert.equal(sandGuardRuntime.beforeAction('produce',
-  { buildingId: 55620000, name: 'sand', qty: 100 },
-  { state: sandGuardState, ownerDirective: sandGuardDirective }), null,
-'a level-2 Quarry is outside the campaign and may still produce');
-
-// Ordinary buildings are untouched.
-assert.equal(sandGuardRuntime.beforeAction('produce',
-  { buildingId: 55042846, name: 'coffee powder', qty: 100 },
-  { state: sandGuardState, ownerDirective: sandGuardDirective }), null,
-'the campaign guard must not touch a Mill');
-
-// With no active campaign the Quarry may produce normally.
-assert.equal(new WakeRuntimeGuard().beforeAction('produce',
-  { buildingId: 55599317, name: 'sand', qty: 1000 },
-  { state: sandGuardState, ownerDirective: { prospectorExperiment: { campaign: { status: 'complete' } } } }),
-null, 'without an active campaign a level-1 Quarry produces normally');
+const retiredCampaignRuntime = new WakeRuntimeGuard();
+assert.equal(retiredCampaignRuntime.beforeAction('produce',
+  { buildingId: 55599317, name: 'sand', qty: 5000 },
+  { state: retiredCampaignState }), null,
+'a level-1 Quarry produces like any other building once the campaign is retired');
+// A stale directive carrying the old campaign block must not revive the reservation either.
+assert.equal(retiredCampaignRuntime.beforeAction('produce',
+  { buildingId: 55599317, name: 'sand', qty: 5000 },
+  {
+    state: retiredCampaignState,
+    ownerDirective: { prospectorExperiment: { campaign: { status: 'active' } } },
+  }), null,
+'a leftover active-campaign directive cannot re-reserve an extraction site');
+// REBUILD lost its campaign exemption: every structural action goes through council now.
+assert.equal(councilRequiredForStructuralAction('rebuild'), true);

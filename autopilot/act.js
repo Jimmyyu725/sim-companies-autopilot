@@ -84,12 +84,7 @@ const {
 } = require(path.join(AUTOPILOT, 'exchange-sale-inspection-store.js'));
 const {
   markOwnerBridgeStarted,
-  PROSPECTOR_OVERVIEW_PATH,
-  isOwnerProspectorCampaignTarget,
   readPendingOwnerDirective,
-  recordOwnerProspectorBuildTarget,
-  recordOwnerProspectorRebuildOutcome,
-  refreshAndClaimOwnerProspectorRebuildAttempt,
 } = require(path.join(AUTOPILOT, 'owner-directive.js'));
 const {
   bondOfferMatches,
@@ -283,25 +278,6 @@ async function exactCashSnapshot() {
     }
   } catch (e) {}
   return latestCapturedCash();
-}
-
-async function captureOwnerProspectorOverview() {
-  try {
-    const live = await cdp.evaluate(`const r=await api(${JSON.stringify(PROSPECTOR_OVERVIEW_PATH)}); return {status:r.status,json:r.json};`);
-    return {
-      path: PROSPECTOR_OVERVIEW_PATH,
-      status: live?.status ?? null,
-      fetchedAt: new Date().toISOString(),
-      data: live?.json ?? null,
-    };
-  } catch (_) {
-    return {
-      path: PROSPECTOR_OVERVIEW_PATH,
-      status: null,
-      fetchedAt: new Date().toISOString(),
-      data: null,
-    };
-  }
 }
 
 // ---- Hardening (2026-07-25 first-live-wake audit). Validate BEFORE touching the browser. ----
@@ -611,12 +587,6 @@ if (action === 'produce') {
     refuse(productionResourceIdentity.reason, { productionResourceIdentity });
   }
   const directive = pendingOwnerDirective();
-  if (isOwnerProspectorCampaignTarget(directive, p.buildingId)) {
-    refuse('this building is reserved for the active Prospector target pool and cannot receive production', {
-      buildingId: Number(p.buildingId),
-      requiredNextStep: 'wait for construction or use the exact owner-authorized REBUILD cycle',
-    });
-  }
   if (directive?.action === 'fund-and-upgrade-building' &&
       Number(directive.buildingId) === Number(p.buildingId)) {
     const bridge = directive.bridgeProduction;
@@ -1204,25 +1174,6 @@ if (economicCommunicationRequired) {
         newBuildingId: verified.buildingId || null,
         constructionCompletesAt: verified.completesAt || null,
         reason: verified.ok ? undefined : `BUILD was clicked but construction was not authoritatively verified: ${verified.reason}` };
-      if (verified.ok) {
-        const registration = recordOwnerProspectorBuildTarget(
-          path.join(AUTOPILOT, 'OWNER-DIRECTIVE.json'),
-          {
-            verified: true,
-            building: p.building,
-            buildingId: verified.buildingId,
-            completesAt: verified.completesAt || null,
-          },
-        );
-        if (registration.applicable) {
-          res = {
-            ...res,
-            ownerAchievementTargetRegistered: registration.ok === true,
-            ownerAchievementRegistration: registration,
-            ...(!registration.ok ? { doNotRetry: true } : {}),
-          };
-        }
-      }
     }
   } else if (action === 'upgrade') {
     const beforeBuildings = p.confirm === true
@@ -1273,25 +1224,6 @@ if (economicCommunicationRequired) {
     }
     const idle = await captureRebuildIdleEvidence(beforeBuilding, p.buildingId);
     if (!idle.ok) refuse(idle.reason || 'exact rebuild target is not proven idle');
-    let ownerAttempt = null;
-    if (p.confirm === true) {
-      const ownerProgressObservation = await captureOwnerProspectorOverview();
-      ownerAttempt = refreshAndClaimOwnerProspectorRebuildAttempt(
-        path.join(AUTOPILOT, 'OWNER-DIRECTIVE.json'),
-        p.buildingId,
-        ownerProgressObservation,
-        Date.now(),
-        {
-          source: 'authoritative-buildings-capture',
-          capturedAt: buildingsCapturedAt,
-          buildings: beforeBuildings,
-          idleEvidence: idle.evidence,
-        },
-      );
-      if (!ownerAttempt.ok) refuse(ownerAttempt.reason, {
-        ownerDirectiveEvidence: ownerAttempt.ownerDirectiveEvidence || null,
-      });
-    }
     await cdp.evaluate(`window.__rebuild=${JSON.stringify({
       buildingId: p.buildingId,
       confirm: p.confirm === true,
@@ -1309,14 +1241,6 @@ if (economicCommunicationRequired) {
         rebuildCompletesAt: verified.completesAt || null,
         reason: verified.ok ? undefined
           : `REBUILD was clicked but reconstruction was not authoritatively verified: ${verified.reason}` };
-    }
-    if (p.confirm === true && ownerAttempt?.attemptId) {
-      recordOwnerProspectorRebuildOutcome(
-        path.join(AUTOPILOT, 'OWNER-DIRECTIVE.json'),
-        ownerAttempt.attemptId,
-        res,
-      );
-      res = { ...res, ownerAttemptId: ownerAttempt.attemptId };
     }
   } else if (action === 'exchange_sell') {
     // Sell warehouse stock on the EXCHANGE via the proven UI driver (direct API is bot-blocked).

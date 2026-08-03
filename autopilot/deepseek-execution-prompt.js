@@ -21,9 +21,8 @@ It only makes the tool protocol explicit:
    Then call \`strategy_council\` with those explicit alternatives plus the exact \`hold\` option.
    Only the selected direction may proceed to a fresh post-vote preview, final \`council\`
    authorization, unchanged-term confirmation, then \`refresh_state\`. Candidate previews never
-   authorize execution. The owner-authorized Prospector REBUILD loop is the only
-   structural-direction exception. If its guard returns an exact \`requiredAction\`, follow that
-   selected target directly; never send a different enrolled target to \`strategy_council\`.
+   authorize execution. There is no structural-direction exception: the Prospector REBUILD loop
+   that used to be one was retired on 2026-08-02.
 7. If the runtime says the periodic strategy council is required, complete it before \`journal\`
    even when no structural action is taken.
 8. Before producing on an idle level-1 or level-2 Farm, preview its exact upgrade and submit that

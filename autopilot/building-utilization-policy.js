@@ -1,18 +1,8 @@
 'use strict';
 
-// The abundance building types the Prospector achievement counts.
-const EXTRACTION_BUILDING_NAMES = new Set(['quarry', 'mine', 'oil rig']);
-
-function prospectorCampaignActive(ownerDirective) {
-  return ownerDirective?.prospectorExperiment?.campaign?.status === 'active';
-}
-
 const {
   validatePageActivityInspection,
 } = require('./building-page-activity.js');
-const {
-  prospectorCampaignTargetSummary,
-} = require('./owner-directive.js');
 
 const MAX_STATE_AGE_SECONDS = 5 * 60;
 const MAX_FUTURE_SKEW_SECONDS = 30;
@@ -160,25 +150,9 @@ function buildingUtilizationJournalGate(state, nowMs = Date.now(), options = {})
       })),
     };
   }
-  const targetIds = new Set(
-    prospectorCampaignTargetSummary(options?.ownerDirective).targets.map(
-      target => Number(target.buildingId),
-    ),
-  );
-  // An idle level-1 extraction site is campaign capacity waiting its turn, not spare capacity: the
-  // runtime refuses production on it precisely so it stays scrappable. Counting it as a
-  // no-voluntary-idle failure would block the journal with no legal move left — produce is
-  // refused, and enrolment is capped, so the wake could neither work it nor close.
-  const campaignActive = prospectorCampaignActive(options?.ownerDirective);
-  const campaignCapacity = building => campaignActive &&
-    EXTRACTION_BUILDING_NAMES.has(String(building?.name || '').trim().toLowerCase()) &&
-    Number(building?.level ?? building?.size) === 1;
-  const reservedIdleBuildings = inspection.idleBuildings.filter(
-    building => targetIds.has(building.buildingId) || campaignCapacity(building),
-  );
-  const idleBuildings = inspection.idleBuildings.filter(
-    building => !targetIds.has(building.buildingId) && !campaignCapacity(building),
-  );
+  // Every operational building is ordinary capacity again. The Prospector campaign used to reserve
+  // idle level-1 extraction sites here so they stayed scrappable; the owner retired it 2026-08-02.
+  const idleBuildings = inspection.idleBuildings;
   if (!idleBuildings.length && !inspection.completedBuildings.length) return null;
 
   return {
@@ -186,7 +160,6 @@ function buildingUtilizationJournalGate(state, nowMs = Date.now(), options = {})
     guard: true,
     reason: 'cannot close this wake while a standard operational building is confirmed idle or its completed job remains uncollected. Collect completed work first, then start the next job. Waiting for an upgrade, bond proceeds, evidence, cash, or a preferred batch is not an exception: start the structural action now or place useful bridge work ending before the next checkpoint. If the game truly makes every order impossible, leave the wake incomplete so the safety retry records the blocker instead of declaring voluntary idle.',
     idleBuildings,
-    reservedIdleBuildings,
     completedBuildings: inspection.completedBuildings,
     requiredActions: [
       ...inspection.completedBuildings.map(building => ({

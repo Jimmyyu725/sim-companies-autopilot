@@ -89,6 +89,30 @@ test('computes exact DeepSeek V4 Pro cost without an OpenAI service tier', () =>
   assert.match(formatDiarySummary(summary), /published provider rates/);
 });
 
+// Flash became the brain model on 2026-08-02. Without its own price row every wake would land in
+// the unpriced bucket and the diary would stop reporting a real cost.
+test('computes exact DeepSeek V4 Flash cost at roughly a third of Pro', () => {
+  const row = {
+    billing_provider: 'deepseek',
+    prompt_tokens: 1000,
+    completion_tokens: 100,
+    total_tokens: 1100,
+    cached: 800,
+    cache_miss: 200,
+    cache_write: 0,
+  };
+  const flash = summarizeUsage([{ ...row, billing_model: 'deepseek-v4-flash' }], { brainRc: 0 });
+  const pro = summarizeUsage([{ ...row, billing_model: 'deepseek-v4-pro' }], { brainRc: 0 });
+
+  assert.equal(flash.calls.unpriced, 0);
+  assert.equal(flash.cost_usd.status, 'exact');
+  // 200 miss x $0.14/M + 800 hit x $0.0028/M + 100 out x $0.28/M
+  assert.equal(flash.cost_usd.min, 0.00005824);
+  assert.equal(flash.cost_usd.max, 0.00005824);
+  assert.ok(flash.cost_usd.max < pro.cost_usd.max / 3,
+    'Flash must price well under a third of Pro on the same token mix');
+});
+
 test('infers DeepSeek provider from the billing model for backward-compatible rows', () => {
   const normalized = normalizeUsageRow({
     billing_model: 'deepseek-v4-pro',

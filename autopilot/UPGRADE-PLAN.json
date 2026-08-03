@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-08-03T03:20:00.000Z",
+  "note": "Owner directive 2026-08-02: after the two hand-placed buildings finish construction, raise the Farm to level 2 and the Mill to level 3. Same total building levels as a taller-but-fewer layout, spread over more buildings so more jobs run in parallel.",
+  "minCashAfter": 20000,
+  "targets": [
+    {
+      "buildingId": 55648404,
+      "building": "Farm",
+      "targetLevel": 2,
+      "maxCostPerStep": 40000,
+      "status": "pending"
+    },
+    {
+      "buildingId": 55648396,
+      "building": "Mill",
+      "targetLevel": 3,
+      "maxCostPerStep": 80000,
+      "status": "pending"
+    }
+  ]
+}

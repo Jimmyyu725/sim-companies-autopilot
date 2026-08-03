@@ -88,6 +88,12 @@ and the next test in the decision brief.
   standing. `REBUILD` is no longer an approved structural action and carries no campaign exception —
   should one ever be justified again it needs the full strategy and council protocol like any other
   structural move.
+- `UPGRADE-PLAN.json` lists buildings the owner has already decided to raise, with a target level
+  each. A listed building below its target is reserved: do not start production on it, and do not
+  send its upgrade to Strategy Council — the decision is made. A zero-LLM loop performs the step
+  through the ordinary guarded upgrade path within a minute of the building falling idle, so the
+  correct action is to leave it alone and let that loop take it. Once a target is reached its entry
+  is marked `complete` and the building is ordinary capacity again.
 - Execute at most one structural move at a time.
 
 ### Company communication

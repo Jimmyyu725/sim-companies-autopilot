@@ -12,7 +12,7 @@ This is the canonical active runtime for the Sim Companies operator.
 - `MASTER.md` — append-only terse audit history; not injected as current truth.
 - `JOURNAL.md` and `diaries/diary-*.md` — detailed historical wake records. Per-wake diaries live
   in the dedicated `diaries/` directory, never in the `autopilot/` root.
-- `brain.js` — active DeepSeek V4 Pro Chat Completions engine.
+- `brain.js` — active DeepSeek V4 Flash Chat Completions engine.
 - `brain56.js` — retained OpenAI Terra Responses API rollback engine.
 - `state.js` and `state-helpers.js` — deterministic live-state capture and normalization.
 - `company-value.js` and `company-value-recorder.js` — per-wake estimated company value using the
@@ -72,8 +72,8 @@ The active runner uses DeepSeek `max` or retained OpenAI `high`, both with low v
 - A preview is not confirmation. Ordinary structural actions require fresh state, read-only
   candidate previews for every executable option, a `strategy_council` direction, a fresh
   post-vote dry preview, final `council` authorization, unchanged terms, explicit confirmation,
-  and post-action verification. The exact owner-authorized Prospector REBUILD cycle remains the
-  only direction/authorization exception.
+  and post-action verification. There is no exception: the owner-authorized Prospector REBUILD
+  cycle that used to be one was retired on 2026-08-02.
 - Exchange confirmation additionally requires a matching five-minute read-only inspection, one
   sufficient quality lot, reserve/Transport-safe quantity, and positive game-form estimated profit.
   The authorization holds the maximum projected reserve through its expiry and is consumed before

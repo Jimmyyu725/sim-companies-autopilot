@@ -111,7 +111,7 @@ test('wake runner preflights before browser access and retains both provider pro
   const stateCapture = runner.indexOf('node "$AUTOPILOT/state.js"');
   assert.ok(providerRead >= 0 && stateCapture > providerRead);
   assert.match(runner, /BRAIN_PROVIDER=deepseek/);
-  assert.match(runner, /BRAIN_MODEL=deepseek-v4-pro/);
+  assert.match(runner, /BRAIN_MODEL=deepseek-v4-flash/);
   assert.match(runner, /BRAIN_EFFORT=max/);
   assert.match(runner, /COUNCIL_PROVIDER=deepseek/);
   assert.match(runner, /COUNCIL_EFFORT=max/);

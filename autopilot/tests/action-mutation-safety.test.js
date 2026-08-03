@@ -68,45 +68,6 @@ test('build confirmation binds the current full-page construction panel without 
   assert.match(source.slice(safeFailure - 300, safeFailure + 300), /mutationAttempted: false/);
 });
 
-test('confirmed rebuild refreshes authenticated Prospector evidence before claiming or clicking', () => {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'act.js'), 'utf8');
-  const start = source.indexOf("} else if (action === 'rebuild')");
-  const end = source.indexOf("} else if (action === 'exchange_sell')", start);
-  assert(start >= 0 && end > start);
-  const branch = source.slice(start, end);
-  const freshEvidence = branch.indexOf('await captureOwnerProspectorOverview()');
-  const oneUseClaim = branch.indexOf('refreshAndClaimOwnerProspectorRebuildAttempt(');
-  const pageAction = branch.indexOf('window.__rebuild');
-  assert(freshEvidence >= 0);
-  assert(oneUseClaim > freshEvidence);
-  assert(pageAction > oneUseClaim);
-  assert.match(source, /api\(\$\{JSON\.stringify\(PROSPECTOR_OVERVIEW_PATH\)\}\)/);
-  assert.match(branch, /source:\s*'authoritative-buildings-capture'/);
-  assert.match(branch, /buildings:\s*beforeBuildings/);
-  assert.match(branch, /idleEvidence:\s*idle\.evidence/);
-});
-
-test('both brain engines reserve every owner Prospector pool target from production', () => {
-  for (const filename of ['brain.js', 'brain56.js']) {
-    const source = fs.readFileSync(path.join(__dirname, '..', filename), 'utf8');
-    assert.match(source, /isOwnerAuthorizedProspectorRebuild\(/, filename);
-    assert.match(source, /ownerAuthorizedProspectorRebuildTarget\(/, filename);
-    assert.match(source, /isOwnerProspectorCampaignTarget\(/, filename);
-    assert.match(source, /action === 'produce' && ownerProspectorPoolTarget/, filename);
-    assert.match(source, /ownerAchievementBuildRequirement\(/, filename);
-    assert.match(source, /reserved for REBUILD and cannot receive production/, filename);
-    assert.match(source, /ownerDirectivePriority:\s*true/, filename);
-    assert.match(source, /councilRequired:\s*false/, filename);
-    assert.match(source, /requiredNextAction:[\s\S]{0,180}confirm:\s*true/, filename);
-    assert.match(source, /not the current one-use target/, filename);
-    assert.match(source, /refresh state instead of submitting this campaign action to Council/, filename);
-    assert.match(source,
-      /councilRequiredForStructuralAction\([\s\S]{0,180}ownerDirectiveForAction/, filename);
-    assert.match(source,
-      /runtimeGuard\.beforeAction\([\s\S]{0,180}ownerDirective:\s*ownerDirectiveForAction/, filename);
-  }
-});
-
 test('both brain engines require non-baseline comparison at portfolio checkpoints', () => {
   for (const filename of ['brain.js', 'brain56.js']) {
     const source = fs.readFileSync(path.join(__dirname, '..', filename), 'utf8');

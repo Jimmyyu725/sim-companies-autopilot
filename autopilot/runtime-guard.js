@@ -1,10 +1,5 @@
 'use strict';
 
-const {
-  findOwnerProspectorRecoveryCandidate,
-  prospectorCampaignTargetSummary,
-} = require('./owner-directive.js');
-
 const MUTATING_ACTIONS = new Set([
   'collect',
   'produce',
@@ -87,54 +82,9 @@ const OWNER_DIRECTIVE_MAX_STATE_AGE_MS = 5 * 60 * 1000;
 const FARM_UPGRADE_REVIEW_MAX_BRIDGE_MS = 60 * 60 * 1000;
 // Two refusals prove the block is systematic rather than a single transient role failure.
 const STRUCTURAL_AUTHORIZATION_BRIDGE_THRESHOLD = 2;
-const PROSPECTOR_OVERVIEW_PATH = '/api/v2/companies/me/achievements/';
-const PROSPECTOR_CAMPAIGN_MODE = 'repeat-until-achievement-complete';
-const ACHIEVEMENT_SLOT_POLICY_MODE = 'reserve-all-free-standard-slots';
-const PROSPECTOR_BUILD_TARGETS = new Set(['quarry', 'mine', 'oil rig']);
-const OWNER_SUBTASK_ACTION = 'complete-owner-subtasks';
-
-// The three abundance building types the Prospector achievement counts.
-const EXTRACTION_BUILDING_NAMES = new Set(['quarry', 'mine', 'oil rig']);
-// A campaign site may bridge at most this far so it is idle again for its next rebuild turn.
-const PROSPECTOR_BRIDGE_MAX_MS = 60 * 60 * 1000;
 
 function canonicalBuildingName(value) {
   return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
-}
-
-function activeOwnerAchievementSlotPolicy(directive) {
-  const experiment = directive?.prospectorExperiment;
-  const campaign = experiment?.campaign;
-  const policy = campaign?.slotPolicy;
-  if (directive?.schemaVersion !== 1 || directive?.status !== 'pending' ||
-      directive?.priority !== 'owner' || directive?.action !== OWNER_SUBTASK_ACTION ||
-      campaign?.mode !== PROSPECTOR_CAMPAIGN_MODE || campaign?.status !== 'active' ||
-      policy?.status !== 'active' || policy?.mode !== ACHIEVEMENT_SLOT_POLICY_MODE ||
-      policy?.purpose !== 'achievement-campaign') return null;
-
-  const configuredTargets = Array.isArray(policy.eligibleBuildings)
-    ? policy.eligibleBuildings.map(canonicalBuildingName)
-    : [];
-  const eligibleBuildings = [...new Set(configuredTargets.filter(
-    target => PROSPECTOR_BUILD_TARGETS.has(target),
-  ))];
-  const configuredReservedSlots = policy.reservedFreeSlots;
-  const reservedFreeSlots = configuredReservedSlots != null && configuredReservedSlots !== '' &&
-    typeof configuredReservedSlots !== 'boolean' &&
-    Number.isSafeInteger(Number(configuredReservedSlots)) && Number(configuredReservedSlots) >= 0
-    ? Number(configuredReservedSlots)
-    : null;
-  const targetSummary = prospectorCampaignTargetSummary(directive);
-  return {
-    mode: ACHIEVEMENT_SLOT_POLICY_MODE,
-    currentAchievement: String(policy.currentAchievement || 'Prospector').trim(),
-    eligibleBuildings,
-    reservedFreeSlots,
-    parallelizeWhenSafe: policy.parallelizeWhenSafe === true,
-    targetCount: targetSummary.targetCount,
-    targetCapacity: targetSummary.targetCapacity,
-    openTargetSlots: targetSummary.openTargetSlots,
-  };
 }
 
 function buildWakeAlarm(args = {}, nowMs = Date.now(), retryKinds = []) {
@@ -651,150 +601,10 @@ function isApprovedRollingMillUpgrade(state, params = {}) {
     mills.every(building => Number.isInteger(Number(building?.size)) && Number(building.size) <= 3);
 }
 
-function isOwnerAuthorizedProspectorRebuild(state, params = {}, directive, now = Date.now()) {
-  const nowMs = Number(now);
-  const stateAtMs = Date.parse(state?.t);
-  const buildingSource = state?.sources?.buildings;
-  const buildingSourceAtMs = Date.parse(buildingSource?.asOf);
-  const buildingId = Number(params?.buildingId);
-  const recoveryCandidate = findOwnerProspectorRecoveryCandidate(
-    state,
-    directive,
-    now,
-  );
-  if (Number(recoveryCandidate?.buildingId) === buildingId) return true;
-  const experiment = directive?.prospectorExperiment;
-  const baseline = experiment?.baselineProgress;
-  const latest = experiment?.lastProgressEvidence;
-  const completionMs = Date.parse(experiment?.completesAt);
-  const activeAttempt = ['claimed', 'awaiting-counter'].includes(
-    experiment?.rebuildAttempt?.status,
-  );
-  const matches = (Array.isArray(state?.buildings) ? state.buildings : [])
-    .filter(building => Number(building?.id) === buildingId);
-  const building = matches.length === 1 ? matches[0] : null;
-  const buildingName = String(building?.name || '').trim().toLowerCase();
-  const expectedName = String(experiment?.building || '').trim().toLowerCase();
-  const expectedBaseline = Number(experiment?.expectedBaseline);
-  const expectedTarget = Number(experiment?.expectedTarget);
-  const expectedIncrement = Number(experiment?.expectedIncrement);
-  const campaign = experiment?.campaign?.mode === PROSPECTOR_CAMPAIGN_MODE;
-  const campaignProgressValid = campaign && experiment?.campaign?.status === 'active' &&
-    ['waiting-construction', 'baseline-verified'].includes(experiment?.status) &&
-    Number.isSafeInteger(expectedBaseline) && expectedBaseline >= 0 &&
-    Number.isSafeInteger(expectedTarget) && expectedTarget > expectedBaseline &&
-    expectedIncrement === 1 &&
-    Number(baseline?.current) === expectedBaseline && Number(baseline?.target) === expectedTarget &&
-    Number(latest?.current) === expectedBaseline && Number(latest?.target) === expectedTarget &&
-    Number.isSafeInteger(Number(baseline?.stars)) && Number(baseline.stars) >= 0 &&
-    Number.isSafeInteger(Number(baseline?.starsMax)) && Number(baseline.starsMax) > Number(baseline.stars) &&
-    Number(latest?.stars) === Number(baseline.stars) &&
-    Number(latest?.starsMax) === Number(baseline.starsMax);
-  const boundedProgressValid = !campaign && experiment?.status === 'baseline-verified' &&
-    expectedBaseline === 1 && expectedTarget === 10 && expectedIncrement === 1 &&
-    Number(baseline?.current) === 1 && Number(baseline?.target) === 10 &&
-    Number(latest?.current) === 1 && Number(latest?.target) === 10;
-  const rootAuthorizationValid = directive?.program?.status === 'completed' ||
-    (campaign && directive?.action === OWNER_SUBTASK_ACTION);
-  const stateIsFresh = Number.isFinite(nowMs) && Number.isFinite(stateAtMs) &&
-    Number.isFinite(buildingSourceAtMs) && stateAtMs <= nowMs + 60e3 &&
-    buildingSourceAtMs <= nowMs + 60e3 && nowMs - stateAtMs <= OWNER_DIRECTIVE_MAX_STATE_AGE_MS &&
-    nowMs - buildingSourceAtMs <= OWNER_DIRECTIVE_MAX_STATE_AGE_MS;
-  return directive?.schemaVersion === 1 && directive?.status === 'pending' &&
-    directive?.priority === 'owner' && rootAuthorizationValid &&
-    (campaignProgressValid || boundedProgressValid) && !activeAttempt &&
-    Number.isSafeInteger(buildingId) && buildingId > 0 &&
-    Number(experiment?.buildingId) === buildingId && Number(experiment?.level) === 1 &&
-    Number.isFinite(completionMs) && nowMs >= completionMs &&
-    baseline?.path === PROSPECTOR_OVERVIEW_PATH && Number(baseline?.status) === 200 &&
-    latest?.path === PROSPECTOR_OVERVIEW_PATH && Number(latest?.status) === 200 &&
-    buildingSource?.status === 'ok' && stateIsFresh && Boolean(building) &&
-    ['quarry', 'mine', 'oil rig'].includes(buildingName) &&
-    (!expectedName || expectedName === buildingName) && Number(building?.size) === 1 &&
-    building?.freeAndLocked !== true && building?.busy == null &&
-    !(building?.activity?.status === 'known' && building?.activity?.busy === true);
-}
-
-function ownerAuthorizedProspectorRebuildTarget(state, directive, now = Date.now()) {
-  const experiment = directive?.prospectorExperiment;
-  const summary = prospectorCampaignTargetSummary(directive);
-  const activeTarget = summary.targets.find(
-    target => target.targetId === summary.activeTargetId,
-  );
-  const candidateIds = [
-    activeTarget?.buildingId,
-    experiment?.buildingId,
-    findOwnerProspectorRecoveryCandidate(state, directive, now)?.buildingId,
-  ];
-  for (const rawBuildingId of candidateIds) {
-    const buildingId = Number(rawBuildingId);
-    if (!Number.isSafeInteger(buildingId) || buildingId <= 0) continue;
-    if (isOwnerAuthorizedProspectorRebuild(
-      state,
-      { buildingId },
-      directive,
-      now,
-    )) return buildingId;
-  }
-  return null;
-}
-
-function isOwnerAuthorizedAchievementBuild(state, params = {}, directive, now = Date.now()) {
-  const policy = activeOwnerAchievementSlotPolicy(directive);
-  const nowMs = Number(now);
-  const stateAtMs = Date.parse(state?.t);
-  const source = state?.sources?.buildings;
-  const sourceAtMs = Date.parse(source?.asOf);
-  const requestedBuilding = canonicalBuildingName(params?.building);
-  const freeSlots = Number(state?.freeSlots);
-  const fresh = Number.isFinite(nowMs) && Number.isFinite(stateAtMs) &&
-    Number.isFinite(sourceAtMs) && stateAtMs <= nowMs + 60e3 &&
-    sourceAtMs <= nowMs + 60e3 && nowMs - stateAtMs <= OWNER_DIRECTIVE_MAX_STATE_AGE_MS &&
-    nowMs - sourceAtMs <= OWNER_DIRECTIVE_MAX_STATE_AGE_MS;
-  return Boolean(policy?.parallelizeWhenSafe) && policy.openTargetSlots > 0 &&
-    policy.eligibleBuildings.includes(requestedBuilding) && source?.status === 'ok' && fresh &&
-    Number.isSafeInteger(freeSlots) && freeSlots > 0;
-}
-
-function ownerAchievementBuildRequirement(state, directive, now = Date.now()) {
-  const policy = activeOwnerAchievementSlotPolicy(directive);
-  if (!policy?.parallelizeWhenSafe || policy.openTargetSlots < 1) return null;
-  const building = policy.eligibleBuildings.includes('quarry')
-    ? 'Quarry'
-    : policy.eligibleBuildings[0];
-  if (!building || !isOwnerAuthorizedAchievementBuild(
-    state,
-    { building },
-    directive,
-    now,
-  )) return null;
-  const money = Number(state?.money);
-  const minCashAfter = Math.max(4000, Number(state?.config?.minCash) || 0);
-  return {
-    ok: false,
-    guard: true,
-    reason: `the owner-authorized Prospector pool still has ${policy.openTargetSlots} open target slot(s); enroll exactly one ${building} this wake before closing`,
-    requiredTool: 'build',
-    requiredAction: {
-      action: 'build',
-      building,
-      maxCost: Number.isFinite(money) ? Math.max(1, Math.min(100000, money - minCashAfter)) : 50000,
-      minCashAfter,
-      confirm: false,
-    },
-    targetCount: policy.targetCount,
-    targetCapacity: policy.targetCapacity,
-    freeSlots: Number(state.freeSlots),
-  };
-}
-
-function councilRequiredForStructuralAction(action, params, state, ownerDirective = null, now = Date.now()) {
-  if (!STRUCTURAL_ACTIONS.has(action)) return false;
-  if (action === 'rebuild' &&
-      isOwnerAuthorizedProspectorRebuild(state, params, ownerDirective, now)) return false;
-  if (action === 'build' &&
-      isOwnerAuthorizedAchievementBuild(state, params, ownerDirective, now)) return false;
-  return true;
+// Every structural action needs council now. The Prospector campaign used to exempt its REBUILD
+// and target-pool enrolment; the owner retired it on 2026-08-02 and no exemption replaced it.
+function councilRequiredForStructuralAction(action) {
+  return STRUCTURAL_ACTIONS.has(action);
 }
 
 function buildSafetyRetryAlarm(reason, nowMs = Date.now(), retryKinds = []) {
@@ -886,7 +696,6 @@ class WakeRuntimeGuard {
     // produce guard): on 2026-08-01 the COO returned VALIDATED/UNKNOWN five times for one Farm
     // upgrade while the produce path stayed blocked, so the Farm could neither upgrade nor work.
     this.structuralAuthorizationFailures = new Map();
-    this.ownerAchievementBuildCount = 0;
   }
 
   configureStrategyCouncil(requirement = {}) {
@@ -1051,41 +860,6 @@ class WakeRuntimeGuard {
       const buildingId = Number(params?.buildingId);
       const building = (Array.isArray(options?.state?.buildings)
         ? options.state.buildings : []).find(row => Number(row?.id) === buildingId);
-      // A running production order makes a building busy, and REBUILD requires it to be idle — so
-      // producing on a level-1 extraction site silently blocks the very campaign it belongs to.
-      // The campaign enrols one target at a time; the no-voluntary-idle rule then handed every
-      // other finished Quarry a sand order. Measured live 2026-08-02: eight of eleven Quarries were
-      // producing sand while the achievement stalled. While the campaign is active, an idle level-1
-      // Quarry, Mine or Oil rig is campaign capacity, not spare capacity.
-      const campaignActive = options?.ownerDirective?.prospectorExperiment?.campaign?.status === 'active'
-        || options?.prospectorCampaignActive === true;
-      const extraction = EXTRACTION_BUILDING_NAMES.has(canonicalBuildingName(building?.name));
-      if (campaignActive && extraction && Number(building?.size) === 1) {
-        // Only one campaign target is authorised to rebuild per wake, so the rest wait their turn.
-        // Waiting idle is the worst option: a running building earns 12 XP/h and one under
-        // construction about 36, but an idle one earns nothing at all, and levelling is the point
-        // of this campaign. Allow a checkpoint-bound bridge so the site works until the next wake
-        // and is idle again in time for its rebuild. A long order would make it busy for hours and
-        // block the scrap, which is what this guard originally caught.
-        const capturedAtMs = Date.parse(options?.state?.t);
-        const finishBeforeMs = Date.parse(params?.finishBefore);
-        const bridged = Number.isFinite(capturedAtMs) && Number.isFinite(finishBeforeMs) &&
-          finishBeforeMs > capturedAtMs &&
-          finishBeforeMs <= capturedAtMs + PROSPECTOR_BRIDGE_MAX_MS;
-        if (!bridged) {
-          return {
-            ok: false,
-            guard: true,
-            reason: 'the Prospector campaign is active and this is a level-1 extraction site; REBUILD it, or place only a checkpoint-bound bridge of at most one hour so it is idle again for its rebuild turn',
-            buildingId,
-            requiredParameter: 'finishBefore',
-            latestAllowedFinishBefore: Number.isFinite(capturedAtMs)
-              ? new Date(capturedAtMs + PROSPECTOR_BRIDGE_MAX_MS).toISOString()
-              : null,
-            requiredAction: { action: 'rebuild', buildingId, confirm: false },
-          };
-        }
-      }
       const isLowLevelFarm = canonicalBuildingName(building?.name) === 'farm' &&
         Number.isSafeInteger(Number(building?.size)) && Number(building.size) >= 1 &&
         Number(building.size) < 3;
@@ -1204,39 +978,6 @@ class WakeRuntimeGuard {
             };
           }
         }
-      }
-    }
-    const achievementSlotPolicy = activeOwnerAchievementSlotPolicy(options.ownerDirective);
-    if (action === 'build' && params.confirm === true && achievementSlotPolicy) {
-      const requestedBuilding = canonicalBuildingName(params.building);
-      if (!achievementSlotPolicy.eligibleBuildings.includes(requestedBuilding)) {
-        return {
-          ok: false,
-          guard: true,
-          reason: achievementSlotPolicy.eligibleBuildings.length
-            ? `all free standard building slots are reserved for the active ${achievementSlotPolicy.currentAchievement} achievement campaign`
-            : 'the active achievement slot policy has no valid eligible building types; no build can be confirmed safely',
-          requestedBuilding,
-          allowedBuildingTypes: achievementSlotPolicy.eligibleBuildings,
-          reservedFreeSlots: achievementSlotPolicy.reservedFreeSlots,
-          requiredNextStep: 'keep this as a read-only comparison or choose an eligible achievement building; wait for authenticated campaign completion before committing another build',
-        };
-      }
-      if (achievementSlotPolicy.parallelizeWhenSafe &&
-          !isOwnerAuthorizedAchievementBuild(
-            options.state,
-            params,
-            options.ownerDirective,
-          )) {
-        return {
-          ok: false,
-          guard: true,
-          reason: 'eligible achievement build is not bound to a fresh free slot and an open Prospector target-pool position',
-          targetCount: achievementSlotPolicy.targetCount,
-          targetCapacity: achievementSlotPolicy.targetCapacity,
-          openTargetSlots: achievementSlotPolicy.openTargetSlots,
-          requiredTool: 'refresh_state',
-        };
       }
     }
     if (STRATEGY_DIRECTION_ACTIONS.has(action) && options.councilRequired !== false) {
@@ -1363,16 +1104,11 @@ class WakeRuntimeGuard {
         if (candidate) this.strategyCandidates.set(candidate.key, candidate);
       }
     }
-    if (action === 'build' && params?.confirm === true &&
-        result?.ownerAchievementTargetRegistered === true) {
-      this.ownerAchievementBuildCount += 1;
-    }
     if (!actionRequiresRefresh(action, params, result)) return false;
-    // Consume the one-use strategy direction only when the confirmed action IS that direction.
-    // An owner-authorized Prospector REBUILD bypasses strategy selection entirely (PR #30), so it
-    // must not burn an unrelated selected direction: on 2026-08-01 wake 03:50 a rebuild confirm
-    // consumed the council-selected Farm upgrade, every later upgrade attempt was refused as
-    // "direction was consumed", and the wake exhausted its 40 rounds with the Farm left idle.
+    // Consume the one-use strategy direction only when the confirmed action IS that direction, so
+    // an unrelated confirm cannot burn it: on 2026-08-01 wake 03:50 a rebuild confirm consumed the
+    // council-selected Farm upgrade, every later upgrade attempt was refused as "direction was
+    // consumed", and the wake exhausted its 40 rounds with the Farm left idle.
     if (STRATEGY_DIRECTION_ACTIONS.has(action) && params?.confirm === true &&
         this.strategyCouncilDecision &&
         strategyDecisionMatchesAction(this.strategyCouncilDecision, action, params) &&
@@ -1491,7 +1227,6 @@ class WakeRuntimeGuard {
 }
 
 module.exports = {
-  activeOwnerAchievementSlotPolicy,
   CHAT_PREVIEW_ACTIONS,
   MUTATING_ACTIONS,
   STRUCTURAL_ACTIONS,
@@ -1510,11 +1245,7 @@ module.exports = {
   chatPreviewEvidenceIsExact,
   councilArgsMatchPreview,
   councilRequiredForStructuralAction,
-  isOwnerAuthorizedAchievementBuild,
   isApprovedRollingMillUpgrade,
-  isOwnerAuthorizedProspectorRebuild,
-  ownerAuthorizedProspectorRebuildTarget,
-  ownerAchievementBuildRequirement,
   sameStructuralTarget,
   sameChatMutationTerms,
   structuralTerms,

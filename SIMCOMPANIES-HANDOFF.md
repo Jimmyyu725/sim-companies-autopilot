@@ -15,7 +15,7 @@ values. Verify live evidence before asserting or changing state.
 ## 1. Runtime ownership
 
 Since 2026-07-29, the sole company operator is the provider-routed LLM autopilot in `autopilot/`.
-The production trial uses DeepSeek V4 Pro at Max reasoning for the main brain and CFO/COO/CMO.
+The production path uses DeepSeek V4 Flash at Max reasoning for the main brain and CFO/COO/CMO.
 The prior OpenAI Terra/Luna path remains intact as a one-command rollback and is activated
 automatically after two consecutive failed DeepSeek wakes. The former fast-loop, strategist, and
 board layers are preserved under `legacy/` as history only. They are inactive and their old data is
@@ -63,7 +63,7 @@ artifacts. They are not part of either the active autopilot or the archived thre
 | `autopilot/BRAIN.md` | Goal-driven CEO mandate: sustainable-profit objective, current Coffee baseline, opportunity discovery, alternative comparison, bounded experiments, evidence/safety boundaries, capital protocol, and alarm discipline. Read every wake. |
 | `autopilot/CURRENT.json` | Authoritative structured current checkpoint: state-tied cash/debt, verified work, blockers, plan, and next decision time. Replaced atomically each wake. |
 | `autopilot/MASTER.md` | Append-only terse audit history. It is not injected as current truth and cannot override CURRENT or fresh state. |
-| `autopilot/brain.js` | Provider-aware Chat Completions engine and active DeepSeek V4 Pro Max production path. It rejects an entire multi-tool response before executing any call. |
+| `autopilot/brain.js` | Provider-aware Chat Completions engine and active DeepSeek V4 Flash Max production path. It rejects an entire multi-tool response before executing any call. |
 | `autopilot/brain56.js` | Retained OpenAI Responses API rollback engine (`gpt-5.6-terra`, High). |
 | `autopilot/brain-provider.js` | Owner-only runtime provider selector, credential preflight, health counter, and automatic DeepSeek-to-OpenAI fallback after two consecutive failed wakes. |
 | `autopilot/deepseek-execution-prompt.js` | Small DeepSeek-specific protocol adapter. It adds no business authority and makes one-tool, refresh, evidence, retry, and close sequencing explicit. |
@@ -94,7 +94,7 @@ artifacts. They are not part of either the active autopilot or the archived thre
 | `autopilot/council-evidence.js` | Shared read-only collector that first refreshes authoritative state inside the same browser lock, inspects every owned Farm, Mill, Grocery store, Power plant, and Water reservoir plus any structural focus target, then gives CFO/COO/CMO separate live finance, operations/P1, Grocery, and order-book evidence packs before deliberation. |
 | `autopilot/council-operating-model.js` | Deterministically joins fresh printed building rates, recipes, modifiers, warehouse state, the active Grocery order or idle-store curve, and verified structural previews into Coffee-chain bottlenecks, candidate capacity, downtime loss, incremental retail profit, slot use, and payback. Missing buildings/rates remain `PARTIAL`, never zero. |
 | `autopilot/inspect-retail-curve.js` | Read-only idle-Grocery probe that tests a bounded price grid through the rendered form, reads the game's profit/unit and profit/hour projections, and never clicks `SELL`. A busy store instead contributes its current exact order point from state. |
-| `autopilot/council.js` | Runs CFO/COO/CMO independently in two modes: strategy selection among explicit options and exact-term authorization after preview. A two-vote strategy majority wins; a valid three-way tie selects `hold`. If any strategy role remains unavailable after its bounded repair, aggregation records a conservative `safety_hold`: it satisfies the checkpoint without authorizing any structural action. It follows the active main-brain provider: DeepSeek V4 Pro Max during the trial and OpenAI Luna High after rollback. Council requests have no client-side elapsed-time limit; API/JSON failures remain `UNKNOWN`, one provider-reported timeout or invalid vote may receive one retry, and a non-sensitive per-role audit is written to `council-audit.jsonl`. |
+| `autopilot/council.js` | Runs CFO/COO/CMO independently in two modes: strategy selection among explicit options and exact-term authorization after preview. A two-vote strategy majority wins; a valid three-way tie selects `hold`. If any strategy role remains unavailable after its bounded repair, aggregation records a conservative `safety_hold`: it satisfies the checkpoint without authorizing any structural action. It follows the active main-brain provider: DeepSeek V4 Flash Max in production and OpenAI Luna High after rollback. Council requests have no client-side elapsed-time limit; API/JSON failures remain `UNKNOWN`, one provider-reported timeout or invalid vote may receive one retry, and a non-sensitive per-role audit is written to `council-audit.jsonl`. |
 | `autopilot/council-governance.js` | Requires a strategy decision on first deployment, every twenty successful wakes after the prior decision, after twenty-four hours, or after a material level/slot/debt/building/modifier/strategic-question change. Writes ignored idempotent `strategy-council-history.jsonl`. |
 | `autopilot/council-verdict.js` | Validates exact authorization votes and strategy recommendations against exact evidence values, supplied option IDs, authoritative role sources, and freshness. |
 | `autopilot/api-result.js` | Adds source/status/time plus explicit pagination and truncation metadata to generic API reads. |
@@ -388,26 +388,15 @@ function. Runtime validation repeats the schema checks before CDP starts.
   `fund-and-upgrade-building` directive can reserve its target from ordinary production, authorize
   deadline-bound bridge batches while funding/evidence remains unresolved, and remains pending
   until fresh state shows the idle target level.
-- Completed owner programs are compacted out of active storage. For a continuing Prospector
-  campaign, the model-facing view contains only the current replacement, authenticated baseline,
-  one active attempt when present, and the terminal condition. Prior attempts remain in ordinary
-  wake diaries/audit history and are not re-injected.
 - `REBUILD` normally requires API `busy:null`. The only exception is an API-omitted activity for an
   exact level-1 Quarry/Mine/Oil rig: the same locked action must re-read the exact building page and
   prove no construction, busy order, or collectible output plus enabled production and a unique
-  enabled REBUILD control. Immediately before a confirmed click, that same locked action re-reads
-  the authenticated achievements endpoint, requires the exact expected Prospector baseline, then
-  consumes the matching owner authorization and records a one-use attempt. Missing, stale,
-  malformed, advanced, or target-mismatched evidence fails closed before any possible click.
-- A pending owner directive may run a continuous Prospector campaign without stochastic council
-  re-review. Each cycle is still narrowly bound to the current replacement building ID, its exact
-  authenticated baseline, fresh authoritative idle level-1 state, and no active attempt. Every
-  cycle requires a same-wake dry preview, one-use claim, rendered-UI click, reconstruction proof,
-  exactly one counter increment, and rebinding to the next construction end. Tier changes are read
-  from the authenticated row rather than guessed. The campaign stops at `stars == starsMax`; any
-  other REBUILD still requires council. While a campaign cycle is eligible, production on that exact
-  target is refused so repeated council failures cannot starve the owner task.
-- Build, scrap, non-campaign REBUILD, bonds, upgrade, or robots require:
+  enabled REBUILD control.
+- The Prospector achievement campaign was retired by the owner on 2026-08-02, together with every
+  Quarry on the landscape. Its directive, target pool, slot reservation, one-use rebuild claim, and
+  council exemption are all gone: the brain skips Quarries, Mines and Oil rigs, and REBUILD is an
+  ordinary structural action requiring the full protocol below.
+- Build, scrap, REBUILD, bonds, upgrade, or robots require:
   fresh state → `confirm:false` candidate preview for every executable alternative →
   explicit alternatives including `hold` → strategy Council direction →
   fresh selected-action `confirm:false` preview → final exact-term council → unchanged terms →
@@ -507,7 +496,7 @@ tail -n 30 autopilot/MASTER.md
 Provider switching is explicit, credential-preflighted, and does not restart or invoke the brain:
 
 ```bash
-# Start or resume the DeepSeek V4 Pro Max trial.
+# Start or resume the DeepSeek V4 Flash Max path.
 node autopilot/brain-provider.js switch deepseek --confirm
 
 # One-command manual rollback to Terra High + Luna High.

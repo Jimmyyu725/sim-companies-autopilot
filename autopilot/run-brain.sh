@@ -97,14 +97,16 @@ unset OPENAI_API_KEY DEEPSEEK_API_KEY
 case "$ACTIVE_PROVIDER" in
   deepseek)
     export BRAIN_PROVIDER=deepseek
-    export BRAIN_MODEL=deepseek-v4-pro
+    # Owner directive 2026-08-02: run the brain on Flash. It prices at about a third of Pro
+    # ($0.14/$0.28 per 1M input/output versus $0.435/$0.87) and was verified to return tool calls.
+    export BRAIN_MODEL=deepseek-v4-flash
     export BRAIN_JS="$AUTOPILOT/brain.js"
     export BRAIN_EFFORT=max
     export BRAIN_MAX_TOKENS=32768
     export BRAIN_MAX_ROUNDS=40
     export BRAIN_REQUEST_TIMEOUT_MS=180000
     export COUNCIL_PROVIDER=deepseek
-    export COUNCIL_MODEL=deepseek-v4-pro
+    export COUNCIL_MODEL=deepseek-v4-flash
     export COUNCIL_EFFORT=max
     export COUNCIL_MAX_TOKENS=16384
     export DEEPSEEK_API_KEY="$(tr -d '\r\n' < /home/jimmy/.config/sim-benchmark/deepseek-v4-pro.txt)"

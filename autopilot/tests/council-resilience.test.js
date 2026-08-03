@@ -259,7 +259,7 @@ test('DeepSeek council role uses provider endpoint and retains deterministic vot
     },
   }));
   assert.equal(requestedUrl, 'https://api.deepseek.com/chat/completions');
-  assert.equal(requestedBody.model, 'deepseek-v4-pro');
+  assert.equal(requestedBody.model, 'deepseek-v4-flash');
   assert.deepEqual(requestedBody.response_format, { type: 'json_object' });
   assert.match(requestedBody.messages[0].content, /Return only one valid JSON object/);
   assert.equal(usageProvider, 'deepseek');

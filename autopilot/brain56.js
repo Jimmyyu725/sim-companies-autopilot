@@ -32,9 +32,6 @@ const {
   buildSafetyRetryAlarm,
   buildWakeAlarm,
   councilRequiredForStructuralAction,
-  isOwnerAuthorizedProspectorRebuild,
-  ownerAuthorizedProspectorRebuildTarget,
-  ownerAchievementBuildRequirement,
   validateStrategyCouncilCompletion,
   validateFinishSummary,
   buildAutomaticFinishOnExhaustion,
@@ -45,9 +42,7 @@ const { currentMemorySchema, readCurrentMemory, validateCurrentMemory, writeCurr
 const { formatWakeSnapshot, journalToolSchema, prepareJournalEntry } = require(path.join(BRAIN, 'journal-entry.js'));
 const { buildingUtilizationJournalGate } = require(path.join(BRAIN, 'building-utilization-policy.js'));
 const {
-  isOwnerProspectorCampaignTarget,
   readPendingOwnerDirective,
-  readPendingOwnerDirectiveForPrompt,
 } = require(path.join(BRAIN, 'owner-directive.js'));
 const { formatToolOutput, previewJson } = require(path.join(BRAIN, 'tool-output.js'));
 const {
@@ -306,7 +301,7 @@ const TOOLS = [
   { type: 'function', name: 'inspect_exchange_sale', description: 'Read-only exchange-sale inspection. Verifies the current deterministic reserve, live book, 4% fee and Transport, then fills but never submits the exact UI form. Use qty:null for the maximum currently safe quantity. A confirmed exchange_sell must exactly match this result within five minutes.', strict: true, parameters: { type: 'object', additionalProperties: false, properties: { kind: { type: 'integer', minimum: 1 }, qty: { type: ['integer', 'null'], minimum: 1 } }, required: ['kind', 'qty'] } },
   { type: 'function', name: 'rank_mill_upgrades', description: 'Compare two or three evidence-backed next-step Mill upgrades without considering current cash. Returns a unique recommendation only when one candidate Pareto-dominates all alternatives on added rate, cost, downtime, and downtime output loss.', parameters: { type: 'object', additionalProperties: false, properties: { candidates: { type: 'array', minItems: 2, maxItems: 3, items: { type: 'object', additionalProperties: false, properties: { buildingId: { type: 'integer', minimum: 1 }, currentLevel: { type: 'integer', minimum: 1, maximum: 2 }, currentRate: { type: 'number', exclusiveMinimum: 0 }, productionIncreasePct: { type: 'number', exclusiveMinimum: 0 }, cashCost: { type: 'number', exclusiveMinimum: 0 }, downtimeHours: { type: 'number', exclusiveMinimum: 0 }, evidenceAsOf: { type: 'string', minLength: 1 } }, required: ['buildingId', 'currentLevel', 'currentRate', 'productionIncreasePct', 'cashCost', 'downtimeHours', 'evidenceAsOf'] } } }, required: ['candidates'] } },
   { type: 'function', name: 'strategy_council', description: 'CFO/COO/CMO independently choose among two to five explicit strategic options using fresh finance, the complete owned portfolio, market routes, bottlenecks, and automatic candidate payback evidence. Include the exact hold option. At a runtime-required portfolio checkpoint, the option set must also include at least one named expansion or pivot outside the current Coffee baseline; this is a comparison requirement, not permission to spend. Before this call, run confirm:false once for every build, upgrade, scrap, rebuild, bonds, or robots option so Council receives verified candidate terms. Runtime requires a portfolio checkpoint at least every twenty successful wakes, daily, and after material strategic changes.', strict: true, parameters: strategyCouncilToolParameters },
-  { type: 'function', name: 'council', description: 'After an exact structural preview, CFO/COO/CMO independently authorize its final terms using a fresh complete portfolio inspection and automatic bottleneck/payback model. Required except for an exact owner-authorized Prospector REBUILD or target-pool enrollment build.', parameters: { type: 'object', additionalProperties: false, properties: { proposal: { type: 'string' }, context: { type: 'string' }, buildingId: { type: ['integer', 'null'], minimum: 1 }, marketKinds: { type: 'array', minItems: 1, maxItems: 5, items: { type: 'integer', minimum: 1 } } }, required: ['proposal', 'context', 'buildingId', 'marketKinds'] } },
+  { type: 'function', name: 'council', description: 'After an exact structural preview, CFO/COO/CMO independently authorize its final terms using a fresh complete portfolio inspection and automatic bottleneck/payback model. Required for every structural action.', parameters: { type: 'object', additionalProperties: false, properties: { proposal: { type: 'string' }, context: { type: 'string' }, buildingId: { type: ['integer', 'null'], minimum: 1 }, marketKinds: { type: 'array', minItems: 1, maxItems: 5, items: { type: 'integer', minimum: 1 } } }, required: ['proposal', 'context', 'buildingId', 'marketKinds'] } },
   { type: 'function', name: 'finish', description: 'End this wake with a short summary. Always set_alarm first.', strict: true, parameters: { type: 'object', additionalProperties: false, properties: { summary: { type: 'string', minLength: 1, maxLength: 1000 } }, required: ['summary'] } },
 ];
 
@@ -347,65 +342,10 @@ function runAction(action, rawParams) {
   let guardState = null;
   try { guardState = JSON.parse(fs.readFileSync(path.join(BRAIN, '.state.json'), 'utf8')); } catch (_) {}
   const ownerDirectiveForAction = readOwnerDirectiveFile();
-  const ownerProspectorEligible = isOwnerAuthorizedProspectorRebuild(
-    guardState,
-    checked.params,
-    ownerDirectiveForAction,
-  );
-  const ownerProspectorPoolTarget = isOwnerProspectorCampaignTarget(
-    ownerDirectiveForAction,
-    checked.params.buildingId,
-  );
-  const selectedOwnerProspectorTarget = ownerAuthorizedProspectorRebuildTarget(
-    guardState,
-    ownerDirectiveForAction,
-  );
-  if (action === 'produce' && ownerProspectorPoolTarget) {
-    return {
-      ok: false,
-      guard: true,
-      reason: 'every enrolled Prospector target is reserved for REBUILD and cannot receive production',
-      ...(ownerProspectorEligible ? {
-        requiredAction: { action: 'rebuild', buildingId: Number(checked.params.buildingId), confirm: false },
-      } : {}),
-    };
-  }
-  if (action === 'rebuild' && ownerProspectorPoolTarget && !ownerProspectorEligible) {
-    if (Number.isSafeInteger(selectedOwnerProspectorTarget) &&
-        selectedOwnerProspectorTarget !== Number(checked.params.buildingId)) {
-      return {
-        ok: false,
-        guard: true,
-        reason: `the owner-authorized Prospector campaign selected building ${selectedOwnerProspectorTarget}; building ${Number(checked.params.buildingId)} is enrolled but is not the current one-use target`,
-        requiredTool: 'rebuild',
-        requiredAction: {
-          action: 'rebuild',
-          buildingId: selectedOwnerProspectorTarget,
-          confirm: false,
-        },
-        ownerDirectivePriority: true,
-        councilRequired: false,
-      };
-    }
-    return {
-      ok: false,
-      guard: true,
-      reason: 'the owner-authorized Prospector target lacks fresh exact one-use authorization; refresh state instead of submitting this campaign action to Council',
-      requiredTool: 'refresh_state',
-      requiredAction: { action: 'refresh_state' },
-      ownerDirectivePriority: true,
-      councilRequired: false,
-    };
-  }
   const sequencingBlock = runtimeGuard.beforeAction(action, checked.params, {
     state: guardState,
     ownerDirective: ownerDirectiveForAction,
-    councilRequired: councilRequiredForStructuralAction(
-      action,
-      checked.params,
-      guardState,
-      ownerDirectiveForAction,
-    ),
+    councilRequired: councilRequiredForStructuralAction(action),
   });
   if (sequencingBlock) return sequencingBlock;
 
@@ -427,20 +367,6 @@ function runAction(action, rawParams) {
     }
   } catch (e) {
     result = { ok: false, err: String(e.message).slice(0, 300) };
-  }
-
-  if (ownerProspectorEligible && action === 'rebuild' && checked.params.confirm === false &&
-      result?.ok === true && result?.preview === true) {
-    result = {
-      ...result,
-      ownerDirectivePriority: true,
-      councilRequired: false,
-      requiredNextAction: {
-        action: 'rebuild',
-        buildingId: Number(checked.params.buildingId),
-        confirm: true,
-      },
-    };
   }
 
   if (action === 'exchange_sell') {
@@ -618,16 +544,7 @@ async function runTool(name, args) {   // identical behavior to brain.js
         review: readPaReview(path.join(BRAIN, '.pa-review.json'), pendingPa),
       });
       if (paBlock) return paBlock;
-      const ownerDirective = readOwnerDirectiveFile();
-      if (runtimeGuard.ownerAchievementBuildCount === 0) {
-        const ownerBuildBlock = ownerAchievementBuildRequirement(state, ownerDirective);
-        if (ownerBuildBlock) return ownerBuildBlock;
-      }
-      const utilizationBlock = buildingUtilizationJournalGate(
-        state,
-        Date.now(),
-        { ownerDirective },
-      );
+      const utilizationBlock = buildingUtilizationJournalGate(state, Date.now());
       if (utilizationBlock) return utilizationBlock;
       // The utility surplus review is optional by its own definition ("Selling is optional").
       // Live 2026-08-01 wake 11:57: it blocked the journal with two rounds left, the closing budget
@@ -696,7 +613,7 @@ async function main() {
     wakeInterval: strategyCouncilGovernance.wakeInterval,
     lastDecisionAt: strategyCouncilGovernance.lastDecisionAt,
   });
-  const ownerDirective = readPendingOwnerDirectiveForPrompt(
+  const ownerDirective = readPendingOwnerDirective(
     path.join(BRAIN, 'OWNER-DIRECTIVE.json'),
     path.join(BRAIN, '.state.json'),
   );

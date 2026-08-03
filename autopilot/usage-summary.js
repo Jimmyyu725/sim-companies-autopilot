@@ -27,6 +27,14 @@ const PRICES_PER_MILLION = Object.freeze({
       cacheWrite: 0.435,
       output: 0.87,
     }),
+    // Flash is the owner's brain model as of 2026-08-02. It prices at roughly a third of Pro on
+    // both input and output, and the cache-hit discount keeps the same ratio.
+    'deepseek-v4-flash': Object.freeze({
+      input: 0.14,
+      cached: 0.0028,
+      cacheWrite: 0.14,
+      output: 0.28,
+    }),
   }),
 });
 
@@ -45,7 +53,7 @@ function firstPresent(sources) {
 
 function normalizeModel(model) {
   const value = String(model || '');
-  for (const known of ['gpt-5.6-terra', 'gpt-5.6-luna', 'deepseek-v4-pro']) {
+  for (const known of ['gpt-5.6-terra', 'gpt-5.6-luna', 'deepseek-v4-pro', 'deepseek-v4-flash']) {
     if (value === known || value.startsWith(`${known}-`)) return known;
   }
   return null;

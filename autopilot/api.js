@@ -6,10 +6,6 @@
 const path = require('path');
 const cdp = require(path.join(__dirname, '..', 'shared', 'cdp.js'));
 const { formatApiResponse } = require('./api-result.js');
-const {
-  PROSPECTOR_OVERVIEW_PATH,
-  recordOwnerProspectorOverview,
-} = require('./owner-directive.js');
 let options;
 try {
   const raw = process.argv[2] || '';
@@ -38,14 +34,6 @@ if (!p || !p.startsWith('/api/')) { console.log(JSON.stringify({ ok: false, path
       /^\/api\/v2\/companies\/me\/buildings\/|^\/api\/v3\/resources\//.test(p)) {
     result.hint = 'this endpoint rejects in-page fetch by design; its data is already in ' +
       'refresh_state output (buildings/stock) — do not re-probe it through read_api';
-  }
-  if (p === PROSPECTOR_OVERVIEW_PATH) {
-    const ownerDirectiveEvidence = recordOwnerProspectorOverview(
-      path.join(__dirname, 'OWNER-DIRECTIVE.json'),
-      { path: p, status: r.status, fetchedAt, data: r.json },
-      Date.now(),
-    );
-    if (ownerDirectiveEvidence) result.ownerDirectiveEvidence = ownerDirectiveEvidence;
   }
   console.log(JSON.stringify(result));
   cdp.close(); process.exit(0);

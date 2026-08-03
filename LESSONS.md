@@ -162,3 +162,19 @@ touches money.**
 - Before any `pkill` or background browser command: re-read section B.
 - Before ranking industries or "fixing" a surplus: re-read section C + DOCTRINE Rule 4d.
 - When a new mistake costs time or money: add a row here the same session, with the fix.
+
+**C4 — a cron line with relative paths fails silently, and "remember the `cd`" is not a defence.**
+Added an every-minute upgrade loop as
+`* * * * * timeout 280 flock -w 25 .tick.lock node autopilot/auto-upgrade.js >> autopilot/auto-upgrade.log 2>&1`.
+Cron runs from `$HOME`, so the lock, the script and the log all resolved to nothing — no output, no
+error, no log line. The failure looks exactly like "nothing needed doing", which is the worst
+possible signature for a loop whose normal state IS doing nothing. Caught only by noticing the log
+had not grown in 39 minutes.
+
+The instructive part is that this happened **twice in one evening**. It was found and fixed once,
+and then reintroduced verbatim a few hours later while re-arming the same entry after an unrelated
+bug fix. Intending to remember a prefix is not a control. **FIX: write every cron line with
+absolute paths for the lock, the interpreter, the script and the log, so the working directory
+cannot matter — then verify by running the exact line from `$HOME`, not by reading it.** A one-line
+audit over `crontab -l` that requires each entry to either `cd` first or use absolute paths turns
+the next occurrence into a visible failure instead of a silent one.

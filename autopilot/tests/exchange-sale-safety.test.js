@@ -13,7 +13,7 @@ const now = Date.parse('2026-08-02T07:30:00.000Z');
 const liquidationState = {
   t: '2026-08-02T07:29:30.000Z',
   warehouse: { complete: true, sourceRows: 14, positiveProductKinds: 10, allPositiveProductsIncluded: true },
-  sources: { stock: { status: 'ok', asOf: '2026-08-02T07:29:30.000Z', source: '/api/v3/resources/5714348/' } },
+  sources: { stock: { status: 'ok', asOf: '2026-08-02T07:29:30.000Z', source: '/api/v3/resources/900100/' } },
   stock: [{ kind: 1, name: 'power', amount: 8621, availableAmount: 8621, blockedAmount: 0, known: true }],
   // surplusPlan deliberately absent — the Coffee chain no longer exists to reserve for
 };

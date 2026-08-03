@@ -68,7 +68,7 @@ function withFakeRetailDom(t, bodyText) {
       return [];
     },
   };
-  global.location = { pathname: '/b/54959779/' };
+  global.location = { pathname: '/b/900200/' };
   global.getComputedStyle = () => ({ pointerEvents: 'auto' });
   t.after(() => {
     global.document = originals.document;
@@ -80,7 +80,7 @@ function withFakeRetailDom(t, bodyText) {
 test('enabled quantity and price inputs bind an exact Grocery idle card', t => {
   withFakeRetailDom(t,
     'COFFEE POWDER Stock: 176 Profit per unit: $13.89 QUANTITY ALL PRICE AVG PRICE');
-  const evidence = readBuildingPageActivity({ expectedPath: '/b/54959779/' });
+  const evidence = readBuildingPageActivity({ expectedPath: '/b/900200/' });
   assert.equal(evidence.pathMatches, true);
   assert.equal(evidence.retailOrderAvailable, true);
   assert.equal(evidence.productionOrderAvailable, false);
@@ -94,7 +94,7 @@ test('enabled quantity and price inputs bind an exact Grocery idle card', t => {
 test('retail sale and construction markers outrank an available form', t => {
   withFakeRetailDom(t,
     'STORE IS SELLING COFFEE POWDER QUANTITY ALL PRICE AVG PRICE');
-  const sale = readBuildingPageActivity({ expectedPath: '/b/54959779/' });
+  const sale = readBuildingPageActivity({ expectedPath: '/b/900200/' });
   assert.equal(classifyPageActivity(sale).type, 'sale');
   assert.equal(classifyPageActivity({ ...sale, construction: true }).type, 'construction');
   assert.deepEqual(classifyPageActivity({
@@ -108,17 +108,17 @@ test('retail sale and construction markers outrank an available form', t => {
 test('inspection validation rejects route, level, freshness, and evidence mismatches', () => {
   const now = Date.parse('2026-07-27T10:20:00.000Z');
   const pageEvidence = {
-    path: '/b/54959779/', pathMatches: true,
+    path: '/b/900200/', pathMatches: true,
     construction: false, retailSale: true, orderBusy: false, collectible: false,
     productionOrderAvailable: false, retailOrderAvailable: false, retailCards: [],
   };
   const inspection = buildPageActivityInspection({
-    buildingId: 54959779,
+    buildingId: 900200,
     level: 2,
     observedAt: new Date(now).toISOString(),
     pageEvidence,
   });
-  const building = { id: 54959779, size: 2, category: 'sales' };
+  const building = { id: 900200, size: 2, category: 'sales' };
   assert.equal(validatePageActivityInspection(building, inspection, now).type, 'sale');
   assert.equal(validatePageActivityInspection({ ...building, size: 3 }, inspection, now), null);
   assert.equal(validatePageActivityInspection(building, {

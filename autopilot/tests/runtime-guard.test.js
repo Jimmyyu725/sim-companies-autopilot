@@ -484,16 +484,16 @@ assert.equal(missingCandidate.prepareStrategyCouncil({ options: candidateOptions
 const farmReviewAt = Date.parse('2026-08-01T02:49:49.494Z');
 const farmReviewState = {
   t: new Date(farmReviewAt).toISOString(),
-  buildings: [{ id: 55518748, name: 'Farm', size: 1, busy: null }],
+  buildings: [{ id: 900203, name: 'Farm', size: 1, busy: null }],
 };
 const farmUpgradePreview = {
-  buildingId: 55518748,
+  buildingId: 900203,
   maxCost: 20000,
   minCashAfter: 5000,
   confirm: false,
 };
 const farmProduction = {
-  buildingId: 55518748,
+  buildingId: 900203,
   name: 'COFFEE BEANS',
   qty: 3080,
   targetHours: 6,
@@ -503,7 +503,7 @@ const farmUpgradeOption = {
   id: 'upgrade-farm-l1',
   label: 'Upgrade Farm L1 to L2.',
   action: 'upgrade',
-  buildingId: 55518748,
+  buildingId: 900203,
   target: 'farm',
 };
 const farmHoldOption = {
@@ -542,7 +542,7 @@ failedFarmReview.afterAction('upgrade', farmUpgradePreview, {
   ok: true, dry: true, preview: true, cashCost: 11000,
 });
 failedFarmReview.noteStrategyCouncil({}, {
-  focusBuildingId: 55518748,
+  focusBuildingId: 900203,
   options: [farmHoldOption, farmUpgradeOption],
 });
 assert.match(failedFarmReview.beforeAction('produce', farmProduction, {
@@ -558,7 +558,7 @@ assert.match(failedFarmReview.beforeAction('produce', {
 }, { state: farmReviewState }).reason, /bridge of at most one hour/);
 const levelThreeFarmState = {
   ...farmReviewState,
-  buildings: [{ id: 55518748, name: 'Farm', size: 3, busy: null }],
+  buildings: [{ id: 900203, name: 'Farm', size: 3, busy: null }],
 };
 assert.equal(new WakeRuntimeGuard().beforeAction('produce', farmProduction, {
   state: levelThreeFarmState,
@@ -693,14 +693,14 @@ console.log('runtime-guard tests passed');
 const crosstalk = new WakeRuntimeGuard();
 authorizeStrategy(crosstalk, {
   id: 'upgrade_farm_55518748',
-  label: 'Upgrade Farm 55518748 to level 2.',
+  label: 'Upgrade Farm 900203 to level 2.',
   action: 'upgrade',
-  buildingId: 55518748,
+  buildingId: 900203,
   target: 'farm',
 });
 // A rebuild of an unrelated Quarry executes without touching the selected upgrade.
-assert.equal(crosstalk.afterAction('rebuild', { buildingId: 55538609, confirm: true }, {
-  ok: true, clicked: true, newBuildingId: 55545964,
+assert.equal(crosstalk.afterAction('rebuild', { buildingId: 900204, confirm: true }, {
+  ok: true, clicked: true, newBuildingId: 900205,
 }), true);
 assert.equal(crosstalk.strategyCouncilStatus().decision.consumed, false,
   'unrelated rebuild confirm must not consume the selected upgrade direction');
@@ -708,18 +708,18 @@ crosstalk.noteRefresh();
 // The selected upgrade must still be executable: preview + council + confirm passes the
 // consumed-direction gate (null = no guard objection from beforeAction).
 crosstalk.afterAction('upgrade',
-  { buildingId: 55518748, maxCost: 50000, minCashAfter: 5000, confirm: false },
+  { buildingId: 900203, maxCost: 50000, minCashAfter: 5000, confirm: false },
   { ok: true, dry: true, preview: true, cashCost: 7652 });
 assert.equal(crosstalk.noteCouncil(validCouncilResult('APPROVE', 'OK'), {
-  proposal: 'Upgrade Farm 55518748 within the previewed limits.',
-  buildingId: 55518748,
+  proposal: 'Upgrade Farm 900203 within the previewed limits.',
+  buildingId: 900203,
 }).ok, true);
 assert.equal(crosstalk.beforeAction('upgrade',
-  { buildingId: 55518748, maxCost: 50000, minCashAfter: 5000, confirm: true },
+  { buildingId: 900203, maxCost: 50000, minCashAfter: 5000, confirm: true },
   { councilRequired: true }), null);
 // And a MATCHED confirm still consumes the direction (one-use preserved).
 crosstalk.afterAction('upgrade',
-  { buildingId: 55518748, maxCost: 50000, minCashAfter: 5000, confirm: true },
+  { buildingId: 900203, maxCost: 50000, minCashAfter: 5000, confirm: true },
   { ok: false, reason: 'commit outcome is ambiguous', mutationAttempted: true, doNotRetry: true });
 assert.equal(crosstalk.strategyCouncilStatus().decision.consumed, true,
   'a matched confirm attempt must still consume the one-use direction');
@@ -732,13 +732,13 @@ assert.equal(crosstalk.strategyCouncilStatus().decision.consumed, true,
 const authDeadlockAt = Date.parse('2026-08-01T09:40:00.000Z');
 const authDeadlockState = {
   t: new Date(authDeadlockAt).toISOString(),
-  buildings: [{ id: 55518748, name: 'Farm', size: 1, busy: null }],
+  buildings: [{ id: 900203, name: 'Farm', size: 1, busy: null }],
 };
 const authDeadlockUpgrade = {
-  buildingId: 55518748, maxCost: 50000, minCashAfter: 5000, confirm: false,
+  buildingId: 900203, maxCost: 50000, minCashAfter: 5000, confirm: false,
 };
 const authDeadlockBridge = {
-  buildingId: 55518748,
+  buildingId: 900203,
   name: 'SEEDS',
   qty: 917,
   targetHours: 1,
@@ -749,7 +749,7 @@ authorizeStrategy(authDeadlock, {
   id: 'upgrade-farm-l1',
   label: 'Upgrade Farm L1 to L2.',
   action: 'upgrade',
-  buildingId: 55518748,
+  buildingId: 900203,
   target: 'farm',
 }, farmHoldOption);
 // Before any authorization failure the selected upgrade still outranks production.
@@ -762,7 +762,7 @@ for (let attempt = 0; attempt < 2; attempt += 1) {
     { ok: true, dry: true, preview: true, cashCost: 7663 });
   const refusal = authDeadlock.noteCouncil({
     structuralAuthorization: { ok: false, reason: 'COO did not provide a validated non-rejecting verdict' },
-  }, { buildingId: 55518748, proposal: 'Upgrade Farm 55518748 within the previewed limits.' });
+  }, { buildingId: 900203, proposal: 'Upgrade Farm 900203 within the previewed limits.' });
   assert.equal(refusal.ok, false);
   authDeadlock.noteRefresh();
 }
@@ -811,7 +811,7 @@ assert.equal(closingBudgetDirective(1, {
 const holdBlockedAt = Date.parse('2026-08-01T16:58:23.386Z');
 const holdBlockedState = {
   t: new Date(holdBlockedAt).toISOString(),
-  buildings: [{ id: 55345580, name: 'Farm', size: 2, busy: null }],
+  buildings: [{ id: 900202, name: 'Farm', size: 2, busy: null }],
 };
 const holdBlocked = new WakeRuntimeGuard();
 authorizeStrategy(holdBlocked, {
@@ -829,7 +829,7 @@ authorizeStrategy(holdBlocked, {
 });
 // A long order is still refused, and the refusal states the exact latest checkpoint.
 const longOrder = holdBlocked.beforeAction('produce', {
-  buildingId: 55345580, name: 'SEEDS', qty: 14500, targetHours: 8, finishBefore: null,
+  buildingId: 900202, name: 'SEEDS', qty: 14500, targetHours: 8, finishBefore: null,
 }, { state: holdBlockedState });
 assert.match(longOrder.reason, /cannot be previewed/);
 assert.equal(longOrder.requiredParameter, 'finishBefore');
@@ -837,7 +837,7 @@ assert.equal(longOrder.latestAllowedFinishBefore,
   new Date(holdBlockedAt + 60 * 60 * 1000).toISOString());
 // The bounded bridge is allowed, so the Farm can work while the upgrade waits for the next wake.
 assert.equal(holdBlocked.beforeAction('produce', {
-  buildingId: 55345580,
+  buildingId: 900202,
   name: 'SEEDS',
   qty: 1800,
   targetHours: 1,
@@ -859,25 +859,23 @@ assert.equal(closingBudgetActive(Number.POSITIVE_INFINITY), false,
   'an untracked wake must keep every gate');
 assert.equal(closingBudgetActive(1.5), false);
 
-// Owner directive 2026-08-02: the Prospector campaign is retired and the company is back on
-// Coffee. Extraction sites carry no special standing any more — the guard that used to refuse
-// production on an idle level-1 Quarry (so it stayed scrappable) must be gone, or a Quarry left
-// standing after the pivot would be permanently unable to work.
+// Extraction sites carry no special standing: no guard may refuse production on an idle level-1
+// Quarry to keep it scrappable, or a Quarry the company happens to own could never be worked.
 const retiredCampaignState = {
   t: '2026-08-03T01:42:26.000Z',
   buildings: [
-    { id: 55599317, name: 'Quarry', size: 1, busy: null },
-    { id: 55042846, name: 'Mill', size: 3, busy: null },
+    { id: 900206, name: 'Quarry', size: 1, busy: null },
+    { id: 900006, name: 'Mill', size: 3, busy: null },
   ],
 };
 const retiredCampaignRuntime = new WakeRuntimeGuard();
 assert.equal(retiredCampaignRuntime.beforeAction('produce',
-  { buildingId: 55599317, name: 'sand', qty: 5000 },
+  { buildingId: 900206, name: 'sand', qty: 5000 },
   { state: retiredCampaignState }), null,
 'a level-1 Quarry produces like any other building once the campaign is retired');
 // A stale directive carrying the old campaign block must not revive the reservation either.
 assert.equal(retiredCampaignRuntime.beforeAction('produce',
-  { buildingId: 55599317, name: 'sand', qty: 5000 },
+  { buildingId: 900206, name: 'sand', qty: 5000 },
   {
     state: retiredCampaignState,
     ownerDirective: { prospectorExperiment: { campaign: { status: 'active' } } },
@@ -916,7 +914,7 @@ assert.match(wrongField.reason, /`options` field/);
 const baselineOnly = shapeGuard.prepareStrategyCouncil({
   options: [
     { id: 'hold', name: 'Hold', action: 'hold', buildingId: null, target: null },
-    { id: 'water_l2', name: 'Upgrade Water', action: 'upgrade', buildingId: 55644143, target: 'water reservoir' },
+    { id: 'water_l2', name: 'Upgrade Water', action: 'upgrade', buildingId: 900002, target: 'water reservoir' },
   ],
 });
 assert.equal(baselineOnly.ok, false);

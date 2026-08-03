@@ -150,8 +150,8 @@ function buildingUtilizationJournalGate(state, nowMs = Date.now(), options = {})
       })),
     };
   }
-  // Every operational building is ordinary capacity again. The Prospector campaign used to reserve
-  // idle level-1 extraction sites here so they stayed scrappable; the owner retired it 2026-08-02.
+  // Every operational building is ordinary capacity. Extraction sites carry no special standing:
+  // nothing reserves an idle one, so an idle Quarry would be treated like any other idle building.
   const idleBuildings = inspection.idleBuildings;
   if (!idleBuildings.length && !inspection.completedBuildings.length) return null;
 

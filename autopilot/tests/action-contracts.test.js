@@ -29,7 +29,7 @@ test('publishes one typed tool per action with no extra fields', () => {
 
 test('accepts valid production parameters and rejects guessed field names', () => {
   assert.equal(validateActionParams('produce', {
-    buildingId: 54959369,
+    buildingId: 900003,
     name: 'SEEDS',
     qty: 10000,
     targetHours: null,
@@ -51,13 +51,13 @@ test('rejects string booleans so "false" can never become a confirmed mutation',
 });
 
 test('rebuild exposes only an exact building id and an explicit confirmation bit', () => {
-  assert.deepEqual(validateActionParams('rebuild', { buildingId: 55258164, confirm: false }), {
+  assert.deepEqual(validateActionParams('rebuild', { buildingId: 900201, confirm: false }), {
     ok: true,
-    params: { buildingId: 55258164, confirm: false },
+    params: { buildingId: 900201, confirm: false },
   });
   assert.equal(validateActionParams('rebuild', { buildingId: 0, confirm: true }).ok, false);
   assert.equal(validateActionParams('rebuild', {
-    buildingId: 55258164,
+    buildingId: 900201,
     building: 'Quarry',
     confirm: true,
   }).ok, false);
@@ -206,7 +206,7 @@ test('PA reply is fingerprint-bound and requires a guide reconciliation', () => 
 // refusal must name the working combination: targetHours:null bounded by finishBefore.
 test('sub-hour targetHours refusal names the finishBefore bridge combination', () => {
   const refused = validateActionParams('produce', {
-    buildingId: 55518748,
+    buildingId: 900203,
     name: 'Seeds',
     qty: 229,
     targetHours: 0.25,
@@ -219,7 +219,7 @@ test('sub-hour targetHours refusal names the finishBefore bridge combination', (
 
   // The named combination itself is accepted by the contract.
   const accepted = validateActionParams('produce', {
-    buildingId: 55518748,
+    buildingId: 900203,
     name: 'Seeds',
     qty: 229,
     targetHours: null,

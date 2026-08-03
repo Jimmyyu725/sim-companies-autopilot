@@ -601,8 +601,7 @@ function isApprovedRollingMillUpgrade(state, params = {}) {
     mills.every(building => Number.isInteger(Number(building?.size)) && Number(building.size) <= 3);
 }
 
-// Every structural action needs council now. The Prospector campaign used to exempt its REBUILD
-// and target-pool enrolment; the owner retired it on 2026-08-02 and no exemption replaced it.
+// Every structural action needs council. There is no exemption for any action or building type.
 function councilRequiredForStructuralAction(action) {
   return STRUCTURAL_ACTIONS.has(action);
 }
@@ -948,9 +947,9 @@ class WakeRuntimeGuard {
           // The preview requirement is only reachable while an upgrade preview is still legal. Once
           // this wake holds a validated decision for a DIFFERENT direction the direction gate
           // refuses the preview itself, and the wake can no longer be re-rolled — demanding a
-          // preview then leaves the Farm with no legal move at all. Live 2026-08-01 wake 11:57: a
-          // safety hold that never considered Farm 55345580 blocked its preview, its production and
-          // a fresh council in turn, and the Farm sat idle. Allow the bounded checkpoint bridge.
+          // preview then leaves the Farm with no legal move at all. Observed live: a safety hold
+          // that never considered a particular Farm blocked its preview, its production and a fresh
+          // council in turn, and the Farm sat idle. Allow the bounded checkpoint bridge.
           const decisionBlocksPreview = this.strategyCouncilCompleted && decision &&
             !strategyDecisionMatchesAction(decision, 'upgrade', { buildingId });
           const capturedAtMsForHold = Date.parse(options?.state?.t);

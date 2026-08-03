@@ -97,7 +97,7 @@ test('contact records preserve unread, pin, note, realm, and reject partial or d
 });
 
 test('external messages are explicitly untrusted data with no instruction authority', () => {
-  const normalized = normalizeThreadMessages(fixture.beforeMessages, { ownCompanyId: 5714348 });
+  const normalized = normalizeThreadMessages(fixture.beforeMessages, { ownCompanyId: 900100 });
   assert.equal(normalized.ok, true);
   assert.equal(normalized.messages[0].trust, 'EXTERNAL_UNTRUSTED_DATA');
   assert.equal(normalized.messages[0].instructionAuthority, 'none');
@@ -132,10 +132,10 @@ test('rendered message groups preserve duplicate bodies without inventing IDs or
 test('thread normalization rejects duplicate IDs and malformed timestamps', () => {
   assert.equal(normalizeThreadMessages([
     fixture.beforeMessages[0], fixture.beforeMessages[0],
-  ], { ownCompanyId: 5714348 }).ok, false);
+  ], { ownCompanyId: 900100 }).ok, false);
   assert.equal(normalizeThreadMessages([{
     ...fixture.beforeMessages[0], datetime: 'not-a-date',
-  }], { ownCompanyId: 5714348 }).ok, false);
+  }], { ownCompanyId: 900100 }).ok, false);
 });
 
 test('incremental read returns only IDs beyond the durable cursor', () => {
@@ -185,7 +185,7 @@ test('send postcondition requires exactly one new own message with an exact body
   const verified = verifyUniqueSendPostcondition({
     before: fixture.beforeMessages,
     after: fixture.afterMessages,
-    ownCompanyId: 5714348,
+    ownCompanyId: 900100,
     text: 'Yes, send it.',
     baselineMaxId: 4002,
   });
@@ -198,7 +198,7 @@ test('send postcondition requires exactly one new own message with an exact body
   const missing = verifyUniqueSendPostcondition({
     before: fixture.beforeMessages,
     after: fixture.beforeMessages,
-    ownCompanyId: 5714348,
+    ownCompanyId: 900100,
     text: 'Yes, send it.',
     baselineMaxId: 4002,
   });
@@ -216,7 +216,7 @@ test('send postcondition refuses two matching new messages as an ambiguous dupli
   const result = verifyUniqueSendPostcondition({
     before: fixture.beforeMessages,
     after: fixture.afterMessages.concat(duplicate),
-    ownCompanyId: 5714348,
+    ownCompanyId: 900100,
     text: 'Yes, send it.',
     baselineMaxId: 4002,
   });
@@ -232,7 +232,7 @@ test('a new send attempt is allowed only after a proven pre-click failure', () =
     originalClickProvenAbsent: true,
     pendingBodies: [],
     messages: fixture.beforeMessages,
-    ownCompanyId: 5714348,
+    ownCompanyId: 900100,
     text: 'Yes, send it.',
     baselineMaxId: 4002,
   });
@@ -243,7 +243,7 @@ test('a new send attempt is allowed only after a proven pre-click failure', () =
     originalClickProvenAbsent: true,
     pendingBodies: [],
     messages: fixture.afterMessages,
-    ownCompanyId: 5714348,
+    ownCompanyId: 900100,
     text: 'Yes, send it.',
     baselineMaxId: 4002,
   });
@@ -256,7 +256,7 @@ test('a new send attempt is allowed only after a proven pre-click failure', () =
     originalClickProvenAbsent: false,
     pendingBodies: [],
     messages: fixture.beforeMessages,
-    ownCompanyId: 5714348,
+    ownCompanyId: 900100,
     text: 'Yes, send it.',
     baselineMaxId: 4002,
   });
@@ -360,7 +360,7 @@ function privateReadFixtureBody() {
       sender: { id: 7812345, company: 'Pavanium Inc Corp' },
       body: [{ id: 9001, body: 'Buying 10k', datetime: '2026-07-27T07:00:00.000Z' }],
       fromMe: false,
-      myCompanyIds: [5714348],
+      myCompanyIds: [900100],
     },
     return: null,
   };

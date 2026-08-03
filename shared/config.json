@@ -1,85 +1,41 @@
 {
-  "companyId": 5714348,
-  "farmId": 55042846,
-  "storeId": 55042846,
-  "minCash": 5000,
-  "farmInputFloor": 500,
-  "factoryInputFloor": 2500,
+  "companyId": 5742177,
+  "companyName": "XaiverCoffee",
+  "realmId": 0,
+  "farmId": 55693034,
+  "storeId": 55692959,
+  "minCash": 1000,
+  "farmInputFloor": 200,
+  "factoryInputFloor": 500,
+  "_note": "Founded 2026-08-03. Buildings: 55693034 Farm, 55692919 Farm, 55692959 Grocery store. Four standard slots until company level 5; no purchased extra slots.",
   "storeProducts": [
-    {
-      "name": "APPLES",
-      "kind": 3,
-      "avgPrice": 5.37,
-      "_asOf": "2026-07-21T23:54:43.794Z"
-    },
-    {
-      "name": "ORANGES",
-      "kind": 4,
-      "avgPrice": 6.19,
-      "_asOf": "2026-07-21T23:54:43.794Z"
-    },
-    {
-      "name": "GRAPES",
-      "kind": 5,
-      "avgPrice": 7.27,
-      "_asOf": "2026-07-21T23:54:43.794Z"
-    },
     {
       "name": "COFFEE POWDER",
       "kind": 119,
-      "avgPrice": 44.71,
-      "_asOf": "2026-07-21T23:54:43.794Z"
+      "retailPrice": 45.58,
+      "unitsPerHourAtL1": 92.36,
+      "revenueLessWagesPerUnit": 41.04,
+      "_asOf": "2026-08-03T21:30:00.000Z",
+      "_source": "encyclopedia SALES CALCULATOR at this company's parameters; units/hour is during the 3x founding acceleration"
     },
     {
-      "name": "APPLE PIE",
-      "kind": 123,
-      "avgPrice": 354.41,
-      "_asOf": "2026-07-21T23:54:43.794Z"
-    },
-    {
-      "name": "CHOCOLATE",
-      "kind": 140,
-      "avgPrice": 301.51,
-      "_asOf": "2026-07-21T23:54:43.794Z"
-    },
-    {
-      "name": "CHEESE",
-      "kind": 122,
-      "avgPrice": 151.95,
-      "_asOf": "2026-07-21T23:54:43.794Z"
-    },
-    {
-      "name": "STEAK",
-      "kind": 7,
-      "avgPrice": 57.314,
-      "_asOf": "2026-07-23T20:56:41.052Z"
-    },
-    {
-      "name": "SAUSAGES",
-      "kind": 8,
-      "avgPrice": 16.618,
-      "_asOf": "2026-07-23T20:56:41.052Z"
+      "name": "APPLES",
+      "kind": 3,
+      "exchangePrice": 2.6,
+      "_asOf": "2026-08-03T21:30:00.000Z",
+      "_source": "encyclopedia; currently the only product this company retails"
     }
   ],
   "printedRates": {
-    "3": 618.94,
-    "4": 569.43,
-    "5": 495.16,
-    "6": 2475.78,
-    "7": 26.19,
-    "8": 78.58,
-    "40": 792.25,
-    "66": 2723.35,
-    "72": 1980.62,
-    "106": 235.2,
-    "118": 1527.8,
-    "119": 18.04,
-    "120": 866.52,
-    "133": 89.03,
-    "136": 519.91,
-    "139": 290.51,
-    "146": 420.88,
-    "_asOf": "2026-07-25T00:37:57.315Z",
-    "_source": "Historical measured fallback only; fresh per-building inspection evidence wins."
+    "_asOf": null,
+    "_source": "Empty by design. The previous company's measured rates do not apply here: this company is level 1 and every building is level 1. Populate only from fresh inspect_building evidence on buildings this company owns.",
+    "_encyclopediaL1During3x": {
+      "1": 7700.83,
+      "2": 4879.29,
+      "66": 2668.89,
+      "118": 1237.39,
+      "119": 68.88,
+      "_note": "Encyclopedia rates for a level-1 building during the 3x acceleration that expires 2026-08-04T21:26:47Z. Divide by 3 for the base rate. Reference only; a live building page always wins."
+    }
   }
 }

@@ -15,9 +15,6 @@ This is the canonical active runtime for the Sim Companies operator.
 - `brain.js` — active DeepSeek V4 Flash Chat Completions engine.
 - `brain56.js` — retained OpenAI Terra Responses API rollback engine.
 - `state.js` and `state-helpers.js` — deterministic live-state capture and normalization.
-- `company-value.js` and `company-value-recorder.js` — per-wake estimated company value using the
-  game's balance-sheet equation, live assets/liabilities, and the prior UTC day's tracked VWAP at
-  the game's 85% inventory liquidation factor. The official daily value remains separately labeled.
 - `coffee-reserve-policy.js` and `inspection-rate-cache.js` — fail-closed 24-hour Coffee-chain
   reserves based on fresh, level-matched rates and modifier-expiry evidence for every Mill.
 - `inspect-exchange-sale.js`, `exchange-sale-helpers.js`, and `exchange-sale-safety.js` — read-only
@@ -55,13 +52,10 @@ This is the canonical active runtime for the Sim Companies operator.
 Runtime state and logs also live here: `CURRENT.json`, `.state.json`, `.inspection-rates.json`,
 `.exchange-sale-inspections.json` (isolated by resource kind), `next-wake.json`, `.last-wake.json`, `brain.log`, `gate.log`,
 per-call `usage.jsonl`, per-wake `wake-usage.jsonl`, `strategy-council-history.jsonl`,
-`.brain.lock`, and ignored
-`metrics/company-value-{current.json,history.jsonl}`.
+`.brain.lock`.
 
 Each `diaries/diary-*.md` ends with an automatically generated token and estimated API-cost summary. The
-summary includes main-brain and council calls and is appended before Windows synchronization. A
-closing browser snapshot also appends that wake's real-time company-value estimate, official daily
-comparison, confidence, inventory coverage, and limitations to the same diary.
+summary includes main-brain and council calls and is appended before Windows synchronization.
 The active runner uses DeepSeek `max` or retained OpenAI `high`, both with low visible verbosity.
 
 ## Safety

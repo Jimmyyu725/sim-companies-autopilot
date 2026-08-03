@@ -48,21 +48,22 @@ test('a diary is initialized before state capture and failure still gets summari
   assert.ok(diaryInitialization >= 0 && diaryInitialization < stateCapture);
   assert.ok(failureStart >= 0 && brainStart > failureStart);
   assert.match(failureBranch, /STATE CAPTURE FAILED/);
-  assert.match(failureBranch, /record_company_value/);
   assert.match(failureBranch, /--diary=\$DIARY_FILE/);
   assert.match(failureBranch, /sync-windows-logs\.sh/);
   assert.match(failureBranch, /no model call and no game action were attempted/);
 });
 
-test('the closing company-value record uses a final locked state capture before Windows sync', () => {
+// The company-value estimator was removed on 2026-08-03, but the ordering it depended on still
+// matters: the closing state capture must land after the brain and before the Windows sync, or the
+// synced diary describes the opening position instead of the closing one.
+test('a final locked state capture runs after the brain and before Windows sync', () => {
   const runner = read('autopilot/run-brain.sh');
   const brainStart = runner.indexOf('node "${BRAIN_JS:-autopilot/brain.js}"');
-  const finalCapture = runner.indexOf('final company-value state capture');
-  const recorder = runner.lastIndexOf('record_company_value');
+  const finalCapture = runner.indexOf('final closing state capture');
   const windowsSync = runner.lastIndexOf('sync-windows-logs.sh');
 
   assert.ok(brainStart >= 0 && finalCapture > brainStart);
-  assert.ok(recorder > finalCapture);
-  assert.ok(windowsSync > recorder);
+  assert.ok(windowsSync > finalCapture);
   assert.match(runner, /flock -w 90 \.tick\.lock node "\$AUTOPILOT\/state\.js"/);
+  assert.ok(!runner.includes('record_company_value'), 'the recorder must stay gone');
 });

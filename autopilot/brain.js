@@ -325,6 +325,7 @@ const TOOLS = [
   { type: 'function', function: { name: 'master', description: 'After set_alarm, append one audit line to MASTER.md and atomically replace CURRENT.json. cash, debt, slots, stateAsOf, and nextDecisionAt are runtime-validated; concise warehouse, upgrade/debt, surplus, and long-term reviews are required. Mandatory once after the latest mutation.', parameters: { type: 'object', additionalProperties: false, properties: { text: { type: 'string', minLength: 1, maxLength: 1200 }, current: currentMemorySchema }, required: ['text', 'current'] } } },
   { type: 'function', function: { name: 'read_api', description: 'Read a game API path with source time, HTTP status, explicit pagination, and explicit truncation metadata. Use pointer/offset/limit to narrow large responses.', parameters: { type: 'object', additionalProperties: false, properties: { path: { type: 'string' }, pointer: { type: 'string', description: 'Optional RFC 6901 JSON Pointer, for example /data/0.' }, offset: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 1, maximum: 100 } }, required: ['path'] } } },
   { type: 'function', function: { name: 'inspect_building', description: 'P1 read-only inspection of one building page. Returns live printed level, production rates and wages; optionally quote one product quantity without starting it. Use null for both product and qty when no quote is needed.', parameters: { type: 'object', additionalProperties: false, properties: { buildingId: { type: 'integer', minimum: 1 }, product: { type: ['string', 'null'] }, qty: { type: ['number', 'null'], exclusiveMinimum: 0 } }, required: ['buildingId', 'product', 'qty'] } } },
+  { type: 'function', function: { name: 'inspect_buildings', description: 'P1 read-only inspection of two to eight building pages in ONE call. Same evidence per building as inspect_building without the quote. Prefer this whenever more than one building needs reading: one call replaces one full round trip per building.', parameters: { type: 'object', additionalProperties: false, properties: { buildingIds: { type: 'array', minItems: 2, maxItems: 8, items: { type: 'integer', minimum: 1 } } }, required: ['buildingIds'] } } },
   { type: 'function', function: { name: 'inspect_exchange_sale', description: 'Read-only exchange-sale inspection. Verifies the current deterministic reserve, live book, 4% fee and Transport, then fills but never submits the exact UI form. Use qty:null for the maximum currently safe quantity. A confirmed exchange_sell must exactly match this result within five minutes.', strict: true, parameters: { type: 'object', additionalProperties: false, properties: { kind: { type: 'integer', minimum: 1 }, qty: { type: ['integer', 'null'], minimum: 1 } }, required: ['kind', 'qty'] } } },
   { type: 'function', function: { name: 'rank_mill_upgrades', description: 'Compare two or three evidence-backed next-step Mill upgrades without considering current cash. Returns a unique recommendation only when one candidate Pareto-dominates all alternatives on added rate, cost, downtime, and downtime output loss.', parameters: { type: 'object', additionalProperties: false, properties: { candidates: { type: 'array', minItems: 2, maxItems: 3, items: { type: 'object', additionalProperties: false, properties: { buildingId: { type: 'integer', minimum: 1 }, currentLevel: { type: 'integer', minimum: 1, maximum: 2 }, currentRate: { type: 'number', exclusiveMinimum: 0 }, productionIncreasePct: { type: 'number', exclusiveMinimum: 0 }, cashCost: { type: 'number', exclusiveMinimum: 0 }, downtimeHours: { type: 'number', exclusiveMinimum: 0 }, evidenceAsOf: { type: 'string', minLength: 1 } }, required: ['buildingId', 'currentLevel', 'currentRate', 'productionIncreasePct', 'cashCost', 'downtimeHours', 'evidenceAsOf'] } } }, required: ['candidates'] } } },
   { type: 'function', function: { name: 'strategy_council', description: 'CFO/COO/CMO independently choose among two to five explicit strategic options using fresh finance, the complete owned portfolio, market routes, bottlenecks, and automatic candidate payback evidence. Include the exact hold option. At a runtime-required portfolio checkpoint, the option set must also include at least one named expansion or pivot outside the current Coffee baseline; this is a comparison requirement, not permission to spend. Before this call, run confirm:false once for every build, upgrade, scrap, rebuild, bonds, or robots option so Council receives verified candidate terms. Runtime requires a portfolio checkpoint at least every twenty successful wakes, daily, and after material strategic changes.', strict: true, parameters: strategyCouncilToolParameters } },
@@ -431,6 +432,23 @@ async function runTool(name, args) {
       const line = out.trim().split('\n').pop();
       try { return JSON.parse(line); } catch (e) {
         return { ok: false, path: String(args.path || ''), error: 'read_api returned non-JSON output', raw: line.slice(0, 500), truncated: false };
+      }
+    }
+    if (name === 'inspect_buildings') {
+      const out = execFileSync('flock', [
+        '-w', '90', path.join(SIM, '.tick.lock'),
+        'node', path.join(BRAIN, 'inspect-building.js'), JSON.stringify(args || {}),
+      ], { cwd: SIM, timeout: 300000, encoding: 'utf8' });
+      const line = out.trim().split('\n').pop();
+      try {
+        const result = JSON.parse(line);
+        if (result?.ok === true) {
+          utilityExchangeReviews = createUtilityExchangeReviews();
+          runtimeGuard.noteEvidenceChange('inspect_buildings');
+        }
+        return result;
+      } catch (e) {
+        return { ok: false, err: 'inspect_buildings returned non-JSON output', raw: line.slice(0, 500) };
       }
     }
     if (name === 'inspect_building') {

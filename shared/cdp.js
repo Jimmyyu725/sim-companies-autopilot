@@ -170,16 +170,87 @@ async function evaluate(expr) {
   return r.result.value;
 }
 
-async function goto(url) {
+// Ceilings, deliberately the same as the waits they replace, so a slow page behaves exactly as it
+// did before. Only a fast page finishes sooner.
+const NAV_READY_CEILING_MS = 34000;
+// Raised from the 2500ms it replaced because the old code also slept a blind 4000ms BEFORE it
+// began checking readiness, so a page effectively had ~6.5s to paint. Polling starts immediately
+// now, so the settle phase needs the room. A fast page still leaves in a few hundred milliseconds.
+const SPA_SETTLE_CEILING_MS = 4000;
+const NAV_POLL_MS = 250;
+
+// The path a navigation is expected to land on. Compared rather than the whole href because the
+// app appends and rewrites query strings during boot.
+function navigationTargetPath(url) {
+  try { return new URL(String(url)).pathname.replace(/\/+$/, ''); }
+  catch (_) { return null; }
+}
+
+// Reads the one probe the wait loops need. Errors are swallowed: mid-navigation the execution
+// context is destroyed and re-created, and that is a reason to poll again, not to fail.
+async function navigationProbe() {
+  try {
+    return await evaluate(
+      'const t = ((document.body && document.body.innerText) || ""); ' +
+      'return { href: location.href, state: document.readyState, len: t.length, ' +
+      'text: t.slice(0, 4000) }');
+  } catch (_) { return null; }
+}
+
+// `expect` is a substring or RegExp the finished page must show. Text stability alone proved too
+// weak a signal: measured 2026-08-02, one building page in a batch of three settled at a stable
+// body that did not yet contain its LEVEL line, and the inspection returned a null level. A caller
+// that knows what its page must contain should say so; the ceiling is unchanged either way.
+async function goto(url, options = {}) {
   await send('Page.navigate', { url });
-  await new Promise(r => setTimeout(r, 4000));
-  for (let i = 0; i < 30; i++) {
-    const state = await evaluate('return document.readyState');
-    if (state === 'complete') break;
-    await new Promise(r => setTimeout(r, 1000));
+  const wantedPath = navigationTargetPath(url);
+  const expect = options && options.expect ? options.expect : null;
+  const matchesExpectation = (text) => {
+    if (!expect) return true;
+    return expect instanceof RegExp ? expect.test(text) : String(text).includes(String(expect));
+  };
+
+  // The old code slept a blind 4s before it started checking readyState, even though the check
+  // below is what actually decides. It also never verified WHICH page had loaded — a real hazard
+  // on this shared tab, where a stale render has previously been read as the wrong building.
+  const readyDeadline = Date.now() + NAV_READY_CEILING_MS;
+  let landed = false;
+  while (Date.now() < readyDeadline) {
+    const probe = await navigationProbe();
+    if (probe && probe.state === 'complete') {
+      const here = navigationTargetPath(probe.href);
+      // Landing on the requested path is proof. Without it, keep polling until the ceiling and
+      // then proceed anyway: callers that depend on the exact page verify it themselves, and
+      // failing here would be stricter than the behaviour this replaces.
+      if (wantedPath == null || here === wantedPath) { landed = true; break; }
+    }
+    await new Promise(r => setTimeout(r, NAV_POLL_MS));
   }
-  await new Promise(r => setTimeout(r, 2500)); // let the SPA render
-  return evaluate('return { url: location.href, title: document.title }');
+
+  // The SPA paints after readyState completes, which is why a blind 2.5s used to follow. Wait for
+  // the rendered text to stop growing instead; an unchanged non-empty body means the paint landed.
+  const settleDeadline = Date.now() + SPA_SETTLE_CEILING_MS;
+  let previousLength = -1;
+  let expectationMet = !expect;
+  while (Date.now() < settleDeadline) {
+    const probe = await navigationProbe();
+    const length = probe ? probe.len : -1;
+    const seen = probe ? matchesExpectation(probe.text || '') : false;
+    if (seen) expectationMet = true;
+    // Both signals, not either. The expectation alone released too early — measured 2026-08-02, a
+    // building page showed its LEVEL line while the wages line was still unpainted, and the
+    // inspection recorded a null wage. Stability alone is what let an unpainted page through in
+    // the first place. Requiring both is still far cheaper than the blind wait it replaces.
+    const stable = length > 0 && length === previousLength;
+    if (stable && seen) break;
+    previousLength = length;
+    await new Promise(r => setTimeout(r, 200));
+  }
+
+  const result = await evaluate('return { url: location.href, title: document.title }');
+  if (!landed) result.landedOnRequestedPath = false;
+  if (expect && !expectationMet) result.expectationMet = false;
+  return result;
 }
 
 async function shot(out) {
@@ -293,7 +364,7 @@ async function capture(url, seconds, until = null) {
   }
 }
 
-module.exports = { connect, evaluate, goto, shot, capture, captureComplete, watch, send,
+module.exports = { connect, evaluate, goto, shot, capture, captureComplete, navigationTargetPath, watch, send,
                    substituteSecretPlaceholders,
                    close: () => {
                      rejectPending(new Error('CDP connection closed by caller'));

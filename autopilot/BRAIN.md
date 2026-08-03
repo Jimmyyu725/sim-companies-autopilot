@@ -152,7 +152,10 @@ debt, inventory, or spending.
 - Inspect cash, reconciled outstanding debt, base plus purchased slots, every `stock` entry, and
   every building's activity on every wake. Do not stop at Coffee products or the triggering building.
 - Use `inspect_building` for current levels/rates and read-only quantity quotes when a capacity or
-  capital decision needs them. A successful inspection also refreshes that building's short-lived
+  capital decision needs them. When two or more buildings need reading and no quote is required,
+  use `inspect_buildings` with the whole list instead: only one tool call is allowed per message,
+  so reading them one at a time spends a full round trip per building for reads that do not depend
+  on each other. A successful inspection also refreshes that building's short-lived
   rate and temporary-modifier evidence. If `state.surplusPlan` is UNKNOWN because any Mill rate or
   modifier evidence is missing/stale, inspect every listed Mill once and then `refresh_state`;
   never invent a reserve from old mixed rates.

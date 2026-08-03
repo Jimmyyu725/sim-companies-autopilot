@@ -1,0 +1,341 @@
+{
+  "companyId": 5714348,
+  "farmId": 54959369,
+  "storeId": 54959779,
+  "mode": "profit",
+  "farmWage": 104,
+  "storeWage": 139,
+  "accelerationFactor": 1,
+  "priceSweep": [
+    0.9,
+    0.92,
+    0.94,
+    0.96,
+    0.98,
+    1,
+    1.03,
+    1.06
+  ],
+  "_comment_rates": "baseRate is the farm card's displayed /h (acceleration NOT included). storeRate and retailNet are measured from the grocery-store UI and are already real.",
+  "farmProducts": [
+    {
+      "name": "APPLES",
+      "kind": 3,
+      "baseRate": 202.19,
+      "inputs": [
+        [
+          2,
+          3
+        ],
+        [
+          66,
+          1
+        ]
+      ],
+      "retailNet": 4.98,
+      "retailAvg": 5.37,
+      "storeRate": 99,
+      "_asOf": "2026-07-22 live",
+      "_basis": "store L1, accel x3"
+    },
+    {
+      "name": "ORANGES",
+      "kind": 4,
+      "baseRate": 186.01,
+      "inputs": [
+        [
+          2,
+          3
+        ],
+        [
+          66,
+          1
+        ]
+      ],
+      "retailNet": 5.79,
+      "retailAvg": 6.19,
+      "storeRate": 90,
+      "_asOf": "2026-07-22 live",
+      "_basis": "store L1, accel x3"
+    },
+    {
+      "name": "GRAPES",
+      "kind": 5,
+      "baseRate": 161.75,
+      "inputs": [
+        [
+          2,
+          4
+        ],
+        [
+          66,
+          1
+        ]
+      ],
+      "retailNet": 6.83,
+      "retailAvg": 7.27,
+      "storeRate": 81,
+      "_asOf": "2026-07-22 live",
+      "_basis": "store L1, accel x3"
+    }
+  ],
+  "storeProducts": [
+    {
+      "name": "APPLES",
+      "kind": 3,
+      "avgPrice": 5.37,
+      "_asOf": "2026-07-21T23:54:43.794Z",
+      "_basis": "snapshot; live avg overrides"
+    },
+    {
+      "name": "ORANGES",
+      "kind": 4,
+      "avgPrice": 6.19,
+      "_asOf": "2026-07-21T23:54:43.794Z",
+      "_basis": "snapshot; live avg overrides"
+    },
+    {
+      "name": "GRAPES",
+      "kind": 5,
+      "avgPrice": 7.27,
+      "_asOf": "2026-07-21T23:54:43.794Z",
+      "_basis": "snapshot; live avg overrides"
+    },
+    {
+      "name": "COFFEE POWDER",
+      "kind": 119,
+      "avgPrice": 44.71,
+      "_asOf": "2026-07-21T23:54:43.794Z",
+      "_basis": "snapshot; live avg overrides"
+    },
+    {
+      "name": "APPLE PIE",
+      "kind": 123,
+      "avgPrice": 354.41,
+      "_asOf": "2026-07-21T23:54:43.794Z",
+      "_basis": "snapshot; live avg overrides"
+    },
+    {
+      "name": "CHOCOLATE",
+      "kind": 140,
+      "avgPrice": 301.51,
+      "_asOf": "2026-07-21T23:54:43.794Z",
+      "_basis": "snapshot; live avg overrides"
+    },
+    {
+      "name": "CHEESE",
+      "kind": 122,
+      "avgPrice": 151.95,
+      "_asOf": "2026-07-21T23:54:43.794Z",
+      "_basis": "snapshot; live avg overrides"
+    },
+    {
+      "name": "STEAK",
+      "kind": 7,
+      "avgPrice": 57.314,
+      "minStock": 60,
+      "_asOf": "2026-07-23T20:56:41.052Z",
+      "_basis": "live retail average 2026-07-23. Slaughterhouse output. Retail cap is 35 units/h (defs unitsSoldAnHour) against an exchange net of $46.66, so the store takes the premium slice and the surplus goes to the exchange."
+    },
+    {
+      "name": "SAUSAGES",
+      "kind": 8,
+      "avgPrice": 16.618,
+      "minStock": 200,
+      "_asOf": "2026-07-23T20:56:41.052Z",
+      "_basis": "live retail average 2026-07-23. Alternative Slaughterhouse product (145.6/h, retail 110/h). minStock keeps the 2 leftover PA-deal sausages from ever winning the single sales queue."
+    }
+  ],
+  "_dataPolicy": {
+    "measuredAt": "2026-07-21T23:54:43.794Z",
+    "regime": "x1 steady state since 2026-07-22T20:42Z (acceleration over; no x2 tier ever appeared)",
+    "status": "REFERENCE ONLY once superseded by knowledge.json",
+    "note": "Every rate/price below is a snapshot taken under x3 acceleration at store level 1. tick.js prefers live values (retailAvg from the game feed, accel multiplier from auth-data) and learned values from knowledge.json. These remain only as a cold-start fallback."
+  },
+  "accelerationFactor_note": "Cold-start fallback only — tick.js mirrors the LIVE multiplier here on every regime change. MEASURED 2026-07-22 16:30 CDT: acceleration ended at 15:42 CDT as a cliff to x1. The expected x2 tier never appeared in auth-data (it still shows the expired x3 entry) and new orders price at x1 (orange retail order 147.8/h = store L2 base x weather, no accel). Verified mechanic: in-flight orders KEEP their placement-time multiplier — the 15:13 CDT grape order ran at x3 (~980/h observed) for 4.2h past the expiry.",
+  "minCash": 5000,
+  "_minCash_note": "Raised 500 -> 5000 by board 2026-07-22 R3 (unanimous): one normal water buy ($4.6k) plus same-hour production charges ($3.0k) exceed the old floor 15x. This is the working-capital floor for DISCRETIONARY spend (input buys, order wages). buildPlan.minCashAfter deliberately stays 500 so the Mill build gate is never delayed by this policy (owner earmark 2026-07-22 supersedes).",
+  "farmInputFloor": 500,
+  "_farmInputFloor_note": "Floor for the farm's ESSENTIAL water pre-buy only (tick.js ~L516), separate from minCash. The $5k minCash was calibrated for x3-acceleration mega water-buys ($4.6k for a grape order); at x1 steady state a full grape order's water is ~$150, so gating it on $5k idled the farm every time the Mill's ~$8k wage prepay dips cash into the $0.5k-5k band (measured 2026-07-23 11:36-11:54: farm stalled ~18min, 'BUY MISSING not clicked, inputBudget=$0'). DOCTRINE Rule 6 (never idle a building) + Rule 4c (a measured regime change supersedes an old constant). Set to the $500 operating reserve; the 0.15 throttle + per-order shortfall sizing keep each top-up bounded (~$125/tick at cash $1.3k), so it cannot over-convert cash. minCash 5000 still governs discretionary/large spend elsewhere. _asOf 2026-07-23.",
+  "maxInputBuy": 8000,
+  "powderBurst": 50,
+  "_powderBurst_note": "Min coffee-powder (kind 119) stock before the single-slot store will sell it. MEASURED 2026-07-23: store powder profit/h $1,291 (vs grapes $284) at ~87/h sell rate, but the Mill only supplies ~16.04/h (336 units / 20.94h order, unitCost $27.02, -23% nerf active until 7/26 19:00). Selling the trickle fixates the slot on micro-orders and starves fruit; instead powder accrues to a ~100-unit (~1.2h) burst sold at ~$1,291/h, fruit fills the ~6h gaps. pickStoreOrder excludes powder below this and keeps fruit orders short (4h) while accruing.",
+  "upgrades": {
+    "54959369": {
+      "maxCost": 12000,
+      "minCashAfter": 500,
+      "maxPaybackHours": 48,
+      "assumedCost": 7600,
+      "_note": "Farm upgraded to L2 on 2026-07-21 23:14 by the idle-fallback ($7,600, +100%). Further farm levels disabled: the store is still the bottleneck.",
+      "enabled": false
+    },
+    "54959779": {
+      "maxCost": 40000,
+      "minCashAfter": 500,
+      "maxPaybackHours": 48,
+      "assumedCost": 30000,
+      "_note": "Grocery store — the throughput bottleneck. L2 done for $3,323; L3 priced from the dialog at run time.",
+      "enabled": false
+    }
+  },
+  "factories": {
+    "Slaughterhouse": {
+      "product": "STEAK",
+      "kind": 7,
+      "rate": 25.93,
+      "wage": 429,
+      "inputs": {
+        "115": 0.125
+      },
+      "maxOrderHours": 8,
+      "wageSafety": 1,
+      "_why": "MEASURED 2026-07-23 from a fresh ticker: steak is the best payback on the accessible board — $989/h net of the $414/h wage, the 4% exchange fee and freight, 23h payback on a $22,964 live quote. rate 48.5/h = producedPerHourRaw 60 x 0.8087 (L1), MODELLED not measured: the Mill's realised rate came in at half its model, so wageSafety 2 doubles the wage provision when sizing an order against cash. Re-measure the realised rate off the first completed order and set `rate` from it.",
+      "_inputs": "0.125 cow (kind 115) per steak = 8 steaks/cow, straight from defs.producedFrom. Cow book measured deep 2026-07-23: 7,842 units at $143 behind a $141-142 top of book, so 6 cows/h is absorbed without moving the price.",
+      "_alternative": "SAUSAGES measured 77.79/h at the same building: 77.79 x ($12.15 net - $2.81 pig) - $429 = $298/h, below steak's $324/h, so steak keeps the building. Sausages stay interesting for two non-price reasons: they are a DIFFERENT exchange book (steak q0 depth is only 14,843 units, so doubling our own steak supply into it is a real price risk that sausages sidestep), and the PA's recurring 'immigrant workers' quest pays a FREE BUILDING LEVEL for 200 sausages - which cost ~$560 of pigs to make here against the $2,525 we paid for them on the market on 2026-07-22. Switch by setting product/kind/rate/inputs (pigs are kind 116, 0.0625/sausage).",
+      "_note": "Generic config-driven block: the Bakery (dough, 24.3/h, $449/h wage, inputs {9:1,133:2,134:0.5}) and Oil rig (crude, 97/h, inputs {1:25}) drop straight in here when built.",
+      "_rate_corrected": "2026-07-23 20:10 CDT strategist. rate 48.5 -> 25.93, wage 414 -> 429, wageSafety 2 -> 1. All three are now MEASURED off the Slaughterhouse's own page (printed 'STEAK Production: 25.93/h', 'Wages: $429/h'), read while the building was still under construction. 48.5 was 60 x 0.8087 — the farm constant applied to a processor, the same error that made the Mill order 1.76x too long. wageSafety 2 existed only to absorb a modelled rate being wrong; with the rate measured it is double-counting and would halve every order for no reason. CONSEQUENCE, recorded honestly: at 25.93/h the Slaughterhouse earns 25.93 x ($46.42 net sell - $17.38 cow) - $429 = $324/h, not the $995/h it was armed on, so payback on the $23,195 actually paid is ~72h, not 23h. It was still the right buy - the alternative was $23k of idle cash at $0/h and the only other affordable line was a second Grocery store, which is now rejected outright (see _slotB_2026_07_23) - but every OTHER modelled $/h in industry-report.js carries the same ~2x optimism and must be halved before it is believed."
+    }
+  },
+  "buildPlan": {
+    "enabled": false,
+    "next": "Slaughterhouse",
+    "maxCost": 26000,
+    "minCashToBuild": 26200,
+    "effectiveCost": 23424,
+    "minCashAfter": 2500,
+    "_regated": "2026-07-23 18:45 CDT strategist. Live re-probe (confirm:false) quoted $23,424, up ~2% from the $22,964 armed at 16:05 — effectiveCost refreshed to the measured number. Gate 28,500 -> 26,200 and minCashAfter 5,000 -> 2,500. The $5,000 floor double-counted the 4h BUILD TIME, exactly like the Mill-era $1.9k wage-float error corrected on 2026-07-22 18:55: the Slaughterhouse cannot buy a cow until it finishes, and the store banks ~$650/h throughout, so ~$2,500 at build time is ~$5,100 by the time cows are needed. Verified the floor cannot idle anything: the store's retail path (pages/sell.js) takes NO cash guard at all, and farm water is guarded by farmInputFloor $500, not minCash (the 2026-07-23 farm stall fix). The first cow order is cash-bounded and simply sizes itself smaller — self-correcting. build.js still re-reads the live BUY MISSING price and bails below minCashAfter, so this can only ever DELAY the build, never overspend it. Worth ~1.5-2h earlier at $1,013/h.",
+    "_armed": "2026-07-23 16:05 CDT by the strategist. LIVE dialog quote $22,964 (dry probe, confirm:false — encyclopedia's ~$22,663 estimate was within 1.3%, the same calibration the Mill showed: est $30,218 vs live $30,548). The warehouse holds ZERO construction materials (Mill build consumed the kit), so BUY MISSING charges the full bill — effectiveCost = the quote. Gate = quote $22,964 + the $5,000 working-capital floor + ~$536 material-price slippage. minCashAfter is 5000 here, NOT the Mill-era 500: the Slaughterhouse must buy cows on day one, and a building with no float is $414/h of wages standing still. build.js re-reads the live BUY MISSING price and bails cheaply below the reserve, so this gate can only ever DELAY the build, never overspend it.",
+    "_why_slaughterhouse_before_bakery": "Re-litigated 2026-07-23 16:00 against the standing Bakery-first queue, on newer numbers (fresh 15:49 ticker), and reversed for this slot only. Steak $989/h at 23h payback vs dough $1,236/h at 34h; the Slaughterhouse costs $22,964 and is affordable NOW while the Bakery's $41,637 is ~7h of idle cash away, and Rule 5b calls idle cash above the active gate overflow. On capital employed (Rule 3b) with 8h orders: Slaughterhouse ~$38k for $989/h (38h) beats Bakery ~$64k for $1,236/h (52h) — dough's input bill is $1,429/h against steak's $861/h. Steak also has a retail escape valve (35 units/h at a $57.31 average) while dough has unitsSoldAnHour 0 and is 100% exchange-dependent. The 2026-07-22 rejection of the Slaughterhouse was on cattle float at negative cash and a 5h order limit; both premises are gone. Bakery is NOT cancelled — it takes the 6th slot at Lv.10 (XP 314/550, ~35 XP/h, ~7h out), then Oil rig.",
+    "_why": "Coffee chain: one farm on beans (499/h with the +21% event modifier) exactly feeds one Mill (needs 404/h) at 40.4 powder/h. Profit $25.05/unit vs $1.66 for an apple — $1,013/h against $265/h once the x3 acceleration expires, using the SAME farm and store.",
+    "_why_not_second_store": "Affordable now and deliberately skipped. After the pivot the store L2 can move 74.6 coffee powder/h while the Mill only makes 40.4/h — store capacity is already surplus, so a second one would be dead capital.",
+    "_market_evidence": "Coffee powder retail average rose 43.08 -> 45.22 over six days while we sold 100 units into it; saturation 1.295 and demand 0.352 versus apples at 1.490 / 0.255. The market absorbs it.",
+    "_after_mill": "Build order after the Mill, by capital efficiency and durability: (1) Bakery $42k — dough $1,304/h, 32h payback, best in the game; (2) Oil rig $76k — crude oil $1,649/h at 72.6% margin, the most durable demand there is (fuel feeds everything); slots then full at Lv.5, so (3) upgrade Oil rig L2, then Bakery/Mill L2; at Lv.10 the 6th slot goes to a Construction factory (tools/planks/windows, all $1,100-1,500/h). Catering is excluded from this plan by owner decision 2026-07-21.",
+    "_working_capital": "Raised from 31k after Jimmy caught the gap: build (~31.4k) + farm bean-order wages (520) + mill wages prepaid (1,900) + seed/water top-up (~3,650) + reserve (500) ≈ 38k. A building with no float sits idle at $380/h in wages.",
+    "_startup_sequence": "On Mill completion: (1) farm switches from APPLES to COFFEE BEANS immediately — beans need 1-2h to accumulate; (2) mill starts its first powder order only when warehouse beans >= 10x the order size; grocery keeps selling remaining apples, then powder.",
+    "_reorder": "FINAL 2026-07-21 23:35: Mill first after all. The -23% powder nerf (until 7/27) cuts it to $700/h, but its $38k gate arrives ~20h before the Bakery's $47k — and $700/h while saving beats $0/h waiting. Queue: Mill -> Bakery -> Oil rig. Farm L2 (accidental but useful) can alternate bean batches for the mill and apple batches for the store.",
+    "_after": "STANDING QUEUE (re-confirmed by strategist 2026-07-22 12:30, fresh re-rank): Mill NOW ($34.5k gate) -> Bakery -> Oil rig -> level upgrades -> Construction factory at Lv.10. The 23:30 Bakery-first reorder was reversed at 23:35 (Mill's gate arrives ~20h earlier; earning during the nerf beats waiting). Slaughterhouse (steak $994/h, 23h payback) checked 7/22 and rejected: cattle float ~$8.7k/5h order pushes its true gate to ~Mill's, with market-input exposure the Mill doesn't have. Still to evaluate once slots allow: Food processing plant ($94k, apple icecream in season until 8/20, then cheese/butter/chocolate; not Catering).",
+    "_gate_refit": "2026-07-22 17:10 CDT: gate 34.5k -> 19k. The Mill dialog was probed directly: catalogue quote $30,548, but the warehouse already holds 24/32 reinforced concrete, 330/440 bricks, 96/128 planks and 3/8 construction units (the PA's free gift) — $14.8k of it. Missing materials priced at live asks: 8 concrete @204 + 110 bricks @2.75 + 32 planks @10.2 + 5 construction units @2670 = $15,611. Gate = missing 15.6k + mill wage float 1.9k + farm wage 0.5k + reserve 0.5k + ~0.5k ask-slippage slack = 19k. effectiveCost (16.2k) is passed to build.js so its affordability check uses the real cash outlay, not the full quote. Prior note (00:20): the 10k water stock assumed then has since been consumed by grape orders; bean startup water rebuys at ~$190/h, immaterial. 2026-07-22 18:55 CDT: gate 19k -> 18.5k. The 1.9k mill wage float double-counts: it is not needed until the mill completes ~3h after the build fires, and the store adds ~$2.7k of revenue in that window. Cut so the strategist could supervise build.js's first live run instead of letting it fire unattended at the next heartbeat. 2026-07-22 19:05 CDT CORRECTION, gate -> 24.8k: the supervised run exposed that the warehouse holds ZERO construction units — the PA's 3 free CUs were consumed by the store L2 upgrade on 7/21 (its $8,030 materials offset = 3 x $2,670 + change). The 17:10 probe read '3 CUs owned' out of the PA chat history, not the dialog, and its 15,611+14,793=quote cross-check was an identity (the split always sums to the quote) so it could not catch the error. Live dialog: BUY MISSING $23,450 = 8 concrete@204 + 110 bricks@2.70 + 32 planks@10.1 + 8 CU@2,650. Gate = 23.45k + 0.5k reserve + 0.55k wage/slippage headroom + ~0.3k farm float. CU book is deep (4,778 @ 2,650) — no rush-buy needed. build.js now reads the live missing cost off the BUY MISSING button and gates on that, so a stale effectiveCost can never overspend. 2026-07-23 00:05 CDT: gate 24.8k -> 24.2k, effectiveCost -> 23,708 (bill repriced off the 23:49 ticker: 8 RC@206 + 110 bricks@2.70 + 32 planks@10.1 + 8 CU@2,680; CU is_up, +$30 since 19:05). The 24.8k figure was a price snapshot, not a policy: build.js's own two safety gates (effectiveCost pre-check, then the live BUY MISSING price vs minCashAfter) mean the config gate only ever DELAYS the build, never overspends it — endorsed by CFO/COO in the 7-22 special session (\"gate should track the remaining bill, $24,800 is a stale snapshot\"). Net effect: fires ~$600 of cash earlier ≈ 1h sooner at the ~$650/h store inflow; if CU drifts up further, the pre-check bails cheaply each heartbeat until cash covers bill+500 — which is exactly the right moment.",
+    "_handoff": "2026-07-23 00:53: DISABLED — execute-plan.js owns the Mill build (scrap-store→BUILD MILL from recovered materials). Fast loop must NOT auto-build Mill or the two paths race. execute-plan.js re-confirms this stays false on done.",
+    "_done": "Slaughterhouse built 2026-07-24T01:01:12.948Z for ~$23195"
+  },
+  "_priceSweep_note": "Widened downward 2026-07-21 (picks pinned at 0.98) and again 2026-07-22 16:45 CDT: the 15:44 orange pick landed on the then-lowest 0.94 rung, so 0.90/0.92 were added. Each rung is probed against the game's own Profit-per-hour printout, so extra rungs cost only probe time. If picks start landing on 0.90, widen again — but first check the learned sellRate isn't stale from a dead acceleration regime.",
+  "watchlist": {
+    "1": {
+      "name": "power",
+      "role": "oil rig input 25/barrel"
+    },
+    "2": {
+      "name": "water",
+      "role": "farm input (3/apple, 0.5/bean)"
+    },
+    "7": {
+      "name": "steak",
+      "role": "SELL side — slaughterhouse output (retail cap 35/h, surplus to the exchange)"
+    },
+    "9": {
+      "name": "eggs",
+      "role": "dough input 1x"
+    },
+    "10": {
+      "name": "crude-oil",
+      "role": "SELL side — oil rig output"
+    },
+    "13": {
+      "name": "transport",
+      "role": "freight on every unit sold"
+    },
+    "66": {
+      "name": "seeds",
+      "role": "farm input — self-supplied at ~$0.10/unit, exchange dip only matters below that",
+      "dipBelow": 0.12,
+      "_asOf": "2026-07-22 19:40 CDT strategist: 3rd consecutive seeds-DIP alert declined (self-make ~$0.10 vs dip $0.265); alert now gated on price < $0.12"
+    },
+    "115": {
+      "name": "cow",
+      "role": "slaughterhouse input 0.125/steak — the whole COGS of the steak line, so a spike here is the one thing that can turn it negative"
+    },
+    "119": {
+      "name": "coffee-powder",
+      "role": "SELL side — mill output"
+    },
+    "133": {
+      "name": "flour",
+      "role": "dough input 2x — 52% of dough COGS"
+    },
+    "134": {
+      "name": "butter",
+      "role": "dough input 0.5x — 46% of dough COGS"
+    },
+    "137": {
+      "name": "dough",
+      "role": "SELL side — bakery output"
+    }
+  },
+  "priceAlert": {
+    "dipPct": 6,
+    "spikePct": 8,
+    "windowSamples": 36,
+    "_note": "vs trailing median. Alerts log PRICE ALERT and wake the strategist via price-alert.flag — dips are buying windows (stock up inputs before the Bakery lands), spikes on the sell side are chances to lock margin."
+  },
+  "strategistWake": {
+    "cooldownMin": 90,
+    "_note": "Shared throttle for fast-loop strategist wakes (chat + price). run-strategist.sh deletes the *.flag files on exit, so a still-true signal (a PA offer deferred until cash recovers; a dip whose trailing median lags) would otherwise re-wake a fresh Opus strategist every 2-min heartbeat. tick.js maybeWakeStrategist() spawns at most once per cooldownMin via the .strategist-wake timestamp. Added 2026-07-23 after a '200 sausages -> +1 building level' PA offer was deferred (negative cash blocked the buy) and would have re-woken ~30 strategists in the hour before cash recovered. A genuinely new urgent signal waits at most cooldownMin; the deterministic loop still handles all time-critical mechanics every 2 min."
+  },
+  "surplusWatch": {
+    "5": {
+      "name": "grapes",
+      "max": 1500
+    },
+    "7": {
+      "name": "steak",
+      "max": 250
+    },
+    "119": {
+      "name": "coffee-powder",
+      "max": 150
+    },
+    "_note": "Added 2026-07-23 16:55 CDT by the strategist. tick.js writes surplus-alert.flag and wakes the strategist (90-min throttle) when a finished good piles past its limit. It never sells — selling is a judgement call the fast loop must not make, because retail beats the exchange per unit (steak ~$34.7 vs ~$29.5; grapes ~$3.63 vs a MEASURED $0.235 — the game's own sell dialog priced 100 grapes at $3.05: revenue $305, source $230.98, transport $37.51, 4% fee $13, profit $23.50).",
+    "_thresholds": "Hours of production, not round numbers. steak 250 ≈ 5h at 48.5/h — the store is a SINGLE sales queue (measured off the store page at level 2: 'Building is currently busy and cannot sell other items until the current order is finished'), so steak at 48.5/h against a ~35-50/h retail rate that it also shares with powder will pile; 5h of drift is enough to be real and small enough to act on. powder 150 ≈ 9h at the Mill's ~16/h — powder should never accumulate (store moves 134/h), so this only fires if the burst logic breaks. grapes 1500 sits just above the current 1,121 pile, which the farm output cap is expected to drain; it fires only if that cap regresses."
+  },
+  "farmLevel": 3,
+  "_farmLevel_note": "L2 -> L3 on 2026-07-23 ~12:15 CDT via the PA '200 sausages -> +1 building level' deal (bought 202 sausages @ $12.5 = ~$2,525; game upgraded the Farm, confirmed by farm_tier03.png / size:3). Free ~$15k building level for $2.5k — net-worth accretive though the farm was never the throughput bottleneck (store/Mill are). tick.js L493 reads this for appleRate/seedRate/beanRate; effect on fruit order size is ~nil (orders are water-limited, not target-limited). _asOf 2026-07-23.",
+  "constraints": {
+    "noScrap": true,
+    "_beach": "Beach market (position P) is KEPT by owner decision 2026-07-22. Do not scrap, downgrade, or auction any building. It is a free seasonal-ish slot; leave it. 2026-07-23 18:15 CDT MEASURED off its own page and the buildings API: category 'seasonal', freeAndLocked true, cost 0, Summer Jul 08-Aug 29, cannot be upgraded, and it 'doesn't contribute to the administration overhead, company building count, or company value' — so it does NOT consume a construction slot. /landscape/ renders 3 real buildings + TWO 'CONSTRUCTION SLOT' tiles against maxBuildings 5. tick.js counted it as a slot user and therefore reported 1 free slot instead of 2; fixed 2026-07-23 18:30 (see the slotUsers filter). It costs nothing to hold, so idle is a valid resting state — it is an option, not a liability.",
+    "_beach_icecream": "Retail-arbitrage test REJECTED 2026-07-23 18:20 on measured numbers, after being deferred by two boards. It retails only Chocolate icecream (kind 153) and Apple icecream (154). Live: exchange ask $93 / $86, landed +$0.388 transport; retail averages $111.01 / $114.17; base unitsSoldAnHour 22 / 18; wage $241/h at L1 with NO upgrade possible; weather sellingSpeedMultiplier was 83.39% at probe (it swings — 122.03% on 2026-07-22). Wage alone is $5.24-$10.95 per unit at 22-46 units/h, against a gross spread of at most $17.62 even if we could sell AT the average, which we cannot. Both ice creams also decay 0.05 = 5% PER HOUR compounding (bundle: amount * (1-decay)^hours; encyclopedia string 'decays while in the warehouse, contract outgoing, or on the exchange' — a player in Sales 2026-07-23 corroborated 'melts in storage or exchange, not in the store', so committed retail stock is safe but any buffer is not). The dealbreaker is not decay, it is that every dollar of ice-cream float competes with a $1,013/h 22h-payback Slaughterhouse. Revisit ONLY when cash sits idle above every armed build gate AND the weather multiplier is high. NOTE the retail cards read 'Stock too low' at zero stock, so the game will not print a profit projection until stock exists — this line cannot be priced by the usual Rule-1 probe without buying first."
+  },
+  "storePriority": {
+    "119": 1
+  },
+  "_storePolicy": "2026-07-23 manual: powder ($1,593/h) must not sit in warehouse behind fruit ($291/h). Burst lowered 100->50 so powder reaches the store within ~3h of production; powder gets store-slot priority over fruit. Fruit still RETAILS (exchange nets only 45% of retail for grapes — dumping loses ~$3.60/unit), just yields the slot to powder. Root fix (2nd store / dedicated powder outlet) tabled for tonights board.",
+  "printedRates": {
+    "3": 618.94,
+    "4": 569.43,
+    "5": 495.16,
+    "6": 2475.78,
+    "7": 26.19,
+    "8": 78.58,
+    "40": 792.25,
+    "66": 2723.35,
+    "72": 1980.62,
+    "106": 235.2,
+    "118": 1527.8,
+    "119": 18.04,
+    "120": 866.52,
+    "133": 89.03,
+    "136": 519.91,
+    "139": 290.51,
+    "146": 420.88,
+    "_asOf": "2026-07-24T04:53:40.833Z",
+    "_source": "MEASURED off the Mill's own page /b/55042846/ — the game prints 'Production: X/h' per product. Rule 1: this beats any arithmetic.",
+    "_why": "The raw x level x 0.8087 model reproduces the FARM exactly (printed seeds 2,695.85/h vs modelled 1100 x 3 x 0.8087 x 1.01 = 2,695.4) but overstates the MILL by 1.76x. All three Mill products share a 0.4638 constant where all four Farm products share 0.8168, so it is a per-building factor the model does not capture. tick.js hardcoded 50 x 0.8087 = 31.1/h for powder and therefore wrote a 374-unit order it thought was ~12h; the game quoted 20h57m and charged $8,136 of wages up front. Wages are forfeited on cancel, so an over-modelled rate is a real, unrecoverable over-commitment (DOCTRINE Rule 5b).",
+    "_staleness": "119 includes the realm's -23% coffee-powder speed modifier, which expires 2026-07-27 19:00 CDT — re-measure after that or the Mill will be UNDER-ordered by ~30%. Farm rates (3/4/5/6/40/66/72/106/118/120/146) are measured at Farm LEVEL 3: a level change makes every one of them stale, and the PA's 'immigrant workers' quest upgrades a building the GAME picks (it chose the Farm on 2026-07-23), so this can move without us deciding it. Under-ordering is the safe failure, and printed-rates.js re-reads everything, so the fix is to run it, not to distrust it. Any kind absent here falls back to the model.",
+    "_todo": "DONE 2026-07-23 20:10 CDT: steak (7) 25.93/h and sausages (8) 77.79/h read off the Slaughterhouse page WHILE IT WAS STILL UNDER CONSTRUCTION — the product cards render before the building completes, so a new line can be priced from the game's own numbers before it ever runs. Re-run `flock -w 300 .tick.lock node printed-rates.js --write` every strategist run; it is cheap and it is the only thing that keeps this table honest.",
+    "_perBuildingConstant": "The rate is raw x level x C where C is PER BUILDING, not global: Farm 0.8169, Mill 0.4639, Slaughterhouse 0.4322 — each held to 4 significant figures across every product that building makes (Farm 12 products, Mill 3, Slaughterhouse 2), so it is a real constant, not noise. DOCTRINE's 0.8087 was measured on the FARM and is a farm constant. Treat ~0.43-0.46 as the planning prior for any processor we do not yet own, i.e. haircut industry-report.js's modelled $/h by roughly HALF before believing it."
+  },
+  "slotAlert": {
+    "minCash": 23000,
+    "_asOf": "2026-07-23T20:30:00-05:00",
+    "_why": "A free construction slot raises slot-alert.flag every heartbeat, and run-strategist.sh deletes the flag on exit, so without a cash gate the fast loop spawns a fresh Opus strategist once per 90-minute cooldown all night to re-read a table it cannot act on. 23000 = the cheapest candidate any strategist currently endorses (Slaughterhouse #2, $23,195 paid for #1 on 2026-07-23). Grocery store #2 at $11,436 is NOT a candidate - it was rejected outright this run on measured numbers (one L2 store already out-throughputs our production; a second at L1 would run grapes at ~$90/h against $143/h of wages). RAISE this gate if the endorsed candidate gets more expensive; LOWER it the moment a cheaper one is endorsed, or the slot sits idle unseen - that is the exact failure mode the slot miscount caused for two days on 2026-07-23."
+  }
+}

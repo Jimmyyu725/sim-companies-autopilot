@@ -1,0 +1,13 @@
+2026-07-24 08:44:52 CDT CHAT assistant has 1 unread
+2026-07-24 08:44:56 CDT WAKE chat — ack holds, blocked on cash ($4453 < $8000), suppressed
+2026-07-24 08:45:12 CDT PRICE power=$0.272 water=$0.374 steak=$49.5 eggs=$1.21 crude-oil=$31.25 transport=$0.379 seeds=$0.281 cow=$134 coffee-powder=$39.25 flour=$14.9 butter=$52 dough=$135
+2026-07-24 08:45:12 CDT SURPLUS coffee-beans: 13172 units (limit 4000) ≈ $9879 frozen at $0.75 [B2B-DEEP, realizable ~30/h]
+2026-07-24 08:45:12 CDT STATE money=$4453 lvl=10 xp=583/890 accel=x1 (EXPIRED) mode=profit
+2026-07-24 08:45:12 CDT SLOT FREE — 2 construction slot(s) idle, no armed build plan
+2026-07-24 08:45:12 CDT SLOT wake gated — $4453 < $23000 minimum for any endorsed candidate
+2026-07-24 08:45:12 CDT BUSY Farm until 2026-07-24 09:19:00 CDT (34m)
+2026-07-24 08:45:12 CDT BUSY Mill until 2026-07-24 17:17:09 CDT (512m)
+2026-07-24 08:45:12 CDT BUSY Slaughterhouse until 2026-07-24 08:56:00 CDT (11m)
+2026-07-24 08:45:12 CDT BUSY Grocery store until 2026-07-24 08:48:30 CDT (3m)
+2026-07-24 08:45:12 CDT NEXT DUE 2026-07-24 08:48:30 CDT
+2026-07-24 08:45:12 CDT LEARN obs=1077 xpModel=unclear rates=5

@@ -96,6 +96,9 @@ and the next test in the decision brief.
   is marked `complete` and the building is ordinary capacity again.
 - Execute at most one structural move at a time.
 
+Everything under `legacy/` is history only. It is never current evidence for prices, demand, slots,
+debt, inventory, or spending.
+
 ### Company communication
 
 - You are the company's final operating decision maker. Never ask for human approval, promise a

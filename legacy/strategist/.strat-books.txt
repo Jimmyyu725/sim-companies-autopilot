@@ -1,0 +1,17 @@
+════════ DAILY FINANCIAL PHYSICAL ════════
+period ending 2026-07-24
+Sales $38,035  COGS -$23,915  Gross $12,548 (33%)
+OPERATING PROFIT  $6,262   ✅ business profitable
+Net income $26,412 — but $20,150 of that is one-off game income (paper gains depend on it)
+Company value $108,118  |  frozen inventory $15,217
+
+biggest cash drains (operating):
+     $4,699  Production of Coffee powder
+     $2,361  Bought Cows on market
+     $2,095  Production of Steak
+     $1,262  Production of Coffee beans
+       $941  Production of Seeds
+
+RECOMMENDATIONS:
+  [LOW] $15217 frozen in inventory (materials/WIP/finished)
+         → Cash is tied up in stock. Sell finished goods faster or cut order sizes toward the sweet spot.

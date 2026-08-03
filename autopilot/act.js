@@ -171,7 +171,7 @@ const RESOURCES_API = `/api/v3/resources/${CFG.companyId}/`;
 
 async function captureBuildings(url) {
   try {
-    const captured = await cdp.capture(url, 15);
+    const captured = await cdp.capture(url, 15, [BUILDINGS_API]);
     const rows = captured?.[BUILDINGS_API];
     return Array.isArray(rows) ? rows : null;
   } catch (error) {
@@ -222,7 +222,7 @@ async function captureRebuildIdleEvidence(beforeBuilding, buildingId) {
 
 async function captureCollectSnapshot(url) {
   try {
-    const captured = await cdp.capture(url, 15);
+    const captured = await cdp.capture(url, 15, [BUILDINGS_API, RESOURCES_API, AUTH_API]);
     const buildings = captured?.[BUILDINGS_API];
     const resources = captured?.[RESOURCES_API];
     const auth = captured?.[AUTH_API];

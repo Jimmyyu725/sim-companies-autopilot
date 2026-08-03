@@ -214,12 +214,39 @@ async function watch(url, seconds) {
   }
 }
 
+// How long to keep listening after the last required response completes, so a straggler the
+// caller did not name still lands in the same capture.
+const CAPTURE_SETTLE_MS = 500;
+
+// True once every required path has a request that finished loading. Kept pure and exported so the
+// early-return rule is testable without a browser: it decides when a capture may stop waiting, and
+// getting it wrong either wastes the whole ceiling or hands back a half-loaded body.
+function captureComplete(wanted, finished, required) {
+  if (!Array.isArray(required) || !required.length) return false;
+  return required.every(path => {
+    for (const [requestId, url] of wanted) {
+      if (String(url).includes(path) && finished.has(requestId)) return true;
+    }
+    return false;
+  });
+}
+
 // Capture the JSON bodies the app itself fetches. Direct in-page fetch() to some
 // /api/ paths trips a Cloudflare managed challenge, so observe the app's own traffic
 // instead of re-issuing requests.
-async function capture(url, seconds) {
+//
+// `seconds` is a ceiling, not a schedule. Pass `until` — the API paths the caller actually reads —
+// and the capture returns as soon as every one of them has finished loading, plus a short settle
+// window. Measured live on 2026-08-02: the store page delivers all of state.js's endpoints in
+// about 1.1s, so the old unconditional 15s wait spent roughly 13.7s per refresh_state doing
+// nothing. Callers that pass no `until` keep the original fixed wait exactly.
+//
+// Completion is judged on Network.loadingFinished, never on responseReceived: the latter fires on
+// response headers, and getResponseBody against a still-streaming request returns a partial body.
+async function capture(url, seconds, until = null) {
   const bodies = {};
   const wanted = new Map();
+  const finished = new Set();
   const listener = (ev) => {
     const m = JSON.parse(ev.data);
     if (m.method === 'Network.responseReceived' &&
@@ -227,6 +254,7 @@ async function capture(url, seconds) {
         !m.params.response.url.includes('amplitude')) {
       wanted.set(m.params.requestId, m.params.response.url);
     }
+    if (m.method === 'Network.loadingFinished') finished.add(m.params.requestId);
   };
   ws.addEventListener('message', listener);
   let enabled = false;
@@ -235,7 +263,22 @@ async function capture(url, seconds) {
     enabled = true;
     if (url) { await send('Page.navigate', { url }); }
     else { await send('Page.reload', { ignoreCache: false }); }
-    await new Promise(r => setTimeout(r, (Number(seconds) || 14) * 1000));
+    const ceilingMs = (Number(seconds) || 14) * 1000;
+    const required = Array.isArray(until) ? until.filter(Boolean) : [];
+    if (!required.length) {
+      await new Promise(r => setTimeout(r, ceilingMs));
+    } else {
+      const deadline = Date.now() + ceilingMs;
+      const complete = () => captureComplete(wanted, finished, required);
+      while (Date.now() < deadline && !complete()) {
+        await new Promise(r => setTimeout(r, 50));
+      }
+      // A satisfied wait still settles; a timed-out one does not, because the ceiling has already
+      // been spent and the caller validates whatever arrived.
+      if (complete()) {
+        await new Promise(r => setTimeout(r, Math.min(CAPTURE_SETTLE_MS, Math.max(0, deadline - Date.now()))));
+      }
+    }
     for (const [reqId, u] of wanted) {
       try {
         const b = await send('Network.getResponseBody', { requestId: reqId });
@@ -250,7 +293,7 @@ async function capture(url, seconds) {
   }
 }
 
-module.exports = { connect, evaluate, goto, shot, capture, watch, send,
+module.exports = { connect, evaluate, goto, shot, capture, captureComplete, watch, send,
                    substituteSecretPlaceholders,
                    close: () => {
                      rejectPending(new Error('CDP connection closed by caller'));

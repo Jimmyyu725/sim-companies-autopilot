@@ -3,12 +3,12 @@
 This directory runs Jimmy's Sim Companies company 24/7. **The provider-routed LLM autopilot
 (`autopilot/`) is the sole operator**: DeepSeek V4 Flash at Max reasoning is the current path and
 retained OpenAI Terra/Luna is the automatic rollback. Do not disturb it blindly; it wakes on the
-game's event schedule and holds `.tick.lock` while acting. The pre-LLM fast-loop/strategist/board
-system was deleted on 2026-08-02 and lives only in git history.
+game's event schedule and holds `.tick.lock` while acting. The pre-LLM three-layer system is kept
+under `legacy/` as history — inactive, and never current evidence.
 
 **READ FIRST: `SIMCOMPANIES-HANDOFF.md`** — the complete file map, architecture, cron, rollback,
-mission, and gotchas. Also `LESSONS.md` for historical engineering context. Use
-`autopilot/CURRENT.json` for current memory; `MASTER.md` is append-only audit history.
+mission, and gotchas. Also `legacy/board/DOCTRINE.md` and `LESSONS.md` for historical engineering
+context. Use `autopilot/CURRENT.json` for current memory; `MASTER.md` is append-only audit history.
 
 Rules: Chinese replies, English code/docs, never print secrets (OpenAI key in
 /srv/appdata/ledgerwall/.env), verify before asserting, never fabricate. Long-term mission = maximum

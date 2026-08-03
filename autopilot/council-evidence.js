@@ -208,9 +208,17 @@ async function main() {
     const section = all('div').filter(div => /Adjust issued bonds/i.test(div.innerText || '') &&
       div.querySelectorAll('input').length >= 2).sort((a, b) => a.innerText.length - b.innerText.length)[0];
     const inputs = section ? all('input', section).filter(input => input.type !== 'checkbox') : [];
+    // Status must mean "the finance page rendered and its figures were read", not "a bond offer
+    // form exists". Bonds unlock at company level 10, so keying on the offer form made every
+    // strategy council on a younger company fail with "finance evidence is not verified" — a
+    // permanent block, not a transient one. Bonds Payable and Interest expense are on the page at
+    // every level; the offer form is reported separately as the level-gated extra it is.
+    const offerFormAvailable = /Adjust issued bonds/i.test(text);
+    const rendered = /Bonds\s*Payable/i.test(text) || /Interest\s*expense/i.test(text);
     return {
       source: location.pathname,
-      status: /Adjust issued bonds/i.test(text) ? 200 : 'UNKNOWN',
+      status: rendered ? 200 : 'UNKNOWN',
+      offerFormAvailable,
       rating: (text.match(/Rating\s*([A-Z][+-]?)/) || [])[1] || 'UNKNOWN',
       offerAmountField: inputs[0]?.value ?? 'UNKNOWN',
       offerInterestField: inputs[1]?.value ?? 'UNKNOWN',

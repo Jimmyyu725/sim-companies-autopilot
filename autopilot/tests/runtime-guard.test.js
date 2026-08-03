@@ -12,6 +12,7 @@ const {
   buildWakeAlarm,
   councilRequiredForStructuralAction,
   isApprovedRollingMillUpgrade,
+  isNonBaselinePortfolioOption,
   validateCouncilAuthorization,
   validateStrategyCouncilCompletion,
   validateFinishSummary,
@@ -884,3 +885,53 @@ assert.equal(retiredCampaignRuntime.beforeAction('produce',
 'a leftover active-campaign directive cannot re-reserve an extraction site');
 // REBUILD lost its campaign exemption: every structural action goes through council now.
 assert.equal(councilRequiredForStructuralAction('rebuild'), true);
+
+// Regression (2026-08-02 wakes 20:33 and 20:48): a required strategy checkpoint became
+// unrecoverable twice in a row, in two different ways, and both wakes died at 40 rounds after
+// doing all their real work. The guard has to name the actual defect, because the model only gets
+// one or two rounds inside the closing budget to correct it.
+const shapeGuard = new WakeRuntimeGuard();
+shapeGuard.strategyCouncilRequirement = { required: true, reasons: [], status: 'required' };
+
+// A descriptive string carries no action, so no amount of added prose can ever satisfy the
+// non-baseline rule. Blaming the option set instead of the shape is what made this a loop.
+const stringOptions = shapeGuard.prepareStrategyCouncil({
+  options: ['hold: keep the Coffee baseline', 'pivot-tools: build a Factory for Tools'],
+});
+assert.equal(stringOptions.ok, false);
+assert.match(stringOptions.reason, /must be an object carrying an explicit action/);
+assert.equal(stringOptions.malformedOptionCount, 2);
+assert.equal(stringOptions.requiredOptionShape.action.includes('pivot'), true);
+
+// The wrong field name used to pass silently, so the checkpoint was skipped until journal refused
+// it with no rounds left to run one.
+const wrongField = shapeGuard.prepareStrategyCouncil({
+  alternatives: [{ id: 'hold', action: 'hold', buildingId: null, target: null }],
+});
+assert.equal(wrongField.ok, false);
+assert.match(wrongField.reason, /`options` field/);
+
+// A well-formed baseline-only set still fails the non-baseline rule, but now ships an example the
+// model can copy verbatim.
+const baselineOnly = shapeGuard.prepareStrategyCouncil({
+  options: [
+    { id: 'hold', name: 'Hold', action: 'hold', buildingId: null, target: null },
+    { id: 'water_l2', name: 'Upgrade Water', action: 'upgrade', buildingId: 55644143, target: 'water reservoir' },
+  ],
+});
+assert.equal(baselineOnly.ok, false);
+assert.match(baselineOnly.reason, /non-baseline expansion or pivot option/);
+assert.equal(isNonBaselinePortfolioOption(baselineOnly.qualifyingOptionExample), true,
+  'the example handed to the model must itself satisfy the rule it explains');
+
+// A correctly shaped set with a real pivot clears the shape and non-baseline gates and moves on to
+// the candidate-preview requirement.
+const wellFormed = shapeGuard.prepareStrategyCouncil({
+  options: [
+    { id: 'hold', name: 'Hold', action: 'hold', buildingId: null, target: null },
+    { id: 'pivot_tools', name: 'Pivot to Tools', action: 'build', buildingId: null, target: 'factory' },
+  ],
+});
+assert.equal(wellFormed.ok, false);
+assert.match(wellFormed.reason, /candidate preview/,
+  'a well-formed non-baseline set must fail only on missing previews, not on shape');

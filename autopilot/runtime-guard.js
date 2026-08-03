@@ -756,8 +756,42 @@ class WakeRuntimeGuard {
   }
 
   prepareStrategyCouncil(args = {}) {
+    // Both malformed shapes below produced wakes that could not recover. Live 2026-08-02: one wake
+    // sent `alternatives` instead of `options` and silently skipped the checkpoint until journal
+    // refused it with no rounds left; the next sent `options` as plain strings, so every option
+    // read `action: undefined`, and the non-baseline refusal kept firing no matter what text the
+    // model added. Name the actual defect instead — a shape error is fixable in one retry, a
+    // mislabelled one is not.
     if (!Array.isArray(args?.options)) {
+      if (Array.isArray(args?.alternatives)) {
+        return {
+          ok: false,
+          guard: true,
+          reason: 'strategy options must be supplied in the declared `options` field; `alternatives` is not read',
+          requiredNextStep: 'resend the same option set under `options`',
+        };
+      }
       return { ok: true, strategyCandidates: [] };
+    }
+    const malformed = args.options.filter(
+      option => !option || typeof option !== 'object' || Array.isArray(option) ||
+        !String(option.action || '').trim(),
+    );
+    if (malformed.length) {
+      return {
+        ok: false,
+        guard: true,
+        reason: 'every strategy option must be an object carrying an explicit action; a descriptive string cannot be compared',
+        malformedOptionCount: malformed.length,
+        requiredOptionShape: {
+          id: 'short-stable-id',
+          name: 'human label',
+          action: 'hold | build | upgrade | scrap | rebuild | bonds | robots | pivot',
+          buildingId: 'integer for an existing building, otherwise null',
+          target: 'building type or pivot target, otherwise null',
+        },
+        requiredNextStep: 'resend the same options as objects using the shape above',
+      };
     }
     if (this.strategyCouncilRequirement.required &&
         !args.options.some(isNonBaselinePortfolioOption)) {
@@ -766,6 +800,7 @@ class WakeRuntimeGuard {
         guard: true,
         reason: 'a required portfolio strategy checkpoint must compare at least one named non-baseline expansion or pivot option',
         requiredNextStep: 'add a pivot option with a concrete target, or preview a build outside the current Coffee baseline; Council may still select hold',
+        qualifyingOptionExample: { id: 'pivot_tools', name: 'Pivot to Tools', action: 'build', buildingId: null, target: 'factory' },
         currentBaselineBuildTargets: [...CURRENT_BASELINE_BUILD_TARGETS],
       };
     }

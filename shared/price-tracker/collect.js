@@ -25,7 +25,9 @@ const KEEP = 20000;   // ~14 days at 1/min; compacted so the file + per-request 
   await cdp.connect();
   // Warm the page so the in-page fetch inherits the right origin + cookies — a COLD fetch of the
   // ticker 403s under Cloudflare (board-data.js uses the same grab()+api() pattern).
-  await cdp.capture('https://www.simcompanies.com/b/' + cfg.storeId + '/', 10);
+  // Only the warm origin matters here; the ticker itself is fetched in-page immediately after.
+  await cdp.capture('https://www.simcompanies.com/b/' + cfg.storeId + '/', 10,
+    ['/api/v3/companies/auth-data/']);
   const ticker = await cdp.evaluate(`
     const grab = async (p) => { for (let i=0;i<3;i++){ try { const r = await api(p); if (r.status===200) return r.json; } catch(e){} await sleep(1200); } return null; };
     return await grab('/api/v3/market-ticker/0/');

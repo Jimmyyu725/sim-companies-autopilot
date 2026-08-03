@@ -64,6 +64,9 @@ function summarizeBondOfferForm(raw = {}) {
   return {
     source: raw.source || 'UNKNOWN',
     status: raw.status ?? 'UNKNOWN',
+    // Absent below company level 10. When it is absent the offer fields below are legitimately
+    // UNKNOWN, and that is not an evidence gap — there is no offer to read.
+    offerFormAvailable: raw.offerFormAvailable === true,
     rating: raw.rating || 'UNKNOWN',
     unsoldOfferAmountDollars: Number.isFinite(amount) && amount >= 0 ? amount : 'UNKNOWN',
     offerInterestPctPerDay: Number.isFinite(interest) && interest > 0 ? interest : 'UNKNOWN',

@@ -223,8 +223,18 @@ function pendingUtilitySurplus(state) {
   return UTILITY_KINDS.filter(kind => Number(state.surplusPlan.items?.[String(kind)]?.sellable) > 0);
 }
 
+function ownsAMill(state) {
+  return (state?.buildings || []).some(building =>
+    String(building?.name || '').toLowerCase() === 'mill' || building?.kindLetter === 'i');
+}
+
 function utilityJournalGate(state, reviews, alarm, nowMs = Date.now()) {
   const plan = state?.surplusPlan;
+  // A company with no Mill has no Coffee chain, so there is no reserve to protect and nothing here
+  // to verify. surplusPlan correctly reports UNKNOWN in that state, and the block below would then
+  // demand an inspection of "every current Mill" while naming none — a requirement no sequence of
+  // tool calls can satisfy, so the wake could never close its journal.
+  if (!ownsAMill(state)) return null;
   if (plan?.complete !== true || plan?.status !== 'ok') {
     const missingBuildingIds = missingMillInspectionIds(state);
     const missing = missingBuildingIds.length

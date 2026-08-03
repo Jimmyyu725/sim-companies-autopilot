@@ -443,13 +443,14 @@ function. Runtime validation repeats the schema checks before CDP starts.
 | `shared/config.json` | Current company IDs, cash floors, measured printed rates, and runtime settings. |
 | `shared/price-tracker/collect.js` | Full market ticker collector. |
 | `shared/price-tracker/volume.js` | Rotating order-book diff collector. |
-| `shared/price-tracker/server.js` | Local dashboard server on port 8090. |
 | `shared/facts/game-facts.json` | Measured recipe/building facts. |
 | `shared/facts/build-facts-db.js` | Nightly measured-facts rebuild. |
 | `shared/facts/defs.json` and `encyclopedia/` | Inputs to the facts builder. |
 
-The dashboard is exposed through Caddy at `https://jimmyyu888.com/prices/` for allowed LAN/Tailscale
-clients. `price-tracker.service` intentionally continues to use the root compatibility path.
+The price dashboard was removed by the owner on 2026-08-03: its page, its local server, the
+`price-tracker.service` unit, and the `https://jimmyyu888.com/prices/` route are all gone. The two
+collectors and `data/` remain because `autopilot/state.js` loads `data-quality.js` at require time
+and several runtime paths read `data/prices.jsonl`, `data/book-state.json`, and `data/names.json`.
 
 ## 7. Historical archive
 
@@ -533,7 +534,7 @@ for f in \
   autopilot/state.js autopilot/usage-summary.js autopilot/actions/contract-send.js \
   autopilot/actions/sell-exchange-ui.js shared/cdp.js \
   shared/price-tracker/collect.js shared/price-tracker/volume.js \
-  shared/price-tracker/server.js shared/facts/build-facts-db.js; do
+  shared/facts/build-facts-db.js; do
   node --check "$f"
 done
 ```

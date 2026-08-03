@@ -7,6 +7,10 @@ const fs = require('fs');
 const path = require('path');
 const cdp = require(path.join(__dirname, '..', 'shared', 'cdp.js'));
 const { parseInspectArgs, parseProductionQuote } = require('./inspection-helpers.js');
+
+// Enough to read the whole portfolio in one call, small enough that one batch cannot hold
+// .tick.lock long enough to starve the price collector on its two-minute cron.
+const MAX_BATCH_INSPECTIONS = 8;
 const {
   bindProductModifiers,
   readInspectionRateCache,
@@ -155,15 +159,18 @@ function imageKindMap() {
   return out;
 }
 
-async function main() {
-  const args = parseInspectArgs(process.argv[2] || '{}');
+// One building, on an already-connected tab. Split out of main() so a batch request can inspect
+// several buildings over a single CDP connection, a single .tick.lock acquisition, and — the part
+// that actually costs — a single model round trip. The cached state is re-read per building
+// because each inspection persists its own activity evidence back into it.
+async function inspectOne(args, byImage) {
   const expectedPath = `/b/${args.buildingId}/`;
-  const byImage = imageKindMap();
   let cachedState = null;
   try { cachedState = JSON.parse(fs.readFileSync(path.join(__dirname, '.state.json'), 'utf8')); }
   catch (_) {}
-  await cdp.connect();
-  await cdp.goto(`https://www.simcompanies.com/b/${args.buildingId}/`);
+  // The LEVEL line is the cheapest proof this building page actually rendered. Without it a
+  // stable-but-unpainted page has returned a null level and null wages.
+  await cdp.goto(`https://www.simcompanies.com/b/${args.buildingId}/`, { expect: /LEVEL\s+\d+/i });
 
   const page = await cdp.evaluate(String.raw`
     const readBuildingPageActivity = ${readBuildingPageActivity.toString()};
@@ -284,7 +291,51 @@ async function main() {
     activityInspection,
   );
 
-  console.log(JSON.stringify(result));
+  return result;
+}
+
+// Accepts either one building (`buildingId`) or several (`buildingIds`). The batch form exists
+// because the DeepSeek adapter allows exactly one tool call per assistant message: inspecting
+// three Mills separately costs three full model round trips for three reads that do not depend on
+// each other. Writes deliberately stay single — a partially applied batch mutation would leave the
+// company in a state no evidence describes.
+async function main() {
+  const raw = JSON.parse(process.argv[2] || '{}');
+  const byImage = imageKindMap();
+
+  if (!Array.isArray(raw.buildingIds)) {
+    await cdp.connect();
+    console.log(JSON.stringify(await inspectOne(parseInspectArgs(process.argv[2] || '{}'), byImage)));
+    cdp.close();
+    return;
+  }
+
+  const ids = [...new Set(raw.buildingIds.map(Number))];
+  if (!ids.length || ids.length > MAX_BATCH_INSPECTIONS ||
+      ids.some(id => !Number.isInteger(id) || id <= 0)) {
+    console.log(JSON.stringify({
+      ok: false,
+      error: `buildingIds must be 1 to ${MAX_BATCH_INSPECTIONS} distinct positive integers`,
+    }));
+    return;
+  }
+
+  await cdp.connect();
+  const inspections = [];
+  for (const buildingId of ids) {
+    // One failed building must not discard the ones already read.
+    try {
+      inspections.push(await inspectOne(parseInspectArgs({ buildingId, product: null, qty: null }), byImage));
+    } catch (error) {
+      inspections.push({ ok: false, buildingId, error: String(error.message || error).slice(0, 200) });
+    }
+  }
+  console.log(JSON.stringify({
+    ok: inspections.every(inspection => inspection.ok === true),
+    batch: true,
+    requested: ids.length,
+    inspections,
+  }));
   cdp.close();
 }
 

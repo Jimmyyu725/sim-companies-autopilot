@@ -6,7 +6,8 @@ contract, or mutate the game.
 ## Evidence read
 
 - `bundle-main.js` (6,960,304 bytes; local mtime 2026-07-23 00:48:31 -0500).
-- `legacy/board/workflow/.probe-contracts.md` and the five retained dry probe scripts.
+- The contract dry-probe notes and scripts recorded with the previous company; those files were
+  deleted on 2026-08-03 and are recoverable only from git history.
 - `autopilot/actions/contract-send.js`, the three `chat-contract-*.js` rendered-UI fragments,
   `autopilot/act.js`, and `autopilot/chat/contract-gate.js`.
 

@@ -56,16 +56,7 @@ const PA_PENDING_FILE = path.join(AUTOPILOT, '.pa-pending.json');
 
 (async () => {
   await cdp.connect();
-  // The ticker is deliberately absent from this list: the store page regularly never requests it
-  // at all, which is why the price-tracker fallback below exists. Waiting for it would forfeit the
-  // early return on every single capture.
-  const cap = await cdp.capture(`https://www.simcompanies.com/b/${CFG.storeId}/`, 15, [
-    '/api/v3/companies/auth-data/',
-    '/api/v2/companies/me/buildings/',
-    `/api/v3/resources/${CFG.companyId}/`,
-    '/api/v4/0/resources-retail-info/',
-    '/api/v2/production-modifiers/0/',
-  ]);
+  const cap = await cdp.capture(`https://www.simcompanies.com/b/${CFG.storeId}/`, 15);
   const capturedAt = new Date().toISOString();
   let capturedStorePageActivity = null;
   try {

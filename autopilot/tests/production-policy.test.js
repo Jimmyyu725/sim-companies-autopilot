@@ -119,9 +119,9 @@ test('Mill fallback horizon follows the next construction checkpoint', () => {
     t: new Date(nowMs).toISOString(),
     stock: [{ kind: 118, amount: 16747, known: true }],
     buildings: [
-      { id: 55042846, name: 'Mill', kindLetter: 'i', size: 1, busy: null },
+      { id: 900006, name: 'Mill', kindLetter: 'i', size: 1, busy: null },
       {
-        id: 55129947,
+        id: 900005,
         name: 'Mill',
         kindLetter: 'i',
         size: 2,
@@ -130,14 +130,14 @@ test('Mill fallback horizon follows the next construction checkpoint', () => {
     ],
   };
 
-  const checkpointPolicy = buildMillBatchPolicy(state, 55042846, null, nowMs);
+  const checkpointPolicy = buildMillBatchPolicy(state, 900006, null, nowMs);
   assert.equal(checkpointPolicy.enabled, true);
   assert.equal(checkpointPolicy.desiredDurationSeconds, 10440);
   assert.equal(checkpointPolicy.minimumDurationSeconds, 7830);
   assert.equal(checkpointPolicy.inputCapQty, 1674);
   assert.equal(checkpointPolicy.reason, 'next-mill-construction-checkpoint');
 
-  const oneHourPolicy = buildMillBatchPolicy(state, 55042846, 1, nowMs);
+  const oneHourPolicy = buildMillBatchPolicy(state, 900006, 1, nowMs);
   assert.equal(oneHourPolicy.desiredDurationSeconds, 3600);
   assert.equal(oneHourPolicy.minimumDurationSeconds, 2700);
 });

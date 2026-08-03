@@ -168,9 +168,7 @@ async function inspectOne(args, byImage) {
   let cachedState = null;
   try { cachedState = JSON.parse(fs.readFileSync(path.join(__dirname, '.state.json'), 'utf8')); }
   catch (_) {}
-  // The LEVEL line is the cheapest proof this building page actually rendered. Without it a
-  // stable-but-unpainted page has returned a null level and null wages.
-  await cdp.goto(`https://www.simcompanies.com/b/${args.buildingId}/`, { expect: /LEVEL\s+\d+/i });
+  await cdp.goto(`https://www.simcompanies.com/b/${args.buildingId}/`);
 
   const page = await cdp.evaluate(String.raw`
     const readBuildingPageActivity = ${readBuildingPageActivity.toString()};
@@ -296,7 +294,7 @@ async function inspectOne(args, byImage) {
 
 // Accepts either one building (`buildingId`) or several (`buildingIds`). The batch form exists
 // because the DeepSeek adapter allows exactly one tool call per assistant message: inspecting
-// three Mills separately costs three full model round trips for three reads that do not depend on
+// several buildings separately costs a full model round trip each, for reads that do not depend on
 // each other. Writes deliberately stay single — a partially applied batch mutation would leave the
 // company in a state no evidence describes.
 async function main() {

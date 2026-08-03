@@ -60,7 +60,10 @@ const buttonDisabled = btn.disabled
   || getComputedStyle(btn).pointerEvents === 'none';
 if (buttonDisabled) return { ok: false, reason: 'BUY button is disabled', qty, plan };
 
-const before = await api('/api/v3/resources/' + (window.__companyId || '5714348') + '/');
+// No fallback company id. A missing one used to silently read a different company's warehouse,
+// so the before/after comparison would have proved nothing about this purchase.
+if (!window.__companyId) return { ok: false, reason: 'company id was not supplied to this action', qty, plan };
+const before = await api('/api/v3/resources/' + window.__companyId + '/');
 const beforeAuth = await api('/api/v3/companies/auth-data/');
 if (before.status !== 200 || !Array.isArray(before.json)) {
   return { ok: false, reason: 'could not verify inventory before BUY', stockStatus: before.status };
@@ -119,7 +122,7 @@ btn.scrollIntoView({ block: 'center' });
 btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
 await sleep(4000);
 
-const after = await api('/api/v3/resources/' + (window.__companyId || '5714348') + '/');
+const after = await api('/api/v3/resources/' + window.__companyId + '/');
 const afterAuth = await api('/api/v3/companies/auth-data/');
 const now = totalKindStock(after.json);
 const cashAfterRaw = afterAuth.json?.money ?? afterAuth.json?.authCompany?.money;

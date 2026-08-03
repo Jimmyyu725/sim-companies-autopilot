@@ -87,14 +87,14 @@ test('page-derived retail activity persists with an exact building, level, and r
   try {
     fs.writeFileSync(stateFile, JSON.stringify({
       t: new Date(NOW).toISOString(),
-      buildings: [{ id: 54959779, name: 'Grocery store', size: 2, category: 'sales' }],
+      buildings: [{ id: 900200, name: 'Grocery store', size: 2, category: 'sales' }],
     }));
     const inspection = buildPageActivityInspection({
-      buildingId: 54959779,
+      buildingId: 900200,
       level: 2,
       observedAt: new Date(NOW).toISOString(),
       pageEvidence: {
-        path: '/b/54959779/', pathMatches: true,
+        path: '/b/900200/', pathMatches: true,
         construction: false, retailSale: false, orderBusy: false, collectible: false,
         productionOrderAvailable: false, retailOrderAvailable: true, retailCards: [{}],
       },
@@ -102,7 +102,7 @@ test('page-derived retail activity persists with an exact building, level, and r
     assert.equal(persistPageActivityInspection(stateFile, inspection).updated, true);
     const persisted = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
     assert.equal(persisted.buildings[0].activityInspection.type, 'idle');
-    assert.equal(persisted.buildings[0].activityInspection.source, '/b/54959779/');
+    assert.equal(persisted.buildings[0].activityInspection.source, '/b/900200/');
 
     const wrongRoute = { ...inspection, source: '/b/1/' };
     assert.equal(persistPageActivityInspection(stateFile, wrongRoute).updated, false);

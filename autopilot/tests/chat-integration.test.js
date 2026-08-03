@@ -242,7 +242,7 @@ test('only explicit IDs, exact times, and verified author identity enter the led
     conversationId: 'Sales',
     result,
     observedAt: '2026-07-27T05:00:00.000Z',
-    ownCompanyId: 5714348,
+    ownCompanyId: 900100,
     ownCompanyName: 'Verified Company Name',
   });
   assert.deepEqual(withOwnIdentity.ledgerMessages.map(message => message.messageId), ['9001', '9002']);

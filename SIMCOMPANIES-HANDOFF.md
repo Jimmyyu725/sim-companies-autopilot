@@ -14,15 +14,21 @@ values. Verify live evidence before asserting or changing state.
 
 ## 1. Runtime ownership
 
-Since 2026-07-29, the sole company operator is the provider-routed LLM autopilot in `autopilot/`.
-The production path uses DeepSeek V4 Flash at Max reasoning for the main brain and CFO/COO/CMO.
-The prior OpenAI Terra/Luna path remains intact as a one-command rollback and is activated
-automatically after two consecutive failed DeepSeek wakes. The former fast-loop, strategist, and
-board layers are preserved under `legacy/` as history only. They are inactive and their old data is
-not current business evidence.
+**The autopilot is currently disabled and the owner operates the company by hand.** There is no
+cron entry for `gate.js`; see section 8 for what must be true before it goes back on.
+
+When it does run, the sole operator is the provider-routed LLM autopilot in `autopilot/`. The
+production path uses DeepSeek V4 Flash at Max reasoning for the main brain and CFO/COO/CMO. The
+prior OpenAI Terra/Luna path remains intact as a one-command rollback and is activated
+automatically after two consecutive failed DeepSeek wakes.
+
+The company this repository operates was replaced on 2026-08-03. The previous company was retired,
+and on the owner's instruction its `legacy/` tree, analyses, diaries, board minutes, benchmark
+experiments and runtime state were deleted; they survive only in git history. Nothing here should
+be read as describing it.
 
 - Sim root: `/srv/appdata/chrome-automation/sim/`
-- Company ID: `5714348`
+- Company: **XaiverCoffee**, ID `5742177`, realm 0, founded 2026-08-03
 - Persistent Chrome: `127.0.0.1:9222`
 - Server time zone: `America/Chicago`
 - Browser mutex: `.tick.lock`
@@ -39,19 +45,14 @@ sim/
 │   ├── chat/                  chat policy, persistence, UI plans, leads, negotiation, safety gates
 │   ├── reference/             PA material loaded only when needed
 │   └── tests/                 deterministic unit tests
-├── shared/                    CDP, config, market tracker, measured facts
-│   ├── facts/
-│   └── price-tracker/
-└── legacy/                    historical pre-LLM system
-    ├── fast-loop/
-    ├── strategist/
-    └── board/                 includes minutes/ — the board's decision record
+└── shared/                    CDP, config, market collectors, measured facts
+    ├── facts/
+    └── price-tracker/
 ```
 
 Compatibility symlinks remain at the root (`brain`, `pages`, `price-tracker`, `cdp.js`,
-`config.json`, facts files, PA references, and `JOURNAL.md`). They protect older utilities and the
-existing price-tracker systemd unit. New runtime code, cron entries, and documentation must use the
-canonical directories.
+`config.json`, facts files, PA references, and `JOURNAL.md`). They protect older utilities. New
+runtime code, cron entries, and documentation must use the canonical directories.
 
 The remaining root-level probe, report, capture, and extraction scripts are unscheduled development
 artifacts. They are not part of either the active autopilot or the archived three-layer runtime.
@@ -341,7 +342,8 @@ The normalized state is authoritative only for the capture time shown in `state.
 - The Finance page and `/api/bonds/` amount are the current unsold-offer setting, not outstanding
   debt. `0` there does not conflict with sold records or `bondsPayable`; outstanding debt is the
   normalized `state.bonds.principalOutstanding` value.
-- Historical `board-data.json` and `.realizable.json` are not read by the active state path.
+- Bonds are locked until company level 10, so on this company every bond field reads zero and the
+  bond machinery above is dormant rather than wrong.
 
 ## 5. Action safety
 
@@ -380,19 +382,14 @@ function. Runtime validation repeats the schema checks before CDP starts.
 - State capture and `inspect_building` may attach exact page-derived activity evidence for the
   configured Grocery. Construction outranks all other markers; `STORE IS SELLING` proves a sale;
   an enabled Quantity/Price form proves idle; generic busy text remains UNKNOWN. A standard sales
-  UNKNOWN blocks journal close. The seasonal free-and-locked Beach market remains excluded.
-- `OWNER-DIRECTIVE.json` carries one durable highest-priority instruction across wakes. The active
-  `fund-and-upgrade-building` directive can reserve its target from ordinary production, authorize
-  deadline-bound bridge batches while funding/evidence remains unresolved, and remains pending
-  until fresh state shows the idle target level.
-- `REBUILD` normally requires API `busy:null`. The only exception is an API-omitted activity for an
-  exact level-1 Quarry/Mine/Oil rig: the same locked action must re-read the exact building page and
-  prove no construction, busy order, or collectible output plus enabled production and a unique
-  enabled REBUILD control.
-- The Prospector achievement campaign was retired by the owner on 2026-08-02, together with every
-  Quarry on the landscape. Its directive, target pool, slot reservation, one-use rebuild claim, and
-  council exemption are all gone: the brain skips Quarries, Mines and Oil rigs, and REBUILD is an
-  ordinary structural action requiring the full protocol below.
+  UNKNOWN blocks journal close. Seasonal free-and-locked buildings are excluded; this company owns
+  none.
+- `OWNER-DIRECTIVE.json` and `UPGRADE-PLAN.json` carry durable owner instructions across wakes. Both
+  were deleted with the previous company and no directive is active; the code paths that read them
+  treat an absent file as "no directive", which is the current correct state.
+- `REBUILD` requires API `busy:null` and is not an approved structural action on this company. The
+  brain skips Quarries, Mines and Oil rigs entirely — the Prospector achievement pays `$5,000` for
+  scrapping ten of them while one Quarry costs `$27,036`, so it is a loss, not a campaign.
 - Build, scrap, REBUILD, bonds, upgrade, or robots require:
   fresh state → `confirm:false` candidate preview for every executable alternative →
   explicit alternatives including `hold` → strategy Council direction →
@@ -454,24 +451,20 @@ and several runtime paths read `data/prices.jsonl`, `data/book-state.json`, and 
 
 ## 7. Historical archive
 
-- `legacy/fast-loop/` — former tick loop, plan executor, learner, state, backups, and one-shot tools.
-- `legacy/strategist/` — former strategist workflow, probes, snapshots, and logs.
-- `legacy/board/` — former board workflow, accounting, reports, the realizable-demand model, and
-  `minutes/`, the board's own record of what it decided and why.
-- `experiments/deepseek-v4-pro-shadow/` — the 50-wake provider benchmark and its preserved results.
+There is none. Owner directive 2026-08-03: when the previous company was retired, everything that
+described it was removed — the `legacy/` pre-LLM system (fast-loop, strategist, board and its
+minutes), `autopilot/analysis/`, `autopilot/diaries/`, `experiments/deepseek-v4-pro-shadow/`, the
+old `MASTER.md`/`JOURNAL.md` bodies, and every runtime state file tied to that company.
 
-Owner directive 2026-08-02: these are records, keep them. They are retained for audit and history,
-their original relative paths were not rewritten, and they are not rollback-ready executables in
-their new locations. Do not uncomment legacy cron lines without a deliberate restoration and fresh
-validation.
-
-The repo-root one-off probe and report scripts, and `autopilot/rollback-to-55.sh`, stay deleted —
-those were dead code with no record value, and the rollback script would have corrupted
-`run-brain.sh` if anyone had run it.
+All of it remains in git history and nowhere else. Recover a specific file with
+`git log --diff-filter=D --name-only` and `git show <commit>^:<path>` rather than by assuming a
+working-tree copy exists.
 
 ## 8. Cron
 
-Canonical active entries:
+**Nothing from this project is currently scheduled.** The owner disabled it on 2026-08-03 while he
+runs the new company by hand. These are the canonical entries to restore, not a description of what
+is installed:
 
 ```cron
 * * * * * cd /srv/appdata/chrome-automation/sim && node autopilot/gate.js >> autopilot/gate.log 2>&1
@@ -480,7 +473,15 @@ Canonical active entries:
 20 8 * * * /usr/bin/node /srv/appdata/chrome-automation/sim/shared/facts/build-facts-db.js >> /srv/appdata/chrome-automation/sim/bot.log 2>&1
 ```
 
-The old fast-loop/strategist/board/executor entries remain commented and labeled `LEGACY`.
+Before re-enabling the `gate.js` line, confirm all of it: `shared/config.json` names the live
+company and real building IDs; `autopilot/CURRENT.json` describes the current position;
+`autopilot/BRAIN.md` matches the company's actual level, slots, cash scale and unlocked
+capabilities; and `node --test autopilot/tests/*.test.js` is green.
+
+**Install cron by appending, never by replacing.** `crontab <file>` overwrites the whole table, and
+this user's crontab is shared with other projects. On 2026-08-03 a whole-table write silently
+removed every Sim entry and the autopilot was dead for 15.5 hours before anyone noticed — there is
+no alarm for a missing cron line. Read `crontab -l` first, add to it, and re-read it after.
 
 The odd/even collector split is deliberate. Any new browser cron must avoid minute collisions,
 use `cd` to the Sim root, and use `.tick.lock` where it navigates the shared tab.
@@ -554,17 +555,21 @@ Do not invoke the full brain manually merely to test paths; observe the next sch
 
 The long-term mission is maximum sustainable net profit and self-funded growth. The active CEO
 prompt treats plans as evidence-backed hypotheses, compares materially different alternatives, and
-prefers bounded measurable experiments before scaling. Full self-produced Coffee is the current
-operating baseline; the former three-Mill-to-L3 program is complete:
+prefers bounded measurable experiments before scaling. The owner's chosen direction is Coffee:
 
 ```text
 power → water → seeds → coffee beans → coffee powder
 ```
 
+That is the destination, not the current state. XaiverCoffee owns two Farms and a Grocery store and
+no Mill, so it produces no Coffee Powder; the first structural objective is a Mill. The measured
+chain economics, the level-to-slot table, the achievement payouts, and the order-book evidence that
+rules out bulk crop exports all live in `autopilot/BRAIN.md` section 7.
+
 Current milestones and next actions come from fresh state plus `autopilot/CURRENT.json`.
 Durable rules live in `autopilot/BRAIN.md`: keep cash floors, no real-money/Boost spend, no forced
-actions, no Catering/Restaurant, no running-order cancellation, market-absorbable slot use, bounded
-water/power buffers, complete warehouse review, and explicit safety protocols for structural moves.
+actions, no Catering/Restaurant, no running-order cancellation, market-absorbable slot use, complete
+warehouse review, and explicit safety protocols for structural moves.
 Each wake records the leading opportunity/risk and 2–4 alternatives. Coffee and Tools are baselines
 or benchmarks rather than permanent answers; a verified better route may replace them. A pivot still
 requires current capex, capacity, realizable demand, downtime, debt-service, payback, downside, and

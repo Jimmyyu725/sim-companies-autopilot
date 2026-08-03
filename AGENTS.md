@@ -1,18 +1,26 @@
 # Sim Companies autopilot — Codex project context
 
-This directory runs Jimmy's Sim Companies company 24/7. **The provider-routed LLM autopilot
-(`autopilot/`) is the sole operator**: DeepSeek V4 Flash at Max reasoning is the current path and
-retained OpenAI Terra/Luna is the automatic rollback. Do not disturb it blindly; it wakes on the
-game's event schedule and holds `.tick.lock` while acting. The pre-LLM three-layer system is kept
-under `legacy/` as history — inactive, and never current evidence.
+This directory runs Jimmy's Sim Companies company **XaiverCoffee** (id `5742177`, realm 0), founded
+2026-08-03. The provider-routed LLM autopilot (`autopilot/`) is the only operator when it is
+running: DeepSeek V4 Flash at Max reasoning is the current path and retained OpenAI Terra/Luna is
+the automatic rollback.
+
+**The autopilot is currently disabled.** There is no cron entry for it, and the owner is operating
+the company by hand. Do not re-enable it without his say-so; the checklist for turning it back on is
+in `SIMCOMPANIES-HANDOFF.md`.
 
 **READ FIRST: `SIMCOMPANIES-HANDOFF.md`** — the complete file map, architecture, cron, rollback,
-mission, and gotchas. Also `legacy/board/DOCTRINE.md` and `LESSONS.md` for historical engineering
-context. Use `autopilot/CURRENT.json` for current memory; `MASTER.md` is append-only audit history.
+mission, and gotchas. Then `LESSONS.md` for engineering post-mortems that still apply. Use
+`autopilot/CURRENT.json` for current memory; `MASTER.md` is append-only audit history.
 
-Rules: Chinese replies, English code/docs, never print secrets (OpenAI key in
-/srv/appdata/ledgerwall/.env), verify before asserting, never fabricate. Long-term mission = maximum
-sustainable net profit and self-funded growth; self-produced Coffee is the current operating
-baseline. The Prospector achievement campaign was retired on 2026-08-02 — the brain skips Quarries,
-Mines and Oil rigs entirely. The next strategy trigger comes from current state and
-`autopilot/CURRENT.json` (see `autopilot/BRAIN.md`; edit it to change behavior).
+Rules: Chinese replies, English code/docs, verify before asserting, never fabricate.
+
+Long-term mission = maximum sustainable net profit and self-funded growth. The owner's chosen
+direction is the Coffee chain (`Power → Water → Seeds → Coffee Beans → Coffee Powder`), but the
+company owns no Mill yet, so it produces no Coffee Powder. The measured economics, the slot ceiling
+by company level, and the reason bulk crop exports are not a viable income route are all in
+`autopilot/BRAIN.md` section 7 — edit that file to change behaviour.
+
+The previous company was retired on 2026-08-03. Its records, `legacy/` tree, analyses, diaries and
+runtime state were deleted on the owner's instruction and survive only in git history. Nothing in
+this repository should describe it as current.

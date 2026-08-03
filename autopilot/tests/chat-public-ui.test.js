@@ -216,7 +216,7 @@ test('public reply preview resolves a live sibling group by component source ide
       sender: { id: 7812345, company: 'HEMLOCK ENTERPRISE' },
       body: [{ id: 9001, body: 'Buying 10k', datetime: '2026-07-27T07:00:00.000Z' }],
       fromMe: false,
-      myCompanyIds: [5714348],
+      myCompanyIds: [900100],
     },
     return: null,
   };
@@ -289,7 +289,7 @@ test('public read fragment parses live sibling header/body message regions', asy
       sender: { id: 7812345, company: 'HEMLOCK ENTERPRISE' },
       body: [{ id: 9001, body: 'Buying 10k', datetime: '2026-07-27T07:00:00.000Z' }],
       fromMe: false,
-      myCompanyIds: [5714348],
+      myCompanyIds: [900100],
     },
     return: null,
   };

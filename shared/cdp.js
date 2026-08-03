@@ -170,87 +170,18 @@ async function evaluate(expr) {
   return r.result.value;
 }
 
-// Ceilings, deliberately the same as the waits they replace, so a slow page behaves exactly as it
-// did before. Only a fast page finishes sooner.
-const NAV_READY_CEILING_MS = 34000;
-// Raised from the 2500ms it replaced because the old code also slept a blind 4000ms BEFORE it
-// began checking readiness, so a page effectively had ~6.5s to paint. Polling starts immediately
-// now, so the settle phase needs the room. A fast page still leaves in a few hundred milliseconds.
-const SPA_SETTLE_CEILING_MS = 4000;
-const NAV_POLL_MS = 250;
 
-// The path a navigation is expected to land on. Compared rather than the whole href because the
-// app appends and rewrites query strings during boot.
-function navigationTargetPath(url) {
-  try { return new URL(String(url)).pathname.replace(/\/+$/, ''); }
-  catch (_) { return null; }
-}
 
-// Reads the one probe the wait loops need. Errors are swallowed: mid-navigation the execution
-// context is destroyed and re-created, and that is a reason to poll again, not to fail.
-async function navigationProbe() {
-  try {
-    return await evaluate(
-      'const t = ((document.body && document.body.innerText) || ""); ' +
-      'return { href: location.href, state: document.readyState, len: t.length, ' +
-      'text: t.slice(0, 4000) }');
-  } catch (_) { return null; }
-}
-
-// `expect` is a substring or RegExp the finished page must show. Text stability alone proved too
-// weak a signal: measured 2026-08-02, one building page in a batch of three settled at a stable
-// body that did not yet contain its LEVEL line, and the inspection returned a null level. A caller
-// that knows what its page must contain should say so; the ceiling is unchanged either way.
-async function goto(url, options = {}) {
+async function goto(url) {
   await send('Page.navigate', { url });
-  const wantedPath = navigationTargetPath(url);
-  const expect = options && options.expect ? options.expect : null;
-  const matchesExpectation = (text) => {
-    if (!expect) return true;
-    return expect instanceof RegExp ? expect.test(text) : String(text).includes(String(expect));
-  };
-
-  // The old code slept a blind 4s before it started checking readyState, even though the check
-  // below is what actually decides. It also never verified WHICH page had loaded — a real hazard
-  // on this shared tab, where a stale render has previously been read as the wrong building.
-  const readyDeadline = Date.now() + NAV_READY_CEILING_MS;
-  let landed = false;
-  while (Date.now() < readyDeadline) {
-    const probe = await navigationProbe();
-    if (probe && probe.state === 'complete') {
-      const here = navigationTargetPath(probe.href);
-      // Landing on the requested path is proof. Without it, keep polling until the ceiling and
-      // then proceed anyway: callers that depend on the exact page verify it themselves, and
-      // failing here would be stricter than the behaviour this replaces.
-      if (wantedPath == null || here === wantedPath) { landed = true; break; }
-    }
-    await new Promise(r => setTimeout(r, NAV_POLL_MS));
+  await new Promise(r => setTimeout(r, 4000));
+  for (let i = 0; i < 30; i++) {
+    const state = await evaluate('return document.readyState');
+    if (state === 'complete') break;
+    await new Promise(r => setTimeout(r, 1000));
   }
-
-  // The SPA paints after readyState completes, which is why a blind 2.5s used to follow. Wait for
-  // the rendered text to stop growing instead; an unchanged non-empty body means the paint landed.
-  const settleDeadline = Date.now() + SPA_SETTLE_CEILING_MS;
-  let previousLength = -1;
-  let expectationMet = !expect;
-  while (Date.now() < settleDeadline) {
-    const probe = await navigationProbe();
-    const length = probe ? probe.len : -1;
-    const seen = probe ? matchesExpectation(probe.text || '') : false;
-    if (seen) expectationMet = true;
-    // Both signals, not either. The expectation alone released too early — measured 2026-08-02, a
-    // building page showed its LEVEL line while the wages line was still unpainted, and the
-    // inspection recorded a null wage. Stability alone is what let an unpainted page through in
-    // the first place. Requiring both is still far cheaper than the blind wait it replaces.
-    const stable = length > 0 && length === previousLength;
-    if (stable && seen) break;
-    previousLength = length;
-    await new Promise(r => setTimeout(r, 200));
-  }
-
-  const result = await evaluate('return { url: location.href, title: document.title }');
-  if (!landed) result.landedOnRequestedPath = false;
-  if (expect && !expectationMet) result.expectationMet = false;
-  return result;
+  await new Promise(r => setTimeout(r, 2500)); // let the SPA render
+  return evaluate('return { url: location.href, title: document.title }');
 }
 
 async function shot(out) {
@@ -285,39 +216,12 @@ async function watch(url, seconds) {
   }
 }
 
-// How long to keep listening after the last required response completes, so a straggler the
-// caller did not name still lands in the same capture.
-const CAPTURE_SETTLE_MS = 500;
-
-// True once every required path has a request that finished loading. Kept pure and exported so the
-// early-return rule is testable without a browser: it decides when a capture may stop waiting, and
-// getting it wrong either wastes the whole ceiling or hands back a half-loaded body.
-function captureComplete(wanted, finished, required) {
-  if (!Array.isArray(required) || !required.length) return false;
-  return required.every(path => {
-    for (const [requestId, url] of wanted) {
-      if (String(url).includes(path) && finished.has(requestId)) return true;
-    }
-    return false;
-  });
-}
-
 // Capture the JSON bodies the app itself fetches. Direct in-page fetch() to some
 // /api/ paths trips a Cloudflare managed challenge, so observe the app's own traffic
 // instead of re-issuing requests.
-//
-// `seconds` is a ceiling, not a schedule. Pass `until` — the API paths the caller actually reads —
-// and the capture returns as soon as every one of them has finished loading, plus a short settle
-// window. Measured live on 2026-08-02: the store page delivers all of state.js's endpoints in
-// about 1.1s, so the old unconditional 15s wait spent roughly 13.7s per refresh_state doing
-// nothing. Callers that pass no `until` keep the original fixed wait exactly.
-//
-// Completion is judged on Network.loadingFinished, never on responseReceived: the latter fires on
-// response headers, and getResponseBody against a still-streaming request returns a partial body.
-async function capture(url, seconds, until = null) {
+async function capture(url, seconds) {
   const bodies = {};
   const wanted = new Map();
-  const finished = new Set();
   const listener = (ev) => {
     const m = JSON.parse(ev.data);
     if (m.method === 'Network.responseReceived' &&
@@ -325,7 +229,6 @@ async function capture(url, seconds, until = null) {
         !m.params.response.url.includes('amplitude')) {
       wanted.set(m.params.requestId, m.params.response.url);
     }
-    if (m.method === 'Network.loadingFinished') finished.add(m.params.requestId);
   };
   ws.addEventListener('message', listener);
   let enabled = false;
@@ -334,22 +237,7 @@ async function capture(url, seconds, until = null) {
     enabled = true;
     if (url) { await send('Page.navigate', { url }); }
     else { await send('Page.reload', { ignoreCache: false }); }
-    const ceilingMs = (Number(seconds) || 14) * 1000;
-    const required = Array.isArray(until) ? until.filter(Boolean) : [];
-    if (!required.length) {
-      await new Promise(r => setTimeout(r, ceilingMs));
-    } else {
-      const deadline = Date.now() + ceilingMs;
-      const complete = () => captureComplete(wanted, finished, required);
-      while (Date.now() < deadline && !complete()) {
-        await new Promise(r => setTimeout(r, 50));
-      }
-      // A satisfied wait still settles; a timed-out one does not, because the ceiling has already
-      // been spent and the caller validates whatever arrived.
-      if (complete()) {
-        await new Promise(r => setTimeout(r, Math.min(CAPTURE_SETTLE_MS, Math.max(0, deadline - Date.now()))));
-      }
-    }
+    await new Promise(r => setTimeout(r, (Number(seconds) || 14) * 1000));
     for (const [reqId, u] of wanted) {
       try {
         const b = await send('Network.getResponseBody', { requestId: reqId });
@@ -364,7 +252,7 @@ async function capture(url, seconds, until = null) {
   }
 }
 
-module.exports = { connect, evaluate, goto, shot, capture, captureComplete, navigationTargetPath, watch, send,
+module.exports = { connect, evaluate, goto, shot, capture, watch, send,
                    substituteSecretPlaceholders,
                    close: () => {
                      rejectPending(new Error('CDP connection closed by caller'));

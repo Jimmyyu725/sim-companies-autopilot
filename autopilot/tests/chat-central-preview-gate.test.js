@@ -61,7 +61,7 @@ test('central contact, message, subscription, and contract actions have strict s
   assert.equal(validateActionParams('chat_contract_list', { limit: 50 }).ok, true);
   assert.equal(validateActionParams('chat_contract_preview', {
     contractId: '9001',
-    ownCompanyId: '5714348',
+    ownCompanyId: '900100',
     terms: {
       counterpartyCompanyId: '7812345',
       ourSide: 'buy',

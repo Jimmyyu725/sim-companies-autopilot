@@ -66,7 +66,7 @@
     },
     {
       "id": 4002,
-      "sender": { "id": 5714348, "company": "Jimmy NAS" },
+      "sender": { "id": 900100, "company": "XaiverCoffee" },
       "body": "Can supply 10k water Q0 @0.37.",
       "datetime": "2026-07-26T22:01:00.000Z"
     }
@@ -80,7 +80,7 @@
     },
     {
       "id": 4002,
-      "sender": { "id": 5714348, "company": "Jimmy NAS" },
+      "sender": { "id": 900100, "company": "XaiverCoffee" },
       "body": "Can supply 10k water Q0 @0.37.",
       "datetime": "2026-07-26T22:01:00.000Z"
     },
@@ -92,7 +92,7 @@
     },
     {
       "id": 4004,
-      "sender": { "id": 5714348, "company": "Jimmy NAS" },
+      "sender": { "id": 900100, "company": "XaiverCoffee" },
       "body": "Yes, send it.",
       "datetime": "2026-07-26T22:02:10.000Z"
     }

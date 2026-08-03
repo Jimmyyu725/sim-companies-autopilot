@@ -22,7 +22,9 @@ if (hits.length !== 1)
 
 const snapshot = async () => {
   const auth = await api('/api/v3/companies/auth-data/');
-  const resources = await api('/api/v3/resources/' + (window.__companyId || '5714348') + '/');
+  // No fallback company id: reading another company's warehouse would make this snapshot a lie.
+  if (!window.__companyId) return { cash: null, stock: {}, stockComplete: false, companyIdMissing: true };
+  const resources = await api('/api/v3/resources/' + window.__companyId + '/');
   const cashRaw = auth.json?.money ?? auth.json?.authCompany?.money;
   const cash = cashRaw == null || cashRaw === '' ? null : Number(cashRaw);
   const stock = {};

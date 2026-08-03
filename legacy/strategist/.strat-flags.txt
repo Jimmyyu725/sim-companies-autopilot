@@ -1,9 +1,0 @@
-### chat-pending.flag
-2026-07-24T13:44:52.914Z
-
-### surplus-alert.flag
-coffee-beans: 13172 units (limit 4000) ≈ $9879 frozen at $0.75 [B2B-DEEP, realizable ~30/h]
-
-### slot-alert.flag
-2 free construction slot(s), no armed build plan
-

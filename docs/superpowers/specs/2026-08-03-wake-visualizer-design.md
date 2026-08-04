@@ -32,9 +32,15 @@ Layout is a dashboard sized by importance, not a scrolling log:
 │ previous reasoning, dimmed   │ step 14/40 · $0.041      │
 │                              │ pa_reply✓ build⚠         │
 │                              │ blocked: building busy   │
-│                              │ beans −2,000 ground +58  │
+│                              │ beans 6,628 water 12,162 │
 └──────────────────────────────┴──────────────────────────┘
 ```
+
+The warehouse line shows **levels, not per-wake deltas**. `brain.log` elides long tool results —
+6,504 of them carry `[N chars omitted]` — so a `refresh_state` body is not valid JSON and stock
+cannot be recovered from the log at all. Levels come from `autopilot/.state.json`, which the runtime
+rewrites at the open and close of every wake; mid-wake that is the opening position, and it is
+labelled as a level so it does not read as a change it cannot prove.
 
 Reasoning gets the space because it is the only part worth reading word by word. Everything else is
 a status line. The dimmed previous reasoning line is the one concession to narrative — cheap, and it

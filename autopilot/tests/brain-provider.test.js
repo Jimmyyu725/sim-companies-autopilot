@@ -7,6 +7,7 @@ const os = require('os');
 const path = require('path');
 const {
   FAILURE_THRESHOLD,
+  OWNER_PRIMARY_FILE,
   readActiveProvider,
   readHealth,
   recordProviderResult,
@@ -39,6 +40,7 @@ test('confirmed provider switch writes owner-only state and resets health', () =
     confirm: true,
     activeProviderFile: value.activeProviderFile,
     healthFile: value.healthFile,
+    ownerPrimaryFile: value.ownerPrimaryFile,
     readinessCheck: value.readinessCheck,
     now: '2026-07-30T00:00:00.000Z',
   });
@@ -59,11 +61,13 @@ test('two consecutive DeepSeek failures automatically activate retained OpenAI',
     confirm: true,
     activeProviderFile: value.activeProviderFile,
     healthFile: value.healthFile,
+    ownerPrimaryFile: value.ownerPrimaryFile,
     readinessCheck: value.readinessCheck,
   });
   const first = recordProviderResult('deepseek', 1, {
     activeProviderFile: value.activeProviderFile,
     healthFile: value.healthFile,
+    ownerPrimaryFile: value.ownerPrimaryFile,
     readinessCheck: value.readinessCheck,
     now: '2026-07-30T00:01:00.000Z',
   });
@@ -74,6 +78,7 @@ test('two consecutive DeepSeek failures automatically activate retained OpenAI',
   const second = recordProviderResult('deepseek', 124, {
     activeProviderFile: value.activeProviderFile,
     healthFile: value.healthFile,
+    ownerPrimaryFile: value.ownerPrimaryFile,
     readinessCheck: value.readinessCheck,
     now: '2026-07-30T00:02:00.000Z',
   });
@@ -89,16 +94,19 @@ test('a successful DeepSeek wake resets the consecutive failure count', () => {
     confirm: true,
     activeProviderFile: value.activeProviderFile,
     healthFile: value.healthFile,
+    ownerPrimaryFile: value.ownerPrimaryFile,
     readinessCheck: value.readinessCheck,
   });
   recordProviderResult('deepseek', 1, {
     activeProviderFile: value.activeProviderFile,
     healthFile: value.healthFile,
+    ownerPrimaryFile: value.ownerPrimaryFile,
     readinessCheck: value.readinessCheck,
   });
   const result = recordProviderResult('deepseek', 0, {
     activeProviderFile: value.activeProviderFile,
     healthFile: value.healthFile,
+    ownerPrimaryFile: value.ownerPrimaryFile,
     readinessCheck: value.readinessCheck,
   });
   assert.equal(result.consecutiveFailures, 0);
@@ -206,4 +214,40 @@ test('an owner who chose the fallback provider is never auto-reverted', () => {
     assert.equal(recordProviderResult('openai', 0, options).primaryRestored, false);
   }
   assert.equal(readActiveProvider(value.activeProviderFile), 'openai');
+});
+
+// Regression (2026-08-03, found live): every switchProvider() call in this file supplied
+// activeProviderFile and healthFile fixture overrides but omitted ownerPrimaryFile, so each test
+// run fell through to the real default and overwrote the operator's live provider choice on disk
+// (autopilot/.owner-primary-provider) — twice reverting a manual openai switch back to deepseek,
+// purely from running the test suite. This test proves the real file is never touched by a
+// fixture-scoped switch, using both content and mtime so a coincidental content match (the real
+// file already holding the same provider name the test happens to switch to) cannot mask a write:
+// writeAtomic() always replaces the file via rename, which bumps mtime even when the bytes match.
+test('switchProvider with a fully injected fixture never touches the real owner-primary file', () => {
+  const value = fixture();
+  const existedBefore = fs.existsSync(OWNER_PRIMARY_FILE);
+  const statBefore = existedBefore ? fs.statSync(OWNER_PRIMARY_FILE) : null;
+  const contentBefore = existedBefore ? fs.readFileSync(OWNER_PRIMARY_FILE, 'utf8') : null;
+
+  switchProvider('deepseek', {
+    confirm: true,
+    activeProviderFile: value.activeProviderFile,
+    healthFile: value.healthFile,
+    ownerPrimaryFile: value.ownerPrimaryFile,
+    readinessCheck: value.readinessCheck,
+  });
+
+  const existedAfter = fs.existsSync(OWNER_PRIMARY_FILE);
+  const statAfter = existedAfter ? fs.statSync(OWNER_PRIMARY_FILE) : null;
+  const contentAfter = existedAfter ? fs.readFileSync(OWNER_PRIMARY_FILE, 'utf8') : null;
+
+  assert.equal(existedAfter, existedBefore,
+    'the real owner-primary file must not be created or deleted by a fixture-scoped switch');
+  assert.equal(contentAfter, contentBefore,
+    'the real owner-primary file content must not change');
+  if (existedBefore) {
+    assert.equal(statAfter.mtimeMs, statBefore.mtimeMs,
+      'the real owner-primary file must not be rewritten, even if the content would coincidentally match');
+  }
 });

@@ -57,6 +57,16 @@ const {
   resolveChatMode,
 } = require(path.join(BRAIN, 'chat', 'runtime-mode.js'));
 const MODEL = process.env.BRAIN_MODEL || 'gpt-5.6-terra';
+// Same bounds, same default and the same environment variable as brain.js. run-brain.sh exports
+// BRAIN_MAX_ROUNDS=40 for both engines, but this one used to hard-code 30 and ignore it, so every
+// wake on this engine ran ten rounds shorter than the operator had configured. Measured
+// 2026-08-03 23:35: a wake finished all its work, was refused a journal because a completed job
+// still needed collecting, obeyed, and then ran out mid-close — the closing sequence needs nine
+// rounds when the journal is refused once, and CLOSING_BUDGET_ROUNDS only reserves four.
+const MAX_ROUNDS = (() => {
+  const parsed = Number.parseInt(process.env.BRAIN_MAX_ROUNDS, 10);
+  return Number.isSafeInteger(parsed) && parsed >= 1 && parsed <= 50 ? parsed : 30;
+})();
 const DRY = process.env.BRAIN_DRY === '1';
 const CHAT_MODE = resolveChatMode();
 const KEY = process.env.OPENAI_API_KEY;
@@ -676,7 +686,7 @@ async function main() {
   try {
     let r = await respond({ model: MODEL, instructions: system, tools: TOOLS, tool_choice: 'auto',
       input: [{ role: 'user', content: `WAKE ${new Date().toISOString()}${DRY ? ' (DRY RUN)' : ''}.\nYOU WERE WOKEN BECAUSE: ${wakeReason||"(scheduled check)"}\nSTRATEGY COUNCIL GOVERNANCE (runtime-enforced; when required, call strategy_council before journal with explicit alternatives including hold and at least one named non-baseline expansion or pivot):\n${strategyGovernancePrompt}\nPENDING OWNER DIRECTIVE (highest priority; execute safely and keep pending until verified complete):\n${ownerDirective ? JSON.stringify(ownerDirective) : '(none)'}\nCURRENT MEMORY (authoritative cross-wake plan; current state still wins if newer):\n${current ? JSON.stringify(current) : '(missing — create it with master this wake)'}\n\nCurrent state:\n${state}` }] });
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < MAX_ROUNDS; i++) {
     const calls = (r.output || []).filter(o => o.type === 'function_call');
     for (const o of (r.output || [])) if (o.type === 'message') { const t = (o.content || []).map(c => c.text).join(''); if (t.trim()) { log('THINK:', t.slice(0, 300)); DIARY.push(`🧠 ${t.trim()}`); } }
     if (!calls.length) {
@@ -725,7 +735,7 @@ async function main() {
     if (done) break;
     // Reserve the final rounds for the closing sequence so a productive wake is not discarded
     // for running out before `master` writes the checkpoint.
-    roundsRemaining = 30 - (i + 1);
+    roundsRemaining = MAX_ROUNDS - (i + 1);
     const closing = closingBudgetDirective(roundsRemaining, runtimeGuard.finishCheck());
     if (closing) {
       log('CLOSING_BUDGET', closing.roundsRemaining, closing.missing.join('; '));
@@ -743,7 +753,7 @@ async function main() {
       }
     }
     if (!finished) {
-      const reason = 'Responses API tool loop exhausted 30 rounds without a successful finish call';
+      const reason = `Responses API tool loop exhausted ${MAX_ROUNDS} rounds without a successful finish call`;
       const retryAlarm = buildIncompleteLoopRetryAlarm(reason);
       writeJsonAtomic(path.join(BRAIN, 'next-wake.json'), retryAlarm);
       DIARY.push(`🛡️ SAFE FAILURE: ${reason}; retry at ${retryAlarm.atIso}`);

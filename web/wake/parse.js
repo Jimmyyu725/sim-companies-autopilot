@@ -112,16 +112,17 @@ function projectPanels({ text = '', nextWake = null, lastWake = null, warehouse 
     const atMs = nextWake ? Date.parse(nextWake.atIso) : NaN;
     return {
       status: 'idle',
+      silentForMs: null,
       wake: null,
       nextWake: nextWake
         ? { atIso: nextWake.atIso, reason: nextWake.reason || null,
             inMs: Number.isFinite(atMs) ? atMs - nowMs : null }
         : null,
-      money: { cash: null, deltaSinceStart: null },
+      money: { cash: null, deltaSinceStart: null, level: null, buildings: null },
       warehouse: Array.isArray(warehouse) ? warehouse : [],
       thinking: { latest: null, previous: null },
-      council: null,
-      progress: { step: 0, max: MAX_ROUNDS, elapsedMs: null, cost: null, calls: null, rc: null },
+      council: { calls: 0, latest: null },
+      progress: { step: 0, max: MAX_ROUNDS, elapsedMs: null, cost: null, calls: null, tokens: null, rc: null },
       lastActions: [],
       blocked: null,
       unparsed: 0,

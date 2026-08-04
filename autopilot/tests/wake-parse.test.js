@@ -147,8 +147,37 @@ test('warehouse is passed through and defaults to empty', () => {
   assert.deepEqual(projectPanels({ text, nowMs: atLastLine(text, 1000) }).warehouse, []);
 });
 
-test('unparsed lines are counted, not thrown', () => {
-  const text = read('wake-clean.log') + '\nthis line means nothing\n';
+// A renderer downstream will read s.council.calls and s.progress.step unconditionally, on any
+// status. PanelState must therefore carry the same keys — top level and in each nested object —
+// whether the wake is idle or running; only the values may differ. Comparing key sets (rather
+// than values, which legitimately differ) is what catches a branch that drops or nulls out a
+// whole nested object instead of filling it with placeholder values.
+test('idle and running PanelState objects expose the same keys', () => {
+  const idle = projectPanels({ text: '' });
+  const runningText = read('wake-running.log');
+  const running = projectPanels({ text: runningText, nowMs: atLastLine(runningText, 5000) });
+
+  // Object.keys(null) throws, which would let a raw TypeError stand in for a real assertion
+  // failure. Render non-objects as a distinct sentinel instead so a dropped nested object still
+  // shows up as a clean, readable mismatch.
+  const keysOf = value => (value === null || typeof value !== 'object')
+    ? `<${value}>`
+    : Object.keys(value).sort().join(',');
+
+  assert.equal(keysOf(idle), keysOf(running), 'top-level PanelState keys differ');
+  assert.equal(keysOf(idle.money), keysOf(running.money), 'money keys differ');
+  assert.equal(keysOf(idle.council), keysOf(running.council), 'council keys differ');
+  assert.equal(keysOf(idle.progress), keysOf(running.progress), 'progress keys differ');
+});
+
+test('appending N unparseable lines raises the unparsed count by exactly N', () => {
+  const clean = read('wake-clean.log');
+  const baseline = projectPanels({ text: clean, nowMs: atLastLine(clean, 1000) });
+
+  const N = 3;
+  const garbage = Array.from({ length: N }, (_, i) => `this line means nothing (${i})`).join('\n');
+  const text = clean + '\n' + garbage + '\n';
   const panels = projectPanels({ text, nowMs: atLastLine(text, 1000) });
-  assert.ok(panels.unparsed >= 1);
+
+  assert.equal(panels.unparsed, baseline.unparsed + N);
 });

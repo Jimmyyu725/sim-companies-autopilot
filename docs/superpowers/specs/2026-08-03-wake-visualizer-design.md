@@ -149,7 +149,7 @@ has exactly one place to fix.
 | Case | Behaviour |
 |---|---|
 | Log grows while a browser is connected | Push only the delta. The service holds parsed state; it does not re-read the file. |
-| Log truncated or rotated | Size shrank below the read offset: reset and re-read the tail. |
+| Log truncated or rotated | `run-brain.sh` renames `brain.log` to `brain.log.1` at the end of any wake where it exceeds 5 MB, so this is routine, not exceptional. Size shrank below the read offset: reset and re-read the tail. A read that lands across the rename returns fewer bytes than requested, so decode only what was actually read — a pre-allocated buffer would otherwise turn unwritten zero bytes into text and flicker the state to idle for one poll. |
 | No browser connected | Do no work. State is rebuilt from the tail on the first connection. |
 | Browser loses the connection | `EventSource` reconnects on its own. The page keeps the last known state visible and shows a disconnected marker rather than blanking. |
 | Unparseable line | Skip it, count it, surface the count quietly. Never blank the page over one bad line — the format is not a promised interface. |

@@ -537,7 +537,7 @@ test('state is read from the tail of a log file', () => {
   assert.equal(state.progress.rc, 0);
 });
 
-// Only the tail is read, so a 3.6 MB log costs the same as a small one. The tail must still
+// Only the tail is read, so a multi-megabyte log costs the same as a small one. The tail must still
 // begin at a line boundary or the first entry after the cut is garbage.
 //
 // The cut has to land INSIDE the last wake, after its banner, or splitWakes finds no banner,

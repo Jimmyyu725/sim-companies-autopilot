@@ -20,6 +20,8 @@ __pycache__/
 *.lock
 *.pid
 autopilot/.active-brain-provider
+autopilot/.owner-primary-provider
+autopilot/usage.jsonl.1
 autopilot/.brain-provider-health.json
 autopilot/.windows-sync-manifest
 

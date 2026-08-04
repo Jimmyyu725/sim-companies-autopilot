@@ -334,6 +334,25 @@ function calculateCoffeeReservePolicy({
     state, rateEvidence, inspectionCache, now, maxAge, horizon);
   const base = { asOf, complete: false, status: 'unknown', horizonHours: horizon, bufferPct: buffer, millCapacity };
 
+  // Printed building rates are the 1x figure. Measured 2026-08-03: a Farm page printed 889.63
+  // Seeds/h while the encyclopedia printed 2,668.89/h "(3x)" — exactly three times. Reserving from
+  // the printed rate during acceleration therefore under-reserves the whole chain by the
+  // multiplier, and the surplus it frees is inventory the Mills are about to eat. Refuse to answer
+  // rather than answer wrongly; the flag lets the journal gate tell this apart from a missing
+  // inspection, which is retryable, and this is not.
+  const acceleration = state?.levelingProgress?.acceleration;
+  const accelerationUnmodelled = acceleration != null &&
+    (acceleration.active === 'UNKNOWN' || (acceleration.active === true && Number(acceleration.multiplier) !== 1));
+
+  // Checked before anything else. Whether a multiplier is running is a property of the whole
+  // computation, not of the stock or recipe feeds, and the gate must see the flag even when those
+  // are also missing — otherwise the wake gets a retryable-looking reason for a state no retry can
+  // fix, which is the livelock shape.
+  if (accelerationUnmodelled) {
+    const reason = `a ${acceleration.multiplier ?? 'UNKNOWN'}x production multiplier is active until ${acceleration.until ?? 'UNKNOWN'}; printed rates are the 1x figure, so a reserve computed from them would be short by that factor`;
+    return { ...base, accelerationUnmodelled: true, acceleration, items: unknownItems(stock, reason) };
+  }
+
   let reason = null;
   if (!stock) reason = 'warehouse stock is incomplete or unknown';
   else if (!recipe) reason = 'Coffee recipe facts are missing or do not match the verified 10/10/6/1.2 chain';

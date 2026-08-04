@@ -208,6 +208,11 @@ function utilityJournalGate(state, reviews, alarm, nowMs = Date.now()) {
   // demand an inspection of "every current Mill" while naming none — a requirement no sequence of
   // tool calls can satisfy, so the wake could never close its journal.
   if (!ownsAMill(state)) return null;
+  // Same shape, different cause: while a production multiplier is running the reserve cannot be
+  // computed from printed 1x rates at all, so no number of Mill inspections will complete the plan.
+  // Demanding them would loop. Passing here does not authorize a sale — an incomplete plan still
+  // yields no verified sellable quantity — it only stops the wake from being trapped.
+  if (plan?.accelerationUnmodelled === true) return null;
   if (plan?.complete !== true || plan?.status !== 'ok') {
     const missingBuildingIds = missingMillInspectionIds(state);
     const missing = missingBuildingIds.length

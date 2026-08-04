@@ -24,7 +24,7 @@
   #offline { display: none; padding: 6px 18px; background: #3a2a1a; color: #e0a458; font-size: 13px; }
 </style>
 
-<div id="offline">Lost the connection to the wake service — showing the last state received.</div>
+<div id="offline">Cannot reach the wake service — no state received yet.</div>
 <header>
   <h1><span id="dot" class="dot idle"></span><span id="title">connecting…</span></h1>
   <div class="reason" id="reason"></div>
@@ -54,6 +54,19 @@
   const mins = ms => ms == null ? '—'
     : ms < 60000 ? Math.round(ms / 1000) + 's'
     : Math.floor(ms / 60000) + 'm' + String(Math.round((ms % 60000) / 1000)).padStart(2, '0') + 's';
+
+  // Appends each row to the lines container, separated by real <br> elements. A row is either a
+  // plain string (state text with no special appearance, rendered as a Text node) or an already
+  // built DOM node (used for the two rows that need the warn colour). Nothing here ever parses a
+  // string as markup, so a state value that happens to contain '<' or '&' just renders literally.
+  function renderLines(rows) {
+    const container = $('lines');
+    container.textContent = '';
+    rows.forEach((row, index) => {
+      if (index > 0) container.appendChild(document.createElement('br'));
+      container.appendChild(typeof row === 'string' ? document.createTextNode(row) : row);
+    });
+  }
 
   function render(s) {
     const dot = { running: 'live', done: 'idle', silent: 'lost', idle: 'idle' }[s.status] || 'idle';
@@ -91,17 +104,36 @@
     if (s.warehouse?.length) {
       rows.push(s.warehouse.slice(0, 4).map(w => `${w.name} ${w.amount.toLocaleString('en-US')}`).join(' · '));
     }
-    if (s.blocked) rows.push(`<span class="warn">blocked: ${s.blocked.reason}</span>`);
-    if (s.unparsed) rows.push(`<span class="warn">${s.unparsed} line(s) not understood</span>`);
-    $('lines').innerHTML = rows.join('<br>');
+    if (s.blocked) {
+      const reasonRow = document.createElement('span');
+      reasonRow.className = 'warn';
+      reasonRow.textContent = `blocked: ${s.blocked.reason}`;
+      rows.push(reasonRow);
+    }
+    if (s.unparsed) {
+      const unparsedRow = document.createElement('span');
+      unparsedRow.className = 'warn';
+      unparsedRow.textContent = `${s.unparsed} line(s) not understood`;
+      rows.push(unparsedRow);
+    }
+    renderLines(rows);
   }
 
   // EventSource reconnects by itself. The banner is the only signal the page cannot fake, so it
-  // stays until a message actually arrives — the last known state is left on screen underneath.
+  // stays until a message actually arrives. Its wording depends on whether a state has ever been
+  // received: once one has, the panels below are the last known state; before that, they are
+  // simply empty, so the banner says so instead of claiming to show anything.
+  let receivedState = false;
   const source = new EventSource('events');
   source.onmessage = event => {
+    receivedState = true;
     $('offline').style.display = 'none';
     try { render(JSON.parse(event.data)); } catch (_) {}
   };
-  source.onerror = () => { $('offline').style.display = 'block'; };
+  source.onerror = () => {
+    $('offline').textContent = receivedState
+      ? 'Lost the connection to the wake service — showing the last state received.'
+      : 'Cannot reach the wake service — no state received yet.';
+    $('offline').style.display = 'block';
+  };
 </script>

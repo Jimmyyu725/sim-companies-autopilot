@@ -519,7 +519,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { readState } = require('../../web/wake/server.js');
+const { readState, readTail } = require('../../web/wake/server.js');
 
 const FIXTURES = path.join(__dirname, 'fixtures');
 
@@ -539,10 +539,25 @@ test('state is read from the tail of a log file', () => {
 
 // Only the tail is read, so a 3.6 MB log costs the same as a small one. The tail must still
 // begin at a line boundary or the first entry after the cut is garbage.
+//
+// The cut has to land INSIDE the last wake, after its banner, or splitWakes finds no banner,
+// returns nothing, and the assertion passes for the wrong reason — proving nothing about the
+// partial line at all.
 test('reading only the tail never yields a partial first line', () => {
-  const { logPath } = tempLog('wake-clean.log');
-  const size = fs.statSync(logPath).size;
-  const state = readState({ logPath, tailBytes: Math.floor(size / 2), nowMs: Date.now() });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wake-server-'));
+  const logPath = path.join(dir, 'brain.log');
+  const first = fs.readFileSync(path.join(FIXTURES, 'wake-503.log'), 'utf8');
+  const second = fs.readFileSync(path.join(FIXTURES, 'wake-clean.log'), 'utf8');
+  fs.writeFileSync(logPath, first + second);
+
+  // Bytes from the end that cover the clean wake plus a slice of the 503 wake above it, so the
+  // window starts mid-line and still contains the clean wake's banner.
+  const tailBytes = Buffer.byteLength(second, 'utf8') + 200;
+  const cut = readTail(logPath, tailBytes);
+  assert.ok(!cut.startsWith(first.slice(0, 20)), 'the window must actually start mid-file');
+
+  const state = readState({ logPath, tailBytes, nowMs: Date.now() });
+  assert.notEqual(state.status, 'idle', 'the surviving banner must still be found');
   assert.equal(state.unparsed, 0, 'a mid-line cut must be discarded, not parsed');
 });
 

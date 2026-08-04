@@ -122,6 +122,25 @@ function normalizeProductionModifiers(payload, now = Date.now()) {
 // there. Surfacing progress every wake lets a decision weigh "this also buys levels" instead of
 // discovering the gate later. Owner asked for it 2026-08-02, when a promising building auction
 // turned out to need level 20.
+// Absent, malformed or expired all mean "no multiplier"; an unreadable one is never treated as 1,
+// because that is the value that would silently under-reserve the whole chain.
+function normalizedAcceleration(raw, nowMs = Date.now()) {
+  if (!raw || typeof raw !== 'object') return { multiplier: 1, until: null, active: false };
+  const multiplier = Number(raw.multiplier);
+  const untilMs = Date.parse(raw.until);
+  if (!Number.isFinite(multiplier) || multiplier <= 0) {
+    return { multiplier: null, until: raw.until ?? null, active: 'UNKNOWN' };
+  }
+  if (!Number.isFinite(untilMs)) {
+    return { multiplier, until: null, active: multiplier === 1 ? false : 'UNKNOWN' };
+  }
+  return {
+    multiplier,
+    until: new Date(untilMs).toISOString(),
+    active: multiplier !== 1 && untilMs > nowMs,
+  };
+}
+
 function summarizeLevelingProgress(levelInfo) {
   if (!levelInfo || typeof levelInfo !== 'object' || Array.isArray(levelInfo)) return null;
   const experience = Number(levelInfo.experience);
@@ -144,6 +163,12 @@ function summarizeLevelingProgress(levelInfo) {
       .filter(([, enabled]) => enabled === false)
       .map(([name]) => name)
       .sort(),
+    // A founding-period speed multiplier. Building pages print the 1x rate while output runs at
+    // multiplier x, so anything that turns a printed rate into an hourly quantity has to know.
+    acceleration: normalizedAcceleration(levelInfo.acceleration),
+    orderTimeLimitSeconds: Number.isFinite(Number(levelInfo.timeLimit))
+      ? Number(levelInfo.timeLimit)
+      : null,
   };
 }
 
@@ -457,6 +482,7 @@ module.exports = {
   parseBuilding,
   parseBusy,
   slotCapacityForLevel,
+  normalizedAcceleration,
   summarizeLevelingProgress,
   stockSourceIsComplete,
   summarizeBonds,

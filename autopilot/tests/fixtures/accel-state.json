@@ -1,0 +1,416 @@
+{
+ "t": "2026-08-03T23:59:45.481Z",
+ "sources": {
+  "auth": {
+   "status": "ok",
+   "asOf": "2026-08-03T23:59:45.481Z",
+   "source": "/api/v3/companies/auth-data/"
+  },
+  "buildings": {
+   "status": "ok",
+   "asOf": "2026-08-03T23:59:45.481Z",
+   "source": "/api/v2/companies/me/buildings/",
+   "activityStatus": "ok",
+   "activityKnownRows": 5,
+   "activityUnknownRows": 0,
+   "activityUnknownBuildingIds": [],
+   "pageActivityResolvedBuildingIds": []
+  },
+  "stock": {
+   "status": "ok",
+   "asOf": "2026-08-03T23:59:45.481Z",
+   "source": "/api/v3/resources/5742177/"
+  },
+  "ticker": {
+   "status": "fallback",
+   "asOf": "2026-08-03T23:59:13.000Z",
+   "ageSeconds": 32,
+   "source": "shared/price-tracker/data/prices.jsonl"
+  },
+  "retail": {
+   "status": "unknown",
+   "asOf": null,
+   "source": "/api/v4/0/resources-retail-info/"
+  },
+  "modifiers": {
+   "status": "ok",
+   "asOf": "2026-08-03T23:59:45.481Z",
+   "source": "/api/v2/production-modifiers/0/ (captured response)"
+  },
+  "volume1h": {
+   "status": "ok",
+   "asOf": "2026-08-03T23:59:45.507Z",
+   "source": "shared/price-tracker/data/volume.jsonl"
+  },
+  "weather": {
+   "status": "ok",
+   "asOf": "2026-08-03T23:59:45.481Z",
+   "source": "/api/v2/weather/0/"
+  },
+  "pa": {
+   "status": "clear",
+   "asOf": "2026-08-03T23:36:17.498Z",
+   "source": "rendered-messages-ui"
+  },
+  "bonds": {
+   "status": "partial",
+   "asOf": "2026-08-03T23:59:45.481Z",
+   "source": "sold bonds + balance sheet"
+  },
+  "research": {
+   "status": "ok",
+   "asOf": "2026-08-03T23:59:45.481Z",
+   "source": "/api/v3/players/research/"
+  },
+  "printedRates": {
+   "status": "unknown",
+   "asOf": null,
+   "ageSeconds": null,
+   "source": "shared/config.json"
+  },
+  "surplusPlan": {
+   "status": "ok",
+   "asOf": "2026-08-03T23:59:45.481Z",
+   "source": "autopilot/coffee-reserve-policy.js + .inspection-rates.json"
+  }
+ },
+ "stock": [
+  {
+   "kind": 1,
+   "name": "power",
+   "amount": 15121,
+   "availableAmount": 15121,
+   "blockedAmount": 0,
+   "lots": 1,
+   "availableLots": 1,
+   "blockedLots": 0,
+   "exchPrice": 0.269,
+   "known": true
+  },
+  {
+   "kind": 2,
+   "name": "water",
+   "amount": 3638,
+   "availableAmount": 3638,
+   "blockedAmount": 0,
+   "lots": 1,
+   "availableLots": 1,
+   "blockedLots": 0,
+   "exchPrice": 0.371,
+   "known": true
+  },
+  {
+   "kind": 13,
+   "name": "transport",
+   "amount": 5000,
+   "availableAmount": 5000,
+   "blockedAmount": 0,
+   "lots": 1,
+   "availableLots": 1,
+   "blockedLots": 0,
+   "exchPrice": 0.39,
+   "known": true
+  },
+  {
+   "kind": 66,
+   "name": "seeds",
+   "amount": 0,
+   "availableAmount": 0,
+   "blockedAmount": 0,
+   "lots": 0,
+   "availableLots": 0,
+   "blockedLots": 0,
+   "exchPrice": 0.286,
+   "known": true
+  },
+  {
+   "kind": 118,
+   "name": "coffee beans",
+   "amount": 1990,
+   "availableAmount": 1990,
+   "blockedAmount": 0,
+   "lots": 1,
+   "availableLots": 1,
+   "blockedLots": 0,
+   "exchPrice": 0.77,
+   "known": true
+  },
+  {
+   "kind": 119,
+   "name": "coffee ground",
+   "amount": 14,
+   "availableAmount": 14,
+   "blockedAmount": 0,
+   "lots": 1,
+   "availableLots": 1,
+   "blockedLots": 0,
+   "exchPrice": 37.25,
+   "known": true
+  }
+ ],
+ "buildings": [
+  {
+   "id": 900305,
+   "name": "Farm",
+   "kindLetter": "P",
+   "size": 1,
+   "category": "production",
+   "freeAndLocked": false,
+   "busy": {
+    "id": 702387001,
+    "type": "production",
+    "rawCategory": "r",
+    "makingKind": 118,
+    "makingName": "Coffee beans",
+    "amount": 5882,
+    "remainingOrUncollectedAmount": 5882,
+    "amountSemantics": "live-remaining-or-uncollected",
+    "amountAvailableNow": 0,
+    "remainingProfit": null,
+    "profitAvailableNow": null,
+    "price": null,
+    "expanding": false,
+    "canFetch": false,
+    "startedAt": "2026-08-03T23:40:48.102Z",
+    "endsAt": "2026-08-04T04:40:45.102Z"
+   },
+   "activity": {
+    "status": "known",
+    "busy": true,
+    "type": "production"
+   }
+  },
+  {
+   "id": 900300,
+   "name": "Grocery store",
+   "kindLetter": "G",
+   "size": 1,
+   "category": "sales",
+   "freeAndLocked": false,
+   "busy": {
+    "id": 702374216,
+    "type": "sale",
+    "rawCategory": "s",
+    "makingKind": 3,
+    "makingName": "Apples",
+    "amount": 600,
+    "remainingOrUncollectedAmount": null,
+    "amountSemantics": "sales-order-remaining",
+    "amountAvailableNow": null,
+    "remainingProfit": 1669,
+    "profitAvailableNow": 647,
+    "price": 5.56,
+    "expanding": false,
+    "canFetch": true,
+    "startedAt": "2026-08-03T22:35:40.983Z",
+    "endsAt": "2026-08-04T01:08:02.983Z"
+   },
+   "activity": {
+    "status": "known",
+    "busy": true,
+    "type": "sale"
+   }
+  },
+  {
+   "id": 900306,
+   "name": "Water reservoir",
+   "kindLetter": "W",
+   "size": 1,
+   "category": "production",
+   "freeAndLocked": false,
+   "busy": {
+    "id": 702387138,
+    "type": "production",
+    "rawCategory": "r",
+    "makingKind": 2,
+    "makingName": "Water",
+    "amount": 23245,
+    "remainingOrUncollectedAmount": 23245,
+    "amountSemantics": "live-remaining-or-uncollected",
+    "amountAvailableNow": 0,
+    "remainingProfit": null,
+    "profitAvailableNow": null,
+    "price": null,
+    "expanding": false,
+    "canFetch": false,
+    "startedAt": "2026-08-03T23:41:27.250Z",
+    "endsAt": "2026-08-04T04:41:25.250Z"
+   },
+   "activity": {
+    "status": "known",
+    "busy": true,
+    "type": "production"
+   }
+  },
+  {
+   "id": 900303,
+   "name": "Mill",
+   "kindLetter": "i",
+   "size": 1,
+   "category": "production",
+   "freeAndLocked": false,
+   "busy": {
+    "id": 702387444,
+    "type": "production",
+    "rawCategory": "r",
+    "makingKind": 119,
+    "makingName": "Coffee powder",
+    "amount": 186,
+    "remainingOrUncollectedAmount": 186,
+    "amountSemantics": "live-remaining-or-uncollected",
+    "amountAvailableNow": 0,
+    "remainingProfit": null,
+    "profitAvailableNow": null,
+    "price": null,
+    "expanding": false,
+    "canFetch": false,
+    "startedAt": "2026-08-03T23:43:00.376Z",
+    "endsAt": "2026-08-04T02:37:13.376Z"
+   },
+   "activity": {
+    "status": "known",
+    "busy": true,
+    "type": "production"
+   }
+  },
+  {
+   "id": 900302,
+   "name": "Farm",
+   "kindLetter": "P",
+   "size": 1,
+   "category": "production",
+   "freeAndLocked": false,
+   "busy": {
+    "id": 702387182,
+    "type": "production",
+    "rawCategory": "r",
+    "makingKind": 118,
+    "makingName": "Coffee beans",
+    "amount": 4188,
+    "remainingOrUncollectedAmount": 4188,
+    "amountSemantics": "live-remaining-or-uncollected",
+    "amountAvailableNow": 0,
+    "remainingProfit": null,
+    "profitAvailableNow": null,
+    "price": null,
+    "expanding": false,
+    "canFetch": false,
+    "startedAt": "2026-08-03T23:41:41.569Z",
+    "endsAt": "2026-08-04T03:18:37.569Z"
+   },
+   "activity": {
+    "status": "known",
+    "busy": true,
+    "type": "production"
+   }
+  }
+ ],
+ "levelingProgress": {
+  "experience": 37,
+  "experienceToNextLevel": 50,
+  "remaining": 13,
+  "percent": 74,
+  "levelName": "Contractor",
+  "ratingCode": "C",
+  "maxBuildings": 4,
+  "lockedCapabilities": [
+   "bonds",
+   "buildingAuctions",
+   "buyOrders",
+   "contracts",
+   "executives",
+   "governmentOrders",
+   "hqUpdates",
+   "paUpdates",
+   "research",
+   "scrape",
+   "seasonal"
+  ]
+ },
+ "money": 6784,
+ "level": 4,
+ "slotCapacity": 8,
+ "usedSlots": 5,
+ "freeSlots": 3,
+ "modifiers": [
+  {
+   "realm": 0,
+   "kind": 131,
+   "pct": 24,
+   "since": "2026-07-20T00:00:00.000Z",
+   "until": "2026-08-10T00:00:00.000Z"
+  },
+  {
+   "realm": 0,
+   "kind": 27,
+   "pct": -30,
+   "since": "2026-07-20T00:00:00.000Z",
+   "until": "2026-08-10T00:00:00.000Z"
+  },
+  {
+   "realm": 0,
+   "kind": 108,
+   "pct": -26,
+   "since": "2026-07-20T00:00:00.000Z",
+   "until": "2026-08-10T00:00:00.000Z"
+  },
+  {
+   "realm": 0,
+   "kind": 121,
+   "pct": 28,
+   "since": "2026-07-27T00:00:00.000Z",
+   "until": "2026-08-17T00:00:00.000Z"
+  },
+  {
+   "realm": 0,
+   "kind": 149,
+   "pct": 20,
+   "since": "2026-07-27T00:00:00.000Z",
+   "until": "2026-08-17T00:00:00.000Z"
+  },
+  {
+   "realm": 0,
+   "kind": 5,
+   "pct": 30,
+   "since": "2026-07-27T00:00:00.000Z",
+   "until": "2026-08-17T00:00:00.000Z"
+  },
+  {
+   "realm": 0,
+   "kind": 82,
+   "pct": -19,
+   "since": "2026-08-03T00:00:00.000Z",
+   "until": "2026-08-24T00:00:00.000Z"
+  },
+  {
+   "realm": 0,
+   "kind": 77,
+   "pct": 26,
+   "since": "2026-08-03T00:00:00.000Z",
+   "until": "2026-08-24T00:00:00.000Z"
+  },
+  {
+   "realm": 0,
+   "kind": 13,
+   "pct": 22,
+   "since": "2026-08-03T00:00:00.000Z",
+   "until": "2026-08-24T00:00:00.000Z"
+  }
+ ],
+ "recipes": [
+  "1 power @E rawRate6000/h = (raw)",
+  "2 water @W rawRate3300/h = 0.2\u00d7power",
+  "3 apples @P rawRate250/h = 3\u00d7water + 1\u00d7seeds",
+  "4 oranges @P rawRate230/h = 3\u00d7water + 1\u00d7seeds",
+  "5 grapes @P rawRate200/h = 4\u00d7water + 1\u00d7seeds",
+  "7 steak @e rawRate60/h = 0.125\u00d7cow",
+  "8 sausages @e rawRate180/h = 0.0625\u00d7pig",
+  "13 transport @S rawRate6000/h = 0.01\u00d7power + 0.005\u00d7diesel",
+  "66 seeds @P rawRate1100/h = 0.1\u00d7water",
+  "115 cow @F rawRate50/h = 16\u00d7water + 12\u00d7fodder",
+  "116 pig @F rawRate110/h = 4\u00d7water + 4\u00d7fodder",
+  "118 coffee beans @P rawRate510/h = 0.5\u00d7water + 1\u00d7seeds",
+  "119 coffee ground @i rawRate50/h = 10\u00d7coffee beans",
+  "(full tech tree is a local historical reference; absent rates are UNKNOWN\u2014use a live building inspection before acting)"
+ ]
+}

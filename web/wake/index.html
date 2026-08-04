@@ -1,0 +1,107 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>autopilot · wake</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #12141a; color: #e6e8ee;
+         font: 14px/1.55 ui-sans-serif, system-ui, sans-serif; }
+  header { padding: 14px 18px; border-bottom: 1px solid #262a35; }
+  h1 { margin: 0; font-size: 15px; font-weight: 600; }
+  .reason { margin-top: 3px; color: #9aa1b1; font-size: 13px; }
+  main { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; padding: 12px 18px; }
+  .card { background: #171a22; border: 1px solid #262a35; border-radius: 8px; padding: 12px 14px; }
+  .label { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: #7b8394; }
+  .think { margin-top: 8px; font-size: 15px; line-height: 1.65; white-space: pre-wrap; }
+  .think.prev { margin-top: 14px; font-size: 13px; color: #737b8d; }
+  .cash { font: 600 26px/1.2 ui-monospace, monospace; margin-top: 6px; }
+  .delta { font: 13px/1.4 ui-monospace, monospace; }
+  .up { color: #62c07c; } .down { color: #e0736c; } .warn { color: #e0a458; }
+  .lines { margin-top: 10px; font: 12px/1.85 ui-monospace, monospace; color: #b9c0cf; }
+  .stack { display: grid; gap: 12px; }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; }
+  .live { background: #62c07c; } .idle { background: #7b8394; }
+  .bad { background: #e0736c; } .lost { background: #e0a458; }
+  #offline { display: none; padding: 6px 18px; background: #3a2a1a; color: #e0a458; font-size: 13px; }
+</style>
+
+<div id="offline">Lost the connection to the wake service — showing the last state received.</div>
+<header>
+  <h1><span id="dot" class="dot idle"></span><span id="title">connecting…</span></h1>
+  <div class="reason" id="reason"></div>
+</header>
+<main>
+  <div class="card">
+    <div class="label">Thinking</div>
+    <div class="think" id="think">—</div>
+    <div class="think prev" id="think-prev"></div>
+  </div>
+  <div class="stack">
+    <div class="card">
+      <div class="label">Money</div>
+      <div class="cash" id="cash">—</div>
+      <div class="delta" id="delta"></div>
+    </div>
+    <div class="card">
+      <div class="label">Status</div>
+      <div class="lines" id="lines"></div>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  const $ = id => document.getElementById(id);
+  const money = n => n == null ? '—' : '$' + n.toLocaleString('en-US');
+  const mins = ms => ms == null ? '—'
+    : ms < 60000 ? Math.round(ms / 1000) + 's'
+    : Math.floor(ms / 60000) + 'm' + String(Math.round((ms % 60000) / 1000)).padStart(2, '0') + 's';
+
+  function render(s) {
+    const dot = { running: 'live', done: 'idle', silent: 'lost', idle: 'idle' }[s.status] || 'idle';
+    $('dot').className = 'dot ' + (s.progress?.rc > 0 ? 'bad' : dot);
+
+    if (s.status === 'idle') {
+      $('title').textContent = s.nextWake
+        ? `idle · next wake in ${mins(s.nextWake.inMs)}`
+        : 'idle · no alarm set';
+      $('reason').textContent = s.nextWake?.reason || '';
+    } else {
+      const tail = s.status === 'silent' ? `silent ${mins(s.silentForMs)}`
+        : s.status === 'done' ? `finished rc=${s.progress.rc}`
+        : `running ${mins(s.progress.elapsedMs)}`;
+      $('title').textContent = `wake ${s.wake.startedAtLocal} · ${tail} · ${s.wake.model || '?'}`;
+      $('reason').textContent = s.wake.reason || '';
+    }
+
+    $('think').textContent = s.thinking.latest || '—';
+    $('think-prev').textContent = s.thinking.previous || '';
+
+    $('cash').textContent = money(s.money.cash);
+    const d = s.money.deltaSinceStart;
+    $('delta').className = 'delta ' + (d > 0 ? 'up' : d < 0 ? 'down' : '');
+    $('delta').textContent = d == null ? '' : `${d > 0 ? '+' : ''}${money(d)} this wake`;
+
+    const rows = [];
+    if (s.council?.calls) rows.push(`council · ${s.council.calls} call(s) · ${s.council.latest || '—'}`);
+    rows.push(`step ${s.progress.step}/${s.progress.max}${s.progress.cost ? ' · ' + s.progress.cost : ''}`);
+    if (s.money.level != null) rows.push(`level ${s.money.level} · ${s.money.buildings} buildings`);
+    for (const a of s.lastActions) {
+      const mark = { ok: '✓', blocked: '⛔', failed: '✗', pending: '⋯' }[a.outcome];
+      rows.push(`${mark} ${a.name}`);
+    }
+    if (s.warehouse?.length) {
+      rows.push(s.warehouse.slice(0, 4).map(w => `${w.name} ${w.amount.toLocaleString('en-US')}`).join(' · '));
+    }
+    if (s.blocked) rows.push(`<span class="warn">blocked: ${s.blocked.reason}</span>`);
+    if (s.unparsed) rows.push(`<span class="warn">${s.unparsed} line(s) not understood</span>`);
+    $('lines').innerHTML = rows.join('<br>');
+  }
+
+  // EventSource reconnects by itself. The banner is the only signal the page cannot fake, so it
+  // stays until a message actually arrives — the last known state is left on screen underneath.
+  const source = new EventSource('events');
+  source.onmessage = event => {
+    $('offline').style.display = 'none';
+    try { render(JSON.parse(event.data)); } catch (_) {}
+  };
+  source.onerror = () => { $('offline').style.display = 'block'; };
+</script>

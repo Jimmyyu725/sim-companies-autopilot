@@ -98,6 +98,12 @@ case "$ACTIVE_PROVIDER" in
     export BRAIN_MODEL=gpt-5.6-terra
     export BRAIN_JS="$AUTOPILOT/brain56.js"
     export BRAIN_EFFORT=high
+    # Same budget the DeepSeek branch sets. This engine used to hard-code 30 and ignore the
+    # variable, so the omission here was invisible; both are fixed together. Nine of these rounds
+    # can go to closing alone when a journal is refused once and the collect it demands has to be
+    # done first — measured 2026-08-03 23:35, where a wake finished its work and then ran out
+    # mid-close.
+    export BRAIN_MAX_ROUNDS=40
     export COUNCIL_PROVIDER=openai
     export COUNCIL_MODEL=gpt-5.6-luna
     export COUNCIL_EFFORT=high

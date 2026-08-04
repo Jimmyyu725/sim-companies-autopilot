@@ -20,6 +20,8 @@ __pycache__/
 *.lock
 *.pid
 autopilot/.active-brain-provider
+autopilot/.owner-primary-provider
+autopilot/usage.jsonl.1
 autopilot/.brain-provider-health.json
 autopilot/.windows-sync-manifest
 
@@ -35,6 +37,9 @@ autopilot/diaries/
 autopilot/metrics/
 experiments/deepseek-v4-pro-shadow/runs/
 shared/price-tracker/data/
+
+# Test fixtures: byte-exact slices of real logs, committed intentionally (not operational churn)
+!autopilot/tests/fixtures/*.log
 
 # Mutable autopilot memory and scheduling state
 autopilot/.exchange-sale-inspections.json
@@ -69,3 +74,6 @@ autopilot/TODO-next-session.md
 /wh-capture.json
 /xp-ledger.jsonl
 /shots/
+
+# Brainstorming companion scratch (mockups, session state)
+.superpowers/

@@ -1,0 +1,14 @@
+════════ 2026-08-03 21:39:01 CDT BRAIN WAKE ════════
+{"ok":true,"provider":"deepseek","credentialSource":"/home/jimmy/.config/sim-benchmark/deepseek-v4-pro.txt"}
+2026-08-03 21:39:01 CDT provider=deepseek model=deepseek-v4-flash effort=max engine=autopilot/brain.js
+{"ok":true,"money":13654,"level":6,"buildings":5}
+2026-08-04T02:41:07.933Z TOOL collect {}
+2026-08-04T02:41:52.811Z DEEPSEEK_NEXT_TOOL_FORCED refresh_state after collect
+2026-08-04T02:41:52.811Z   -> {"ok":true,"collected":true,"verified":true,"verificationPending":false,"mutationAttempted":true,"doNotRetry":false,"clicked":[{"buildingId":55693034,"resource":"coffee-beans"},{"buildingId":55697648,"resource":"water"},{"buildingId":55692919,"resource":"coffee-beans"}],"verification":{"ok":true,"tr…[338 chars omitted]
+2026-08-04T02:41:53.487Z MODEL_REQUEST_RETRY deepseek attempt 1/2 HTTP 503: Service is too busy. We advise users to temporarily switch to alternative LLM API service providers.
+BRAIN ERR deepseek API error: Service is too busy. We advise users to temporarily switch to alternative LLM API service providers.
+{"ok":true,"provider":"deepseek","rc":1,"consecutiveFailures":1,"fallbackActivated":false,"primaryRestored":false,"activeProvider":"deepseek"}
+{"ok":true,"money":13654,"level":6,"buildings":5}
+USAGE wake=diary-2026-08-03-213901 calls=1 tokens=37444 cost=incomplete; observed priced subtotal $0.0049
+2026-08-03 21:42:11 CDT BRAIN done rc=1, next: 2026-08-04T02:47:10.978Z
+2026-08-03 21:42:16 CDT Windows log sync deferred: PC is unreachable

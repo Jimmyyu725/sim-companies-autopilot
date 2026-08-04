@@ -1,0 +1,22 @@
+[Unit]
+Description=Sim Companies autopilot wake visualizer (read-only)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jimmy
+Group=jimmy
+WorkingDirectory=/srv/appdata/chrome-automation/sim
+ExecStart=/usr/bin/node /srv/appdata/chrome-automation/sim/web/wake/server.js
+Environment=WAKE_PORT=8091
+Restart=on-failure
+RestartSec=5
+# It only ever reads. Nothing it can do should be able to touch the autopilot.
+ProtectSystem=strict
+ReadOnlyPaths=/srv/appdata/chrome-automation/sim
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

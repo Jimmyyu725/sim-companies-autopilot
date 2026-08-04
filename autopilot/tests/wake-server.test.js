@@ -6,22 +6,53 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { readState, readTail } = require('../../web/wake/server.js');
+const { readState, readTail, TAIL_BYTES } = require('../../web/wake/server.js');
 
 const FIXTURES = path.join(__dirname, 'fixtures');
 
-function tempLog(fixture) {
+function tempLog(t, fixture) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wake-server-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const logPath = path.join(dir, 'brain.log');
   fs.copyFileSync(path.join(FIXTURES, fixture), logPath);
   return { dir, logPath };
 }
 
-test('state is read from the tail of a log file', () => {
-  const { logPath } = tempLog('wake-clean.log');
+test('state is read from the tail of a log file', (t) => {
+  const { logPath } = tempLog(t, 'wake-clean.log');
   const state = readState({ logPath, nowMs: Date.now() });
   assert.equal(state.status, 'done');
   assert.equal(state.progress.rc, 0);
+});
+
+// autopilot/run-brain.sh renames brain.log out from under this process whenever a wake pushes it
+// past 5 MB (`mv "$LOG" "$LOG.1"`). If that rename lands between readTail's statSync and its
+// readSync, the kernel can hand back fewer bytes than were requested — possibly zero. Stub
+// fs.readSync to reproduce exactly that short read, without touching the real log.
+test('readTail decodes only the bytes fs.readSync actually returned, not the full pre-allocated buffer', (t) => {
+  const { logPath } = tempLog(t, 'wake-clean.log');
+
+  const stubbedContent = 'AB';
+  const originalReadSync = fs.readSync;
+  fs.readSync = (fd, buffer, offset) => {
+    buffer.write(stubbedContent, offset, 'utf8');
+    return Buffer.byteLength(stubbedContent, 'utf8'); // fewer bytes than the caller asked for
+  };
+  t.after(() => { fs.readSync = originalReadSync; });
+
+  assert.equal(readTail(logPath, TAIL_BYTES), stubbedContent);
+});
+
+// The extreme case of the same race: the rotation's `mv` lands so early that nothing at all is
+// left to read at the offset statSync saw.
+test('readTail returns an empty string when fs.readSync reads nothing', (t) => {
+  const { logPath } = tempLog(t, 'wake-clean.log');
+
+  const originalReadSync = fs.readSync;
+  fs.readSync = () => 0;
+  t.after(() => { fs.readSync = originalReadSync; });
+
+  assert.equal(readTail(logPath, TAIL_BYTES), '');
 });
 
 // Only the tail is read, so a 3.6 MB log costs the same as a small one. The tail must still
@@ -30,8 +61,9 @@ test('state is read from the tail of a log file', () => {
 // The cut has to land INSIDE the last wake, after its banner, or splitWakes finds no banner,
 // returns nothing, and the assertion passes for the wrong reason — proving nothing about the
 // partial line at all.
-test('reading only the tail never yields a partial first line', () => {
+test('reading only the tail never yields a partial first line', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wake-server-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const logPath = path.join(dir, 'brain.log');
   const first = fs.readFileSync(path.join(FIXTURES, 'wake-503.log'), 'utf8');
   const second = fs.readFileSync(path.join(FIXTURES, 'wake-clean.log'), 'utf8');
@@ -40,8 +72,27 @@ test('reading only the tail never yields a partial first line', () => {
   // Bytes from the end that cover the clean wake plus a slice of the 503 wake above it, so the
   // window starts mid-line and still contains the clean wake's banner.
   const tailBytes = Buffer.byteLength(second, 'utf8') + 200;
+  const combined = Buffer.from(first + second, 'utf8');
+  const start = Math.max(0, combined.length - tailBytes);
+
+  // Prove the setup actually exercises a mid-line cut instead of just assuming it: if a future
+  // fixture edit ever shifts this offset onto a line boundary, readTail would have nothing to
+  // strip and the rest of this test would pass without checking anything. Fail loudly here
+  // instead of silently going vacuous.
+  assert.ok(start > 0 && combined[start - 1] !== '\n'.charCodeAt(0),
+    'the chosen byte offset must land inside a line, not at its start');
+
+  // The complete line readTail must resume on: whatever immediately follows the next newline at
+  // or after the cut, read straight from the same bytes that are on disk — independent of
+  // whatever readTail itself does with them.
+  const nextNewline = combined.indexOf('\n', start);
+  const lineEnd = combined.indexOf('\n', nextNewline + 1);
+  const expectedFirstLine = combined.slice(nextNewline + 1, lineEnd).toString('utf8');
+
   const cut = readTail(logPath, tailBytes);
   assert.ok(!cut.startsWith(first.slice(0, 20)), 'the window must actually start mid-file');
+  assert.equal(cut.split('\n')[0], expectedFirstLine,
+    'readTail must resume exactly at the next line boundary, not mid-line');
 
   const state = readState({ logPath, tailBytes, nowMs: Date.now() });
   assert.notEqual(state.status, 'idle', 'the surviving banner must still be found');
@@ -64,8 +115,8 @@ test('a missing log gives idle rather than throwing', () => {
   assert.equal(state.status, 'idle');
 });
 
-test('the next alarm file feeds the idle countdown', () => {
-  const { dir } = tempLog('wake-clean.log');
+test('the next alarm file feeds the idle countdown', (t) => {
+  const { dir } = tempLog(t, 'wake-clean.log');
   const nextWakePath = path.join(dir, 'next-wake.json');
   fs.writeFileSync(nextWakePath, JSON.stringify({
     atIso: '2026-08-04T02:38:30.000Z', reason: 'Mill completes',
@@ -79,8 +130,8 @@ test('the next alarm file feeds the idle countdown', () => {
   assert.equal(state.nextWake.inMs, 10 * 60 * 1000);
 });
 
-test('a malformed alarm file does not break the read', () => {
-  const { dir } = tempLog('wake-clean.log');
+test('a malformed alarm file does not break the read', (t) => {
+  const { dir } = tempLog(t, 'wake-clean.log');
   const nextWakePath = path.join(dir, 'next-wake.json');
   fs.writeFileSync(nextWakePath, 'not json at all');
   const state = readState({ logPath: '/nonexistent/brain.log', nextWakePath, nowMs: Date.now() });

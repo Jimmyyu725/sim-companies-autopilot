@@ -34,8 +34,9 @@ function readTail(logPath, tailBytes) {
     if (length === 0) return '';
     const buffer = Buffer.alloc(length);
     fd = fs.openSync(logPath, 'r');
-    fs.readSync(fd, buffer, 0, length, start);
-    const text = buffer.toString('utf8');
+    const bytesRead = fs.readSync(fd, buffer, 0, length, start);
+    if (bytesRead === 0) return '';
+    const text = buffer.toString('utf8', 0, bytesRead);
     // A byte offset almost never lands on a line boundary. Drop whatever precedes the first
     // newline: parsing half a line produces a bogus first entry on every read.
     return start === 0 ? text : text.slice(text.indexOf('\n') + 1);

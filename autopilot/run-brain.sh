@@ -147,10 +147,22 @@ if ! timeout 160 flock -w 90 .tick.lock env SIM_PA_SCAN=1 node "$AUTOPILOT/state
   "$AUTOPILOT/sync-windows-logs.sh" >>"$LOG" 2>&1 || true
   exit 1
 fi
-# Council deliberation intentionally has no client-side or whole-wake elapsed-time limit.
-# The full-wake lock still prevents overlapping brains while a slow provider is thinking.
-node "${BRAIN_JS:-autopilot/brain.js}" >> "$LOG" 2>&1
+# Council deliberation still has no client-side limit, and the full-wake lock prevents overlapping
+# brains while a slow provider is thinking. What changed on 2026-08-05 is that BRAIN_MAX_ROUNDS is
+# unlimited, and the round ceiling had been the only thing bounding a wake: a runtime loop used to
+# end by exhausting rounds. One did on 2026-08-04 22:58 — twelve identical inspections, 53 calls,
+# $1.20 — and it ended because it hit 50, not because it resolved.
+#
+# 45 minutes is a backstop, not a schedule. Wakes run 10-25 minutes, and the longest clean one on
+# record is well under this, so reaching it means something is stuck rather than slow. SIGTERM
+# first, SIGKILL 30s later if the engine ignores it. rc is then 124, which is non-zero, so the
+# conservative recovery below already applies: check-alarm --brain-failed caps the next alarm
+# because the persisted state may predate an ambiguous mutation.
+timeout -k 30 2700 node "${BRAIN_JS:-autopilot/brain.js}" >> "$LOG" 2>&1
 rc=$?
+if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+  echo "$(date '+%F %T %Z') BRAIN killed by the 45-minute wall-clock backstop (rc=$rc)" >> "$LOG"
+fi
 node "$AUTOPILOT/brain-provider.js" record "$BRAIN_PROVIDER" "$rc" >> "$LOG" 2>&1 || true
 # The brain may finish after its last refresh or after an ambiguous failure. Capture once more so
 # the persisted state describes the actual closing position, not the opening snapshot.

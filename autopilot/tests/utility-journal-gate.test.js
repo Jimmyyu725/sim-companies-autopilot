@@ -507,3 +507,44 @@ for (const [engineName, engine] of ENGINES) {
     assert.deepEqual(reviews['2'].requiredBuildingIds, [55697470]);
   });
 }
+
+// Regression, 2026-08-05 02:32. #72 carried the attempt tally across a review reset, but the cap
+// that was supposed to read it also required status === 'failed' — and a reset sets status back to
+// 'pending'. So the cap was unreachable in exactly the situation it was written for: the wake
+// refreshed 14 times, re-closed 8 times, and cost $1.26, worse than the unbounded loop it replaced.
+for (const [engineName, engine] of ENGINES) {
+  const failedInspection = () => ({
+    ok: false, readOnly: true, submitted: false,
+    book: { live: { status: 200 } }, uiQuote: { ok: false, mutationAttempted: false },
+  });
+
+  test(`${engineName}: a refresh after the cap does not reopen the obligation`, () => {
+    const state = stateFixture();
+    let reviews = engine.createUtilityExchangeReviews();
+    engine.noteUtilityInspection(reviews, 1, successfulInspection());
+    engine.noteUtilityInspection(reviews, 2, failedInspection());
+    engine.noteUtilityInspection(reviews, 2, failedInspection());
+    assert.equal(engine.utilityJournalGate(state, reviews, null, NOW), null, 'the cap applies');
+
+    // refresh_state rebuilds the reviews: results discarded, tally kept.
+    reviews = engine.createUtilityExchangeReviews(reviews);
+    assert.equal(reviews['2'].status, 'pending');
+    assert.equal(reviews['2'].attempts, 2);
+
+    engine.noteUtilityInspection(reviews, 1, successfulInspection());
+    assert.equal(engine.utilityJournalGate(state, reviews, null, NOW), null,
+      'a spent kind stays spent across the refresh');
+  });
+
+  test(`${engineName}: a kind under the cap is still reviewed after a refresh`, () => {
+    const state = stateFixture();
+    let reviews = engine.createUtilityExchangeReviews();
+    engine.noteUtilityInspection(reviews, 1, successfulInspection());
+    engine.noteUtilityInspection(reviews, 2, failedInspection());
+    reviews = engine.createUtilityExchangeReviews(reviews);
+    engine.noteUtilityInspection(reviews, 1, successfulInspection());
+
+    const block = engine.utilityJournalGate(state, reviews, null, NOW);
+    assert.deepEqual(block.pendingKinds, [2], 'one attempt spent, one still owed');
+  });
+}

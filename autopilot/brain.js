@@ -341,13 +341,15 @@ function utilityJournalGate(state, reviews, alarm, nowMs = Date.now()) {
     if (review?.status === 'inspected' || review?.status === 'sold' ||
       review?.status === 'rate_limited' || review?.status === 'held') return false;
     // A review that keeps failing is still a review. This gate has never required a sale — its own
-    // text says selling is optional — it requires the wake to have looked. Two failed looks is
-    // looking. Without this cap the wake retries an inspection that fails the same way every time
-    // and the journal never closes: observed 2026-08-05 04:04Z, ten attempts in three minutes, and
-    // it only became reachable once the surplus itself stopped being withheld. The limit matches
-    // FailureBudget's, which is the same judgement applied to every other repeated action.
-    if (review?.status === 'failed' &&
-      Number(review?.attempts) >= MAX_UTILITY_REVIEW_ATTEMPTS) return false;
+    // text says selling is optional — it requires the wake to have looked. Two looks is looking, and
+    // the limit matches FailureBudget's, the same judgement applied to every other repeated action.
+    //
+    // The tally alone decides, deliberately. Keying this on status === 'failed' as well left the cap
+    // unreachable: refresh_state rebuilds the reviews and sets status back to 'pending', so every
+    // refresh manufactured a fresh obligation even though #72 had preserved the count. The 02:32
+    // wake on 2026-08-05 refreshed 14 times, re-closed 8 times and cost $1.26 — more than the
+    // unbounded loop this cap was written to stop.
+    if (Number(review?.attempts) >= MAX_UTILITY_REVIEW_ATTEMPTS) return false;
     return true;
   });
   if (unresolvedKinds.length) {

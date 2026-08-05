@@ -218,8 +218,30 @@ function missingMillInspectionIds(state) {
   return [...new Set(currentMills.filter(id => !covered.has(id)))].sort((a, b) => a - b);
 }
 
+// A plan item is verified when the policy priced it on its own terms: a known transport cost and a
+// finite non-negative sellable quantity. This is deliberately per item. `plan.complete` is one flag
+// for the whole warehouse and any single unpriceable row clears it — on 2026-08-05 three tablets and
+// one quadcopter, four units of construction leftovers with a transport cost outside the supported
+// {0, 0.1, 1}, set it false and took a fully priced 67,293-unit water surplus down with them. No
+// protection is lost by checking the item instead: every early-bail path in the reserve policy marks
+// *every* item `unknown` with `sellable: 0`, and the exchange sale path already refuses any entry
+// whose own status is unknown.
+function unverifiedUtilityKinds(state) {
+  const items = state?.surplusPlan?.items;
+  return UTILITY_KINDS.filter(kind => {
+    const item = items?.[String(kind)];
+    if (!item || typeof item !== 'object') return true;
+    const sellable = item.sellable;
+    if (typeof sellable !== 'number' || !Number.isFinite(sellable) || sellable < 0) return true;
+    // Deliberately the same predicate the exchange sale path applies to a resource entry. A kind must
+    // never clear this gate and then be refused a quote on a ground this gate treated as acceptable.
+    return item.allowedToSell === false || item.eligible === false || item.blocked === true ||
+      /^(blocked|hold|unknown)$/i.test(String(item.status || ''));
+  });
+}
+
 function pendingUtilitySurplus(state) {
-  if (state?.surplusPlan?.complete !== true || state?.surplusPlan?.status !== 'ok') return [];
+  if (unverifiedUtilityKinds(state).length) return [];
   return UTILITY_KINDS.filter(kind => Number(state.surplusPlan.items?.[String(kind)]?.sellable) > 0);
 }
 
@@ -240,31 +262,29 @@ function utilityJournalGate(state, reviews, alarm, nowMs = Date.now()) {
   // Demanding them would loop. Passing here does not authorize a sale — an incomplete plan still
   // yields no verified sellable quantity — it only stops the wake from being trapped.
   if (plan?.accelerationUnmodelled === true) return null;
-  if (plan?.complete !== true || plan?.status !== 'ok') {
+  const unverifiedKinds = unverifiedUtilityKinds(state);
+  if (unverifiedKinds.length) {
     const missingBuildingIds = missingMillInspectionIds(state);
-    const missing = missingBuildingIds.length
-      ? missingBuildingIds.join(', ')
-      : 'not enumerated; inspect every current Mill';
+    // Only demand inspections that exist to be done. The old text fell back to "not enumerated;
+    // inspect every current Mill" whenever this list was empty, which is an order no sequence of
+    // tool calls can carry out: the Mills were already fresh, so each inspection changed nothing and
+    // the wake re-read the same guard until it ran out of rounds.
+    if (missingBuildingIds.length) {
+      return {
+        ok: false,
+        guard: true,
+        reason: `utility surplus is unverified for kind(s) ${unverifiedKinds.join(', ')}; missing or invalid Mill inspection(s): ${missingBuildingIds.join(', ')}. Inspect those Mills and refresh_state before journal. This review does not require a sale.`,
+        requiredTool: 'inspect_building',
+        missingBuildingIds,
+      };
+    }
     return {
       ok: false,
       guard: true,
-      reason: `utility surplus is unverified because surplusPlan must be complete with status ok; missing or invalid Mill inspection(s): ${missing}. Inspect the Mills and refresh_state before journal. This review does not require a sale.`,
-      requiredTool: 'inspect_building',
-      missingBuildingIds,
-    };
-  }
-
-  const invalidSellableKinds = UTILITY_KINDS.filter(kind => {
-    const sellable = plan.items?.[String(kind)]?.sellable;
-    return typeof sellable !== 'number' || !Number.isFinite(sellable) || sellable < 0;
-  });
-  if (invalidSellableKinds.length) {
-    return {
-      ok: false,
-      guard: true,
-      reason: `utility surplus is unverified because Power/Water sellable values must be finite non-negative numbers; refresh state for kind(s) ${invalidSellableKinds.join(', ')}`,
+      reason: `utility surplus is unverified for kind(s) ${unverifiedKinds.join(', ')}. Every current Mill is already inspected fresh, so more inspections cannot help — the gap is in the warehouse capture. Call refresh_state before journal. This review does not require a sale.`,
       requiredTool: 'refresh_state',
-      invalidKinds: invalidSellableKinds,
+      missingBuildingIds: [],
+      invalidKinds: unverifiedKinds,
     };
   }
 
@@ -1052,6 +1072,7 @@ module.exports = {
   noteUtilityExchangeSale,
   noteUtilityInspection,
   pendingUtilitySurplus,
+  unverifiedUtilityKinds,
   rateLimitedUtilityKinds,
   utilityJournalGate,
 };

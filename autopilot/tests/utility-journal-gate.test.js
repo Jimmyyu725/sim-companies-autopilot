@@ -25,10 +25,18 @@ function stateFixture({ power = 100, water = 100, complete = true } = {}) {
         missingBuildingIds: complete ? [] : [102],
         rates: complete ? [{ buildingId: 101 }, { buildingId: 102 }] : [{ buildingId: 101 }],
       },
-      items: {
-        1: { sellable: power },
-        2: { sellable: water },
-      },
+      items: complete
+        ? {
+          1: { sellable: power, status: 'ok', transportPerUnit: 0 },
+          2: { sellable: water, status: 'ok', transportPerUnit: 0 },
+        }
+        // A missing Mill rate sends calculateCoffeeReservePolicy down its early-bail path, and that
+        // path marks every item unknown with sellable 0. Modelling anything else here would test a
+        // state the policy cannot produce.
+        : {
+          1: { sellable: 0, status: 'unknown', transportPerUnit: null },
+          2: { sellable: 0, status: 'unknown', transportPerUnit: null },
+        },
     },
   };
 }
@@ -60,7 +68,7 @@ for (const [engineName, engine] of ENGINES) {
     assert.equal(block.guard, true);
     assert.equal(block.requiredTool, 'inspect_building');
     assert.deepEqual(block.missingBuildingIds, [102]);
-    assert.match(block.reason, /complete with status ok/);
+    assert.match(block.reason, /unverified for kind\(s\) 1, 2/);
     assert.match(block.reason, /does not require a sale/);
   });
 
@@ -91,11 +99,14 @@ for (const [engineName, engine] of ENGINES) {
   });
 
   test(`${engineName}: reserve plan status and both sellable values fail closed`, () => {
+    // The plan-level status is no longer evidence about any particular utility, and the policy cannot
+    // produce this combination anyway: it only reports 'unknown' when some item is itself unknown.
+    // Both utilities are priced here, so the gate moves them on to their sale review.
     const badStatus = stateFixture();
     badStatus.surplusPlan.status = 'unknown';
     let block = engine.utilityJournalGate(
       badStatus, engine.createUtilityExchangeReviews(), null, NOW);
-    assert.equal(block.requiredTool, 'inspect_building');
+    assert.equal(block.requiredTool, 'inspect_exchange_sale');
 
     const invalidSellable = stateFixture();
     invalidSellable.surplusPlan.items[1].sellable = -1;
@@ -286,5 +297,73 @@ for (const [engineName, engine] of ENGINES) {
     const state = stateFixture({ power: 0, water: 0 });
     const reviews = engine.createUtilityExchangeReviews();
     assert.equal(engine.utilityJournalGate(state, reviews, null, NOW), null);
+  });
+}
+
+// Regression, 2026-08-05. Three tablets and one quadcopter — four units of construction leftovers
+// whose transport cost falls outside the supported {0, 0.1, 1} — set surplusPlan.complete to false.
+// The whole-plan flag then withheld a fully priced 67,293-unit water surplus, and the journal gate
+// blamed Mill inspections that were already fresh, so the wake inspected Mills until it ran out of
+// rounds. Measured across the log, this guard was the second most frequent rejection of the wake.
+for (const [engineName, engine] of ENGINES) {
+  function poisonedPlanState() {
+    const state = stateFixture();
+    state.surplusPlan.complete = false;
+    state.surplusPlan.status = 'unknown';
+    state.surplusPlan.items[25] = { kind: 25, name: 'tablets', sellable: 0, status: 'unknown', transportPerUnit: null };
+    state.surplusPlan.items[98] = { kind: 98, name: 'quadcopter', sellable: 0, status: 'unknown', transportPerUnit: null };
+    return state;
+  }
+
+  test(`${engineName}: an unpriceable unrelated item does not withhold a priced utility surplus`, () => {
+    const state = poisonedPlanState();
+    assert.equal(state.surplusPlan.complete, false);
+    assert.deepEqual(engine.unverifiedUtilityKinds(state), []);
+    assert.deepEqual(engine.pendingUtilitySurplus(state), [1, 2]);
+  });
+
+  test(`${engineName}: the gate asks for the sale review, not another Mill inspection`, () => {
+    const block = engine.utilityJournalGate(
+      poisonedPlanState(), engine.createUtilityExchangeReviews(), null, NOW);
+
+    assert.equal(block.requiredTool, 'inspect_exchange_sale');
+    assert.deepEqual(block.pendingKinds, [1, 2]);
+  });
+
+  test(`${engineName}: never orders an inspection it cannot name`, () => {
+    // Every Mill is inspected fresh, yet a utility is still unverified. The old text answered this
+    // with "not enumerated; inspect every current Mill", an order no tool call can carry out.
+    const state = stateFixture();
+    state.surplusPlan.complete = false;
+    state.surplusPlan.status = 'unknown';
+    state.surplusPlan.items[2] = { sellable: 0, status: 'unknown', transportPerUnit: null };
+    const block = engine.utilityJournalGate(
+      state, engine.createUtilityExchangeReviews(), null, NOW);
+
+    assert.equal(block.requiredTool, 'refresh_state');
+    assert.deepEqual(block.missingBuildingIds, []);
+    assert.deepEqual(block.invalidKinds, [2]);
+    assert.doesNotMatch(block.reason, /not enumerated/);
+    assert.match(block.reason, /already inspected fresh/);
+  });
+
+  test(`${engineName}: a utility with no plan entry still fails closed`, () => {
+    const state = stateFixture();
+    delete state.surplusPlan.items[2];
+    const block = engine.utilityJournalGate(
+      state, engine.createUtilityExchangeReviews(), null, NOW);
+
+    assert.equal(block.guard, true);
+    assert.deepEqual(engine.pendingUtilitySurplus(state), []);
+  });
+
+  test(`${engineName}: an explicitly held or blocked utility is not treated as verified`, () => {
+    for (const item of [{ sellable: 5, status: 'hold' }, { sellable: 5, blocked: true },
+      { sellable: 5, allowedToSell: false }, { sellable: 5, eligible: false },
+      { sellable: Number.NaN, status: 'ok' }, { sellable: -1, status: 'ok' }]) {
+      const state = stateFixture();
+      state.surplusPlan.items[2] = item;
+      assert.deepEqual(engine.unverifiedUtilityKinds(state), [2], JSON.stringify(item));
+    }
   });
 }

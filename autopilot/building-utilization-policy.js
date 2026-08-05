@@ -155,11 +155,37 @@ function buildingUtilizationJournalGate(state, nowMs = Date.now(), options = {})
   const idleBuildings = inspection.idleBuildings;
   if (!idleBuildings.length && !inspection.completedBuildings.length) return null;
 
+  // This gate exists to stop the wake declaring voluntary idle. An action the FailureBudget has
+  // closed is the opposite of voluntary: the wake tried it, the game refused twice, and the budget
+  // now refuses it before it is attempted. Demanding it anyway is an instruction no tool call can
+  // carry out, and the wake's only remaining move is to fail the close over and over.
+  //
+  // That is what happened on 2026-08-05 02:47. Grocery 55692959 sat idle with 30 Coffee Powder, the
+  // retail scan found no positive quote, sell:55692959 hit the budget, and this gate kept refusing
+  // the close. The reason text below says to "leave the wake incomplete" in that case, which used to
+  // mean "run out of rounds" — a bounded, if wasteful, ending. Rounds became unlimited that evening,
+  // so it came to mean "spin until the 45-minute wall clock", and it did: 373 model requests,
+  // 59.8M tokens, $15.85, rc=124.
+  //
+  // Only idle buildings get this treatment. An uncollected completed job still blocks the close,
+  // because collect is a single supporter-button click that does not depend on a market price.
+  const exhausted = options.exhaustedActions instanceof Set
+    ? options.exhaustedActions
+    : new Set(Array.isArray(options.exhaustedActions) ? options.exhaustedActions : []);
+  const remedyFor = building => (building.category === 'sales' ? 'sell' : 'produce');
+  const remedyIsClosed = building => exhausted.has(`${remedyFor(building)}:${building.buildingId}`);
+  const actionableIdle = idleBuildings.filter(building => !remedyIsClosed(building));
+  const blockedIdle = idleBuildings.filter(remedyIsClosed);
+  if (!actionableIdle.length && !inspection.completedBuildings.length && blockedIdle.length) {
+    return null;
+  }
+
   return {
     ok: false,
     guard: true,
     reason: 'cannot close this wake while a standard operational building is confirmed idle or its completed job remains uncollected. Collect completed work first, then start the next job. Waiting for an upgrade, bond proceeds, evidence, cash, or a preferred batch is not an exception: start the structural action now or place useful bridge work ending before the next checkpoint. If the game truly makes every order impossible, leave the wake incomplete so the safety retry records the blocker instead of declaring voluntary idle.',
-    idleBuildings,
+    idleBuildings: actionableIdle,
+    blockedIdleBuildings: blockedIdle,
     completedBuildings: inspection.completedBuildings,
     requiredActions: [
       ...inspection.completedBuildings.map(building => ({
@@ -167,9 +193,9 @@ function buildingUtilizationJournalGate(state, nowMs = Date.now(), options = {})
         tool: 'collect',
         checkpointField: null,
       })),
-      ...idleBuildings.map(building => ({
+      ...actionableIdle.map(building => ({
         buildingId: building.buildingId,
-        tool: building.category === 'sales' ? 'sell' : 'produce',
+        tool: remedyFor(building),
         checkpointField: building.category === 'production' ? 'finishBefore' : null,
       })),
     ],

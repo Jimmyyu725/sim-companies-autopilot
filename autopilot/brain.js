@@ -657,7 +657,8 @@ async function runTool(name, args) {
         review: readPaReview(path.join(BRAIN, '.pa-review.json'), pendingPa),
       });
       if (paBlock) return paBlock;
-      const utilizationBlock = buildingUtilizationJournalGate(state, Date.now());
+      const utilizationBlock = buildingUtilizationJournalGate(state, Date.now(),
+        { exhaustedActions: failureBudget.exhausted() });
       if (utilizationBlock) return utilizationBlock;
       // The utility surplus review is optional by its own definition ("Selling is optional").
       // Live 2026-08-01 wake 11:57: it blocked the journal with two rounds left, the closing budget

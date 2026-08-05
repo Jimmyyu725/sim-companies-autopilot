@@ -39,6 +39,15 @@ class FailureBudget {
     };
   }
 
+  // The keys this budget has closed for the rest of the wake. A guard that demands one of these
+  // actions is demanding something no tool call can carry out — the budget refuses it before the
+  // action is ever attempted.
+  exhausted() {
+    const keys = new Set();
+    for (const [key, failures] of this.failures) if (failures >= this.limit) keys.add(key);
+    return keys;
+  }
+
   record(key, result, previewKey = null) {
     if (result?.ok === false && result?.preview === true
         && result?.microBatchGuard === true && previewKey) {

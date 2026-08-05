@@ -85,8 +85,12 @@ function buildReserveAuthorization({
   const itemAt = (projection, label) => {
     const item = projection?.items?.[String(numericKind)] || projection?.items?.[numericKind] || null;
     const reserve = Number(item?.reserve);
-    if (projection?.complete !== true || projection?.status !== 'ok' || item?.status !== 'ok' ||
-        !Number.isFinite(reserve) || reserve < 0) {
+  // Not the whole-plan flag. PR #67 removed it from the journal gate and the sale path after four
+  // units of unpriceable construction leftovers withheld a fully priced 67,293-unit water surplus;
+  // this is the same veto, one layer down, and it kept the sale blocked anyway. The per-item check
+  // below already fails closed, and calculateCoffeeReservePolicy marks every item unknown on each of
+  // its early-bail paths, so nothing the flag caught goes uncaught.
+    if (item?.status !== 'ok' || !Number.isFinite(reserve) || reserve < 0) {
       const requiredBuildingIds = Array.isArray(projection?.millCapacity?.missingBuildingIds)
         ? [...new Set(projection.millCapacity.missingBuildingIds
           .map(Number)
@@ -97,14 +101,22 @@ function buildReserveAuthorization({
     }
     return { ok: true, reserve };
   };
+  // Both RESERVE_RATE_EVIDENCE_* codes tell the caller to go and inspect the named Mills. When the
+  // projection is incomplete for a reason that names no Mill, that instruction cannot be carried
+  // out, and noteUtilityInspection has no classification for it either — it lands on 'failed', which
+  // is terminal, so the wake retried the same refusal until it ran out of rounds on 2026-08-05
+  // 04:04Z. A distinct code lets the caller record it as a hold instead of chasing a building that
+  // was never missing.
+  const rateFailureCode = (item, whenNamed) =>
+    (item.requiredBuildingIds?.length ? whenNamed : 'RESERVE_RATE_EVIDENCE_UNNAMEABLE');
   const inspectionItem = itemAt(atInspection, 'inspection-time');
   if (!inspectionItem.ok) return blocked(inspectionItem.reason, {
-    failureCode: 'RESERVE_RATE_EVIDENCE_INCOMPLETE',
+    failureCode: rateFailureCode(inspectionItem, 'RESERVE_RATE_EVIDENCE_INCOMPLETE'),
     requiredBuildingIds: inspectionItem.requiredBuildingIds,
   });
   const expiryItem = itemAt(atExpiry, 'expiry-time');
   if (!expiryItem.ok) return blocked(expiryItem.reason, {
-    failureCode: 'RESERVE_RATE_EVIDENCE_EXPIRES',
+    failureCode: rateFailureCode(expiryItem, 'RESERVE_RATE_EVIDENCE_EXPIRES'),
     requiredBuildingIds: expiryItem.requiredBuildingIds,
   });
 

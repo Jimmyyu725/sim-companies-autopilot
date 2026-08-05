@@ -472,3 +472,38 @@ for (const [engineName, engine] of ENGINES) {
     for (const kind of ['1', '2']) assert.equal(reviews[kind].attempts, 0);
   });
 }
+
+// A fail-closed refusal that names no corrective action must resolve as a hold, not sit on the
+// terminal 'failed'. Before this, buildReserveAuthorization returned RESERVE_RATE_EVIDENCE_INCOMPLETE
+// with an empty requiredBuildingIds whenever the projection was incomplete for a reason that was not
+// a missing Mill — an instruction to "inspect the named Mills" with no Mill named.
+for (const [engineName, engine] of ENGINES) {
+  const base = {
+    ok: false, failClosed: true, readOnly: true, submitted: false,
+    uiQuote: { mutationAttempted: false },
+  };
+
+  test(`${engineName}: an unnameable rate refusal is held, not failed`, () => {
+    const reviews = engine.createUtilityExchangeReviews();
+    engine.noteUtilityInspection(reviews, 2,
+      { ...base, failureCode: 'RESERVE_RATE_EVIDENCE_UNNAMEABLE', requiredBuildingIds: [] });
+    assert.equal(reviews['2'].status, 'held');
+
+    const state = stateFixture();
+    engine.noteUtilityInspection(reviews, 1, successfulInspection());
+    assert.equal(engine.utilityJournalGate(state, reviews, null, NOW), null,
+      'a hold resolves the review on the first attempt; no retry is owed');
+  });
+
+  test(`${engineName}: a nameable rate refusal still sends the wake to those Mills`, () => {
+    const reviews = engine.createUtilityExchangeReviews();
+    engine.noteUtilityInspection(reviews, 2, {
+      ...base,
+      book: { live: { status: 500 } },
+      failureCode: 'RESERVE_RATE_EVIDENCE_INCOMPLETE',
+      requiredBuildingIds: [55697470],
+    });
+    assert.equal(reviews['2'].status, 'needs_rate_refresh');
+    assert.deepEqual(reviews['2'].requiredBuildingIds, [55697470]);
+  });
+}

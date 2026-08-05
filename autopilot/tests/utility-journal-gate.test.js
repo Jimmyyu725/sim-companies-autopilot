@@ -367,3 +367,67 @@ for (const [engineName, engine] of ENGINES) {
     }
   });
 }
+
+// Regression, 2026-08-05 04:04Z. A review whose inspection keeps failing never left 'failed', and
+// 'failed' was not in the set the journal gate accepts, so the wake re-inspected and re-journalled
+// until it ran out of rounds — ten attempts in three minutes, live. The loop only became reachable
+// once the surplus stopped being withheld by an unrelated warehouse row, which is why it had never
+// been seen before.
+for (const [engineName, engine] of ENGINES) {
+  // Reproduces the observed result: read-only, live book fine, UI quote refused, and no failClosed
+  // flag, so it is neither 'inspected' nor 'held'.
+  const failedInspection = () => ({
+    ok: false,
+    readOnly: true,
+    submitted: false,
+    book: { live: { status: 200 } },
+    uiQuote: { ok: false, mutationAttempted: false },
+  });
+
+  test(`${engineName}: one failed review is retried, the second closes the wake`, () => {
+    const state = stateFixture();
+    const reviews = engine.createUtilityExchangeReviews();
+    engine.noteUtilityInspection(reviews, 1, successfulInspection());
+
+    engine.noteUtilityInspection(reviews, 2, failedInspection());
+    assert.equal(reviews['2'].status, 'failed');
+    assert.equal(reviews['2'].attempts, 1);
+    let block = engine.utilityJournalGate(state, reviews, null, NOW);
+    assert.deepEqual(block.pendingKinds, [2], 'the first failure must still be retried');
+
+    engine.noteUtilityInspection(reviews, 2, failedInspection());
+    assert.equal(reviews['2'].attempts, 2);
+    block = engine.utilityJournalGate(state, reviews, null, NOW);
+    assert.equal(block, null, 'the second failure must not trap the wake');
+  });
+
+  test(`${engineName}: a late success still resolves normally`, () => {
+    const state = stateFixture();
+    const reviews = engine.createUtilityExchangeReviews();
+    engine.noteUtilityInspection(reviews, 1, successfulInspection());
+    engine.noteUtilityInspection(reviews, 2, failedInspection());
+    engine.noteUtilityInspection(reviews, 2, successfulInspection());
+
+    assert.equal(reviews['2'].status, 'inspected');
+    assert.equal(reviews['2'].attempts, 2);
+    assert.equal(engine.utilityJournalGate(state, reviews, null, NOW), null);
+  });
+
+  test(`${engineName}: the cap is per kind, not shared`, () => {
+    const state = stateFixture();
+    const reviews = engine.createUtilityExchangeReviews();
+    engine.noteUtilityInspection(reviews, 2, failedInspection());
+    engine.noteUtilityInspection(reviews, 2, failedInspection());
+
+    // Kind 2 is spent, kind 1 has not been looked at once.
+    const block = engine.utilityJournalGate(state, reviews, null, NOW);
+    assert.deepEqual(block.pendingKinds, [1]);
+    assert.equal(reviews['1'].attempts, 0);
+  });
+
+  test(`${engineName}: a rate-limited review is never counted against the cap`, () => {
+    const reviews = engine.createUtilityExchangeReviews();
+    engine.noteUtilityInspection(reviews, 2, { ok: false, book: { live: { status: 429 } } });
+    assert.equal(reviews['2'].status, 'rate_limited');
+  });
+}

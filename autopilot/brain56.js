@@ -124,10 +124,14 @@ function utilityKindFromExchangeIdentifier(value) {
   return null;
 }
 
+// Two attempts, the same allowance FailureBudget gives every other repeated action.
+const MAX_UTILITY_REVIEW_ATTEMPTS = 2;
+
 function createUtilityExchangeReviews() {
   return Object.fromEntries(UTILITY_KINDS.map(kind => [String(kind), {
     kind,
     status: 'pending',
+    attempts: 0,
     inspected: false,
     sold: false,
     rateLimited: false,
@@ -154,6 +158,7 @@ function noteUtilityInspection(reviews, kind, result, nowMs = Date.now()) {
     result?.uiQuote?.mutationAttempted === false && requiredBuildingIds.length > 0;
   reviews[String(normalizedKind)] = {
     kind: normalizedKind,
+    attempts: Number(reviews?.[String(normalizedKind)]?.attempts || 0) + 1,
     status: liveStatus === 429 ? 'rate_limited'
       : (inspected ? 'inspected' : (safelyHeld ? 'held' : (needsRateRefresh ? 'needs_rate_refresh' : 'failed'))),
     inspected,
@@ -291,8 +296,17 @@ function utilityJournalGate(state, reviews, alarm, nowMs = Date.now()) {
   }
   const unresolvedKinds = pendingKinds.filter(kind => {
     const review = reviews?.[String(kind)];
-    return review?.status !== 'inspected' && review?.status !== 'sold' &&
-      review?.status !== 'rate_limited' && review?.status !== 'held';
+    if (review?.status === 'inspected' || review?.status === 'sold' ||
+      review?.status === 'rate_limited' || review?.status === 'held') return false;
+    // A review that keeps failing is still a review. This gate has never required a sale — its own
+    // text says selling is optional — it requires the wake to have looked. Two failed looks is
+    // looking. Without this cap the wake retries an inspection that fails the same way every time
+    // and the journal never closes: observed 2026-08-05 04:04Z, ten attempts in three minutes, and
+    // it only became reachable once the surplus itself stopped being withheld. The limit matches
+    // FailureBudget's, which is the same judgement applied to every other repeated action.
+    if (review?.status === 'failed' &&
+      Number(review?.attempts) >= MAX_UTILITY_REVIEW_ATTEMPTS) return false;
+    return true;
   });
   if (unresolvedKinds.length) {
     return {

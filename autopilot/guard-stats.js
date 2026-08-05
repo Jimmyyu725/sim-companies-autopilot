@@ -30,6 +30,13 @@ const PROVIDER = /BRAIN_PROVIDER=(\w+)|provider[= ]"?(\w+)"?/;
 // stable clause before counting.
 const GUARD_LINE = /"guard"\s*:\s*true/;
 const REASON = /"reason"\s*:\s*"((?:[^"\\]|\\.)*)"/;
+// run-brain.sh elides long tool results, so a guard's reason often has no closing quote — the line
+// ends mid-sentence at `…[N chars omitted]`. The strict pattern above misses every one of those, and
+// they were being counted as a category of their own: "(guard with no reason)" was the third most
+// frequent entry in the baseline at 17 occurrences, which read like a real class of guard rather
+// than 17 reasons this parser could not finish reading. Every such line does carry its reason; the
+// prefix that survives is more than enough to group on, since normaliseReason truncates anyway.
+const TRUNCATED_REASON = /"reason"\s*:\s*"((?:[^"\\]|\\.)*)$/;
 
 function normaliseReason(reason) {
   return reason
@@ -76,8 +83,10 @@ function splitWakes(text) {
     }
 
     if (GUARD_LINE.test(line)) {
-      const reason = REASON.exec(line);
-      const key = reason ? normaliseReason(reason[1]) : '(guard with no reason)';
+      const reason = REASON.exec(line) || TRUNCATED_REASON.exec(line);
+      const key = reason
+        ? normaliseReason(reason[1].replace(/…\[\d+ chars omitted\]?.*$/u, ''))
+        : '(guard with no reason)';
       // The tool a guard refused is the most recent TOOL line above it.
       const refused = current.lastTool || '?';
       // NUL joins the two halves because every other plausible separator occurs inside a reason.

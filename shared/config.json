@@ -4,10 +4,10 @@
   "realmId": 0,
   "farmId": 55693034,
   "storeId": 55692959,
-  "minCash": 1000,
-  "farmInputFloor": 200,
-  "factoryInputFloor": 500,
-  "_note": "Founded 2026-08-03. Buildings: 55693034 Farm, 55692919 Farm, 55692959 Grocery store. Four standard slots until company level 5; no purchased extra slots.",
+  "minCash": 5000,
+  "farmInputFloor": 1000,
+  "factoryInputFloor": 2500,
+  "_note": "Founded 2026-08-03. As of 2026-08-05: level 10, ten slots (six base + four purchased), nine used. Portfolio: 3 Mills (2xL3, 1xL1), 3 Farms (1xL3, 2xL1), Water reservoir, Power plant, Grocery store L2, plus a free seasonal Beach market outside the standard slots. Debt $250,000 at 0.5%/day. The founding 3x acceleration expired 2026-08-04T21:26:47Z, so printed rates are now real rates.",
   "storeProducts": [
     {
       "name": "COFFEE POWDER",
@@ -28,7 +28,7 @@
   ],
   "printedRates": {
     "_asOf": null,
-    "_source": "Empty by design. The previous company's measured rates do not apply here: this company is level 1 and every building is level 1. Populate only from fresh inspect_building evidence on buildings this company owns.",
+    "_source": "Empty by design; populate only from fresh inspect_building evidence. The _encyclopediaL1During3x block below is historical: that acceleration has expired, so those figures are three times the current level-1 rates.",
     "_encyclopediaL1During3x": {
       "1": 7700.83,
       "2": 4879.29,

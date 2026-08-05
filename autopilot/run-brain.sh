@@ -85,7 +85,7 @@ case "$ACTIVE_PROVIDER" in
     export BRAIN_JS="$AUTOPILOT/brain.js"
     export BRAIN_EFFORT=max
     export BRAIN_MAX_TOKENS=32768
-    export BRAIN_MAX_ROUNDS=40
+    export BRAIN_MAX_ROUNDS=50
     export BRAIN_REQUEST_TIMEOUT_MS=180000
     export COUNCIL_PROVIDER=deepseek
     export COUNCIL_MODEL=deepseek-v4-flash
@@ -103,7 +103,7 @@ case "$ACTIVE_PROVIDER" in
     # can go to closing alone when a journal is refused once and the collect it demands has to be
     # done first — measured 2026-08-03 23:35, where a wake finished its work and then ran out
     # mid-close.
-    export BRAIN_MAX_ROUNDS=40
+    export BRAIN_MAX_ROUNDS=50
     export COUNCIL_PROVIDER=openai
     export COUNCIL_MODEL=gpt-5.6-luna
     export COUNCIL_EFFORT=high

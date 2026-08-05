@@ -63,10 +63,22 @@ const MODEL = process.env.BRAIN_MODEL || 'gpt-5.6-terra';
 // 2026-08-03 23:35: a wake finished all its work, was refused a journal because a completed job
 // still needed collecting, obeyed, and then ran out mid-close — the closing sequence needs nine
 // rounds when the journal is refused once, and CLOSING_BUDGET_ROUNDS only reserves four.
-const MAX_ROUNDS = (() => {
-  const parsed = Number.parseInt(process.env.BRAIN_MAX_ROUNDS, 10);
-  return Number.isSafeInteger(parsed) && parsed >= 1 && parsed <= 50 ? parsed : 30;
-})();
+// Owner directive 2026-08-05: no ceiling. 'unlimited' (or 0) removes it; a positive integer still
+// pins it for a one-off run. Both the loop condition and the closing-budget bookkeeping already
+// carry Infinity — roundsRemaining is initialised to it, and closingBudgetActive/Directive both
+// gate on Number.isSafeInteger — so nothing downstream needs to change. What does change: the
+// closing-budget pressure never fires, and since run-brain.sh does not wrap the engine in a
+// timeout, rounds were the only thing bounding a wake. A wake that cannot make progress now runs
+// until it resolves, holding .brain.lock and blocking every wake behind it.
+function resolveMaxRounds(raw) {
+  const text = String(raw ?? '').trim().toLowerCase();
+  if (text === 'unlimited' || text === 'infinity' || text === '0') return Number.POSITIVE_INFINITY;
+  // Digits only. Number.parseInt('1.5e400') is 1, so a mistyped value would silently cap every wake
+  // at a single round and fail it instantly — much worse than falling back to the default.
+  const parsed = /^\d+$/u.test(text) ? Number.parseInt(text, 10) : Number.NaN;
+  return Number.isSafeInteger(parsed) && parsed >= 1 ? parsed : 30;
+}
+const MAX_ROUNDS = resolveMaxRounds(process.env.BRAIN_MAX_ROUNDS);
 const DRY = process.env.BRAIN_DRY === '1';
 const CHAT_MODE = resolveChatMode();
 const KEY = process.env.OPENAI_API_KEY;
@@ -812,6 +824,7 @@ module.exports = {
   noteUtilityExchangeSale,
   noteUtilityInspection,
   pendingUtilitySurplus,
+  resolveMaxRounds,
   unverifiedUtilityKinds,
   rateLimitedUtilityKinds,
   utilityJournalGate,

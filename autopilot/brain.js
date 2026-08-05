@@ -68,7 +68,22 @@ const MODEL = process.env.BRAIN_MODEL ||
   (PROVIDER === 'deepseek' ? 'deepseek-v4-flash' : 'gpt-5.5');
 const EFFORT = process.env.BRAIN_EFFORT || (PROVIDER === 'deepseek' ? 'max' : 'high');
 const MAX_TOKENS = boundedInteger(process.env.BRAIN_MAX_TOKENS, 1024, 384000, 32768);
-const MAX_ROUNDS = boundedInteger(process.env.BRAIN_MAX_ROUNDS, 1, 50, 30);
+// Owner directive 2026-08-05: no ceiling. 'unlimited' (or 0) removes it; a positive integer still
+// pins it for a one-off run. Both the loop condition and the closing-budget bookkeeping already
+// carry Infinity — roundsRemaining is initialised to it, and closingBudgetActive/Directive both
+// gate on Number.isSafeInteger — so nothing downstream needs to change. What does change: the
+// closing-budget pressure never fires, and since run-brain.sh does not wrap the engine in a
+// timeout, rounds were the only thing bounding a wake. A wake that cannot make progress now runs
+// until it resolves, holding .brain.lock and blocking every wake behind it.
+function resolveMaxRounds(raw) {
+  const text = String(raw ?? '').trim().toLowerCase();
+  if (text === 'unlimited' || text === 'infinity' || text === '0') return Number.POSITIVE_INFINITY;
+  // Digits only. Number.parseInt('1.5e400') is 1, so a mistyped value would silently cap every wake
+  // at a single round and fail it instantly — much worse than falling back to the default.
+  const parsed = /^\d+$/u.test(text) ? Number.parseInt(text, 10) : Number.NaN;
+  return Number.isSafeInteger(parsed) && parsed >= 1 ? parsed : 30;
+}
+const MAX_ROUNDS = resolveMaxRounds(process.env.BRAIN_MAX_ROUNDS);
 const REQUEST_TIMEOUT_MS = boundedInteger(
   process.env.BRAIN_REQUEST_TIMEOUT_MS, 1000, 600000, 180000);
 const REQUEST_MAX_ATTEMPTS = boundedInteger(
@@ -1086,6 +1101,7 @@ module.exports = {
   noteUtilityExchangeSale,
   noteUtilityInspection,
   pendingUtilitySurplus,
+  resolveMaxRounds,
   unverifiedUtilityKinds,
   rateLimitedUtilityKinds,
   utilityJournalGate,

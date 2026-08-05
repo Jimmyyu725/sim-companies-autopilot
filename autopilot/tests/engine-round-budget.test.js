@@ -28,8 +28,16 @@ test('every provider branch in run-brain.sh exports a round budget', () => {
   assert.equal(branches.length, 2, 'expected a deepseek and an openai branch');
   for (const branch of branches) {
     const name = branch.match(/^ {2}(\w+)\)/mu)[1];
-    assert.match(branch, /export BRAIN_MAX_ROUNDS=\d+/,
+    assert.match(branch, /export BRAIN_MAX_ROUNDS=\S+/,
       `the ${name} branch must export the budget its engine reads`);
+    // Stronger than matching a shape: resolve the exported value with the engine's own parser, so a
+    // typo that silently falls back to the default cannot pass. Owner directive 2026-08-05 sets it
+    // to 'unlimited', which must land on Infinity rather than on the fallback.
+    const exported = branch.match(/export BRAIN_MAX_ROUNDS=(\S+)/u)[1];
+    const resolved = require('../brain56.js').resolveMaxRounds(exported);
+    assert.notEqual(resolved, 30,
+      `the ${name} branch exports ${exported}, which the engine silently reads as the default 30`);
+    assert.ok(resolved === Number.POSITIVE_INFINITY || Number.isSafeInteger(resolved));
   }
 });
 
@@ -50,11 +58,14 @@ test('neither engine hard-codes its round count', () => {
   }
 });
 
-test('both engines apply the same bounds and the same fallback', () => {
-  for (const engine of ['brain.js', 'brain56.js']) {
-    const source = read(engine);
-    assert.ok(/1, 50, 30/.test(source) || />= 1 && parsed <= 50 \? parsed : 30/.test(source),
-      `${engine} must bound the budget to 1..50 with a default of 30`);
+test('both engines resolve the round budget identically', () => {
+  // The two engines used to hold separate copies of the bound, and they drifted: brain56 hard-coded
+  // 30 and ignored the variable entirely. They now share one resolver, so compare behaviour rather
+  // than source text, across the values the runner can actually export.
+  const engines = ['brain.js', 'brain56.js'].map(name => require(`../${name}`));
+  for (const raw of ['unlimited', 'infinity', '0', '7', '50', '500', '', 'garbage', '-5', undefined]) {
+    const [first, ...rest] = engines.map(engine => engine.resolveMaxRounds(raw));
+    for (const other of rest) assert.equal(other, first, `engines disagree on ${JSON.stringify(raw)}`);
   }
 });
 

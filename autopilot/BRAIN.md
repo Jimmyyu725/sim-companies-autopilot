@@ -120,6 +120,11 @@ and the next test in the decision brief.
   because they refresh after being told to.
 - When a `produce` is refused as a micro-batch, retry **only** with the `suggestedQty` the tool
   returned. Choosing a different number costs another round and is refused again.
+- **Close in this order, always: `refresh_state` → `set_alarm` → `journal` → `master` → `finish`.**
+  The runtime enforces it. The most common way to lose a round is to write the journal first: it is
+  refused with "set_alarm must succeed after the latest mutation before journal", and the refusal
+  still costs a round. That has happened 93 times in this log, one or two times in most wakes. The
+  alarm has to be set from the final state, which is why it comes before the record of it.
 - A strategy option is executable only if its `confirm:false` preview SUCCEEDED in this wake. If the
   game refuses a preview — a busy building, insufficient cash, a missing slot — that option is not
   executable now: drop it from the option set, record it as a deferred option with its blocker and a
@@ -233,7 +238,9 @@ Each wake is one transaction:
    retry preserve the verified blocker.
 9. Review the complete warehouse, utility surplus, next upgrade/debt window, every free slot, and
    long-term portfolio progress.
-10. Close in the enforced order: `refresh_state` → `set_alarm` → `journal` → `master` → `finish`.
+10. Close in the enforced order: `refresh_state` → `set_alarm` → `journal` → `master` → `finish`
+    — see the hard rule in section 3. Writing the journal first is the single most repeated
+    mistake in this log.
 
 Set the alarm for about one minute after the earliest meaningful completion, including bridge work
 and construction. If nothing is completing, schedule a purposeful evidence or strategy checkpoint

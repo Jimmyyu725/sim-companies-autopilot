@@ -431,3 +431,44 @@ for (const [engineName, engine] of ENGINES) {
     assert.equal(reviews['2'].status, 'rate_limited');
   });
 }
+
+// Regression, 2026-08-05 00:31. The failed-review cap worked but could be reset out from under
+// itself: refresh_state and inspect_building both rebuild the reviews, which zeroed the attempt
+// tally. The live wake spent four attempts instead of two because an inspect_buildings landed
+// between them. Fresh evidence should invalidate a review's result; it should not make the wake
+// forget that it has already tried. With the round ceiling removed, a refresh-driven loop is
+// otherwise bounded only by the 45-minute wall clock.
+for (const [engineName, engine] of ENGINES) {
+  const failedInspection = () => ({
+    ok: false,
+    readOnly: true,
+    submitted: false,
+    book: { live: { status: 200 } },
+    uiQuote: { ok: false, mutationAttempted: false },
+  });
+
+  test(`${engineName}: the attempt tally survives a review reset`, () => {
+    const state = stateFixture();
+    let reviews = engine.createUtilityExchangeReviews();
+    engine.noteUtilityInspection(reviews, 1, successfulInspection());
+    engine.noteUtilityInspection(reviews, 2, failedInspection());
+    assert.equal(reviews['2'].attempts, 1);
+
+    // What refresh_state and inspect_building do.
+    reviews = engine.createUtilityExchangeReviews(reviews);
+    assert.equal(reviews['2'].attempts, 1, 'the tally must carry across the reset');
+    assert.equal(reviews['2'].status, 'pending', 'the result itself must still be discarded');
+    assert.equal(reviews['1'].status, 'pending', 'a passing review is re-reviewed on fresh evidence');
+
+    engine.noteUtilityInspection(reviews, 1, successfulInspection());
+    engine.noteUtilityInspection(reviews, 2, failedInspection());
+    assert.equal(reviews['2'].attempts, 2);
+    assert.equal(engine.utilityJournalGate(state, reviews, null, NOW), null,
+      'the second attempt overall must close the wake, not the second since the last reset');
+  });
+
+  test(`${engineName}: a fresh wake starts the tally at zero`, () => {
+    const reviews = engine.createUtilityExchangeReviews();
+    for (const kind of ['1', '2']) assert.equal(reviews[kind].attempts, 0);
+  });
+}

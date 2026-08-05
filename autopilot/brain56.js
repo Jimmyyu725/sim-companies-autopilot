@@ -139,11 +139,15 @@ function utilityKindFromExchangeIdentifier(value) {
 // Two attempts, the same allowance FailureBudget gives every other repeated action.
 const MAX_UTILITY_REVIEW_ATTEMPTS = 2;
 
-function createUtilityExchangeReviews() {
+// Fresh evidence invalidates a review, so the results are rebuilt — but how many times this wake has
+// already tried is a fact about the wake, not about the evidence, and erasing it reopens the loop the
+// cap closes. Observed 2026-08-05 00:31: two attempts, an inspect_buildings in between, then two more
+// before the cap could bite. Pass the previous reviews to carry the tally across the reset.
+function createUtilityExchangeReviews(previous = null) {
   return Object.fromEntries(UTILITY_KINDS.map(kind => [String(kind), {
     kind,
     status: 'pending',
-    attempts: 0,
+    attempts: Number(previous?.[String(kind)]?.attempts) || 0,
     inspected: false,
     sold: false,
     rateLimited: false,
@@ -501,7 +505,7 @@ async function runTool(name, args) {   // identical behavior to brain.js
       try {
         const result = JSON.parse(line);
         if (result?.ok === true) {
-          utilityExchangeReviews = createUtilityExchangeReviews();
+          utilityExchangeReviews = createUtilityExchangeReviews(utilityExchangeReviews);
           runtimeGuard.noteEvidenceChange('inspect_buildings');
         }
         return result;
@@ -518,7 +522,7 @@ async function runTool(name, args) {   // identical behavior to brain.js
       try {
         const result = JSON.parse(line);
         if (result?.ok === true) {
-          utilityExchangeReviews = createUtilityExchangeReviews();
+          utilityExchangeReviews = createUtilityExchangeReviews(utilityExchangeReviews);
           runtimeGuard.noteEvidenceChange('inspect_building');
         }
         return result;
@@ -611,7 +615,7 @@ async function runTool(name, args) {   // identical behavior to brain.js
         ? { structuralAuthorization, authorizationBlockedBy, ...result }
         : (authorizationBlockedBy ? { authorizationBlockedBy, ...result } : result);
     }
-    if (name === 'refresh_state') { execFileSync('flock', ['-w', '90', path.join(SIM, '.tick.lock'), 'node', path.join(BRAIN, 'state.js')], { cwd: SIM, timeout: 160000, encoding: 'utf8' }); const nextState = JSON.parse(fs.readFileSync(path.join(BRAIN, '.state.json'), 'utf8')); utilityExchangeReviews = createUtilityExchangeReviews(); runtimeGuard.noteRefresh(); return nextState; }
+    if (name === 'refresh_state') { execFileSync('flock', ['-w', '90', path.join(SIM, '.tick.lock'), 'node', path.join(BRAIN, 'state.js')], { cwd: SIM, timeout: 160000, encoding: 'utf8' }); const nextState = JSON.parse(fs.readFileSync(path.join(BRAIN, '.state.json'), 'utf8')); utilityExchangeReviews = createUtilityExchangeReviews(utilityExchangeReviews); runtimeGuard.noteRefresh(); return nextState; }
     if (name === 'set_alarm') {
       const nowMs = Date.now();
       const retryKinds = rateLimitedUtilityKinds(utilityExchangeReviews);

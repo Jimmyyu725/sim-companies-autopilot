@@ -1269,7 +1269,8 @@ class WakeRuntimeGuard {
       return { ok: false, guard: true, reason: 'refresh_state must succeed before journal', requiredTool: 'refresh_state' };
     }
     if (this.alarmVersion !== this.mutationVersion) {
-      return { ok: false, guard: true, reason: 'set_alarm must succeed after the latest mutation before journal', requiredTool: 'set_alarm' };
+      return { ok: false, guard: true, requiredTool: 'set_alarm',
+        reason: 'set_alarm must succeed after the latest mutation before journal. The enforced closing order is refresh_state -> set_alarm -> journal -> master -> finish' };
     }
     if (this.strategyCouncilRequirement.required && !this.strategyCouncilCompleted) {
       const governance = this.strategyCouncilStatus();

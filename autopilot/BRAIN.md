@@ -35,9 +35,11 @@ The owner's chosen direction is Coffee:
 
 `Power → Water → Seeds → Coffee Beans → Coffee Powder`
 
-That chain is now the operating baseline, not a destination. The portfolio is three Mills (two at
-L3, one at L1), three Farms (one L3, two L1), a Water reservoir, a Power plant, a Grocery store at
-L2, and a free seasonal Beach market that does not occupy a standard slot.
+That chain is now the operating baseline, not a destination. As of 2026-08-05 the portfolio is
+three Mills (two L3, one L1), three Farms (one L5, two L1), a Water reservoir L1, a Power plant L1,
+a Grocery store L3, and a free seasonal Beach market that does not occupy a standard slot — nine
+standard buildings in ten slots, eighteen levels in total. Re-read the live state rather than
+trusting this sentence; it is a starting point, not a source.
 
 Coffee is a profitable operating base, not a permanent identity. A better verified candidate may
 replace it, but any challenger must clear the same demand test that killed raw agricultural exports
@@ -357,11 +359,59 @@ Standard slots come from company level, plus up to four purchasable extra slots:
 | 20 | 10 | 48h | Government orders, Building auctions |
 | 25 | 12 | 48h | Buy orders |
 
-The owner's stated target portfolio is four Mills, four Farms, a Water reservoir, a Power plant and
-a Grocery store — eleven buildings, which needs level 15 plus three bought slots, or level 20 plus
-one. Treat it as a direction, and note that the Water reservoir and Power plant in it are the two
-weakest slots by the measurement above; recommend Mills in their place unless new evidence overturns
-that.
+### The target portfolio
+
+Modelled by the owner on 2026-08-05 in an external Sim Companies planner and adopted as the
+destination. Ten buildings, thirty levels, and it fits the ten slots already owned — no bought slot
+is required, which corrects an earlier note here that called for eleven buildings and three extra
+slots.
+
+| Building | Level | Product | Rate |
+|---|---|---|---|
+| Mill x4 | 3 each | Coffee Powder | 278.3/h combined |
+| Farm | 4 | Coffee Beans | with the L3 Farm, 2,916/h combined |
+| Farm | 3 | Coffee Beans | " |
+| Farm | 5 | **Seeds** | 4,493/h |
+| Water reservoir | 2 | Water | 3,286/h |
+| Power plant | 1 | Power | 2,593/h |
+| Grocery store | 3 | retail outlet | — |
+
+Two structural points this settles.
+
+**Farms specialise; they do not take turns.** One Farm makes only Seeds, the other two make only
+Coffee Beans. A bean consumes a seed, so a portfolio that time-shares every Farm between the two
+spends part of every hour making its own input. Splitting by building removes the switching without
+changing the arithmetic — the optimum is the same level allocation either way, and dedicating whole
+buildings is simply how you reach it with integers.
+
+**The bean chain has 4.6% of headroom and no more.** Twelve Mill levels consume 2,783 beans/h; the
+Farms make 2,916/h. Mill downtime is harmless. *Farm* downtime starves the Mills directly, and every
+Farm upgrade costs three to four hours of it, so sequence Farm upgrades against warehouse bean stock
+rather than against cash alone.
+
+Water at L1 produces 1,643/h against the 1,908/h the finished chain needs, which is why the target
+raises it to L2. Power at L1 is already four times what the chain draws. Neither is a candidate for
+replacement by a Mill at these levels, which supersedes the earlier note recommending exactly that.
+
+Remaining work from the 2026-08-05 position, twelve levels: build the fourth Mill into the free slot
+and take it to L3, Mill 55697470 L1→L3, Farm 55692919 L1→L4, Farm 55693034 L1→L3, Water reservoir
+L1→L2, and Farm 55765118 L4→L5 (owner-directed, in construction).
+
+**Where the money actually is.** In the modelled end state Coffee Powder is roughly 90% of gross
+profit — `$77.2K/day` of `$86.2K` selling on the exchange. Power, Water, Seeds and surplus Beans
+together are about `$8.5K/day`. Treat the utility-surplus sale path accordingly: it is worth having,
+it is not worth spending a wake on. If a guard blocks it, record the blocker and move on rather than
+retrying into the round budget.
+
+Selling Powder on contracts rather than the exchange is modelled at `$39.50` against `$37.544` per
+unit — `$80,889/day` net against `$68,800/day`, about 18% better. Unverified in play; treat it as
+the leading candidate for the next measurement, not as an established fact.
+
+Wages are the dominant cost at `$217,280/day` against `$290,134/day` of gross revenue. They scale
+with total building levels, and so does output: going from eighteen levels to thirty raises Powder
+by 71% while raising levels by 67%. **This plan is scale, not efficiency.** It multiplies whatever
+the current unit economics are; it does not repair them. If margin is the problem, more levels is
+not the answer.
 
 ### Achievements as a capital source
 

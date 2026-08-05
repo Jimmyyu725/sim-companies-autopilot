@@ -85,8 +85,13 @@ function validateFreshSurplus(state, kind, qty, now = Date.now(), options = {}) 
   }
 
   const plan = state?.surplusPlan;
-  if (!plan || plan.complete !== true || plan.status !== 'ok') {
-    return { ok: false, reason: 'deterministic surplus plan is missing or incomplete' };
+  // Not the whole-plan flag. PR #67 removed it from the journal gate and the sale path after four
+  // units of unpriceable construction leftovers withheld a fully priced 67,293-unit water surplus;
+  // this is the same veto, one layer down, and it kept the sale blocked anyway. The per-item check
+  // below already fails closed, and calculateCoffeeReservePolicy marks every item unknown on each of
+  // its early-bail paths, so nothing the flag caught goes uncaught.
+  if (!plan) {
+    return { ok: false, reason: 'deterministic surplus plan is missing' };
   }
   const planMs = Date.parse(plan.asOf);
   const planAgeSeconds = Number.isFinite(planMs)

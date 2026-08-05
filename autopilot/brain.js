@@ -180,7 +180,13 @@ function noteUtilityInspection(reviews, kind, result, nowMs = Date.now()) {
   if (!UTILITY_KINDS.includes(normalizedKind)) return reviews;
   const liveStatus = Number(result?.book?.live?.status);
   const inspected = result?.ok === true && liveStatus === 200 && result?.uiQuote?.ok === true;
-  const safelyHeld = result?.ok !== true && result?.failClosed === true && liveStatus === 200 &&
+  // A hold normally means the wake fetched a real book and chose not to sell, hence the 200. But a
+  // fail-closed refusal that names no corrective action is also a decision not to sell, and it can
+  // arrive before the book is ever fetched — so demanding a 200 there would leave it on the terminal
+  // 'failed' with nothing the wake could do to move it.
+  const unnameable = result?.failureCode === 'RESERVE_RATE_EVIDENCE_UNNAMEABLE';
+  const safelyHeld = result?.ok !== true && result?.failClosed === true &&
+    (liveStatus === 200 || unnameable) &&
     result?.readOnly === true && result?.submitted === false &&
     result?.uiQuote?.mutationAttempted === false;
   const requiredBuildingIds = Array.isArray(result?.requiredBuildingIds)

@@ -424,8 +424,14 @@ function evaluateBridgeUtilitySurplusGuard({
   const sameCapture = (value) => Number.isFinite(Date.parse(value)) && Date.parse(value) === capturedMs;
   const plan = state?.surplusPlan;
   const source = state?.sources?.surplusPlan;
-  if (plan?.complete !== true || plan?.status !== 'ok' || source?.status !== 'ok' ||
-      !sameCapture(plan?.asOf) || !sameCapture(source?.asOf)) {
+  // Not the whole-plan flag. PR #67 removed it from the journal gate and the sale path after four
+  // units of unpriceable construction leftovers withheld a fully priced 67,293-unit water surplus;
+  // this is the same veto, one layer down, and it kept the sale blocked anyway. The per-item check
+  // below already fails closed, and calculateCoffeeReservePolicy marks every item unknown on each of
+  // its early-bail paths, so nothing the flag caught goes uncaught.
+  // sources.surplusPlan.status is a copy of plan.status (state.js:396), so it carries the same
+  // whole-plan verdict and goes with it. The asOf ties are provenance, not completeness, and stay.
+  if (!sameCapture(plan?.asOf) || !sameCapture(source?.asOf)) {
     return failEvidence('utility sellable surplus is not complete and tied to the fresh state capture', {
       stateAsOf: state.t,
       stateAgeSeconds,

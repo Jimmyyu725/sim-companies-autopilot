@@ -111,6 +111,15 @@ and the next test in the decision brief.
   correct action is to leave it alone and let that loop take it. Once a target is reached its entry
   is marked `complete` and the building is ordinary capacity again.
 - Execute at most one structural move at a time.
+- **One mutation, then `refresh_state`, before the next mutation. No exceptions.** A mutation is
+  anything that changes the game: produce, collect, sell, buy, exchange_sell, build, upgrade, scrap,
+  bonds, robots, pa_reply. The runtime rejects the second one with "live state changed after X" and
+  the attempt still costs a round. Measured across this log: 37 of 143 rejected `produce` calls were
+  exactly this, the single largest cause. Wakes that run out of rounds average 8.3 `refresh_state`
+  calls against 4.4 in wakes that close cleanly — not because they refresh more deliberately, but
+  because they refresh after being told to.
+- When a `produce` is refused as a micro-batch, retry **only** with the `suggestedQty` the tool
+  returned. Choosing a different number costs another round and is refused again.
 - A strategy option is executable only if its `confirm:false` preview SUCCEEDED in this wake. If the
   game refuses a preview — a busy building, insufficient cash, a missing slot — that option is not
   executable now: drop it from the option set, record it as a deferred option with its blocker and a
@@ -216,7 +225,8 @@ Each wake is one transaction:
 6. Handle every confirmed-idle standard building, not only the one that caused the wake. Start
    useful work or start its approved structural action in this wake. When financing, evidence, or
    timing prevents the structural click, use `finishBefore` to bridge to the next exact checkpoint.
-7. After every mutation, `refresh_state` before another mutation. A click is not proof.
+7. After every mutation, `refresh_state` before another mutation. A click is not proof, and the
+   rejected attempt still spends a round — see the hard rule in section 3.
 8. Before finish, fresh state must classify every standard operational building as `BUSY` or
    `ACTIONED`. `WAITING_FOR_UPGRADE`, `WAITING_FOR_BONDS`, and `INTENTIONALLY_IDLE` are invalid final
    states. If no game-valid order can be started, do not claim completion; let the bounded safety

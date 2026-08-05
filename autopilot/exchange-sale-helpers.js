@@ -123,8 +123,12 @@ function validateSurplusPlan({ state, kind, resource, nowMs = Date.now(), maxAge
   if (!stock) return blocked('target stock is missing, unknown, or invalid', { stateAsOf: state.t, stateAgeSeconds });
 
   const plan = state?.surplusPlan;
-  if (!plan || typeof plan !== 'object' || plan.complete !== true || plan.status !== 'ok') {
-    return blocked('latest complete surplusPlan is required', { stateAsOf: state.t, stateAgeSeconds });
+  // Not `plan.complete`: that flag is false whenever any one warehouse row cannot be priced, which
+  // says nothing about the resource being quoted here. The per-resource authorization below refuses
+  // an entry whose own status is unknown, and the reserve policy marks every item unknown on each of
+  // its early-bail paths, so this stays fail-closed for the resource that actually matters.
+  if (!plan || typeof plan !== 'object') {
+    return blocked('latest surplusPlan is required', { stateAsOf: state.t, stateAgeSeconds });
   }
   const planAsOf = plan.stateAsOf || plan.asOf || plan.generatedAt || plan.t || null;
   const planAgeSeconds = ageSeconds(planAsOf, nowMs);

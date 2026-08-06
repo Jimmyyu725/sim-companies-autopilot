@@ -42,8 +42,22 @@ function ownerUpgradeProgramDefinition(directive) {
 }
 
 function completedProgramActivity(building) {
-  if (!building || !Object.prototype.hasOwnProperty.call(building, 'busy')) return null;
-  if (building.busy === null) return 'idle';
+  if (!building || typeof building !== 'object') return null;
+  // state.js reports idle by *omitting* `busy` — the game returns a busy schedule and a building the
+  // schedule does not list simply has no entry. It never writes `busy: null`, so the null branch
+  // below was unreachable, and idle is the only state in which an upgrade program is finished. The
+  // whole completion path was therefore dead: on 2026-08-06 Farm 55765118 reached L5 and went idle,
+  // and the directive stayed pending, kept reserving the building, and blocked three attempts to
+  // give it work.
+  //
+  // Absence is safe to read as idle here specifically because it cannot coexist with construction:
+  // a building being upgraded is in the busy schedule with type 'construction'. That distinction is
+  // what makes the check load-bearing rather than cosmetic — `size` reports the *target* level while
+  // construction runs (Farm 55693034, 2026-08-06: size 3 at actual level 1, mid-upgrade), so without
+  // an activity test the program would complete the moment an upgrade started. The freshness and
+  // source-integrity checks in buildProgramCompletionEvidence cover the case where the schedule read
+  // itself failed and left every building looking idle.
+  if (building.busy === null || building.busy === undefined) return 'idle';
   if (!building.busy || typeof building.busy !== 'object' || Array.isArray(building.busy)) return null;
   const type = String(building.busy.type || '').trim().toLowerCase();
   return NORMAL_COMPLETED_PROGRAM_ACTIVITIES.has(type) ? type : null;

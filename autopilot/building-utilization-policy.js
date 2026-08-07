@@ -145,7 +145,7 @@ function buildingUtilizationJournalGate(state, nowMs = Date.now(), options = {})
     return {
       ok: false,
       guard: true,
-      reason: 'cannot close this wake while a standard sales building has UNKNOWN activity. A generic busy object is not proof of a retail sale. Inspect each exact building page and require one of: an active retail-sale marker, construction marker, or an enabled retail order form proving idle.',
+      reason: 'cannot close this wake while a standard operational building has UNKNOWN activity. A generic busy object is not proof of a retail sale. Inspect each exact building page and require one of: an active retail-sale marker, construction marker, or an enabled retail order form proving idle.',
       unknownBuildings: inspection.unknownBuildings,
       idleBuildings: inspection.idleBuildings,
       completedBuildings: inspection.completedBuildings,

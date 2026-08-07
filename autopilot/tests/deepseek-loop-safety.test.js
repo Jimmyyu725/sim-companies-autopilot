@@ -111,3 +111,41 @@ test('an idle production building blocks the close, not only an idle shop', () =
     state({ busy: { type: 'production', endsAt: new Date(NOW + 3600e3).toISOString() } }), NOW, {});
   assert.equal(busy, null, 'a fully busy portfolio must still close');
 });
+
+// Third adversarial pass, 2026-08-07. Two blocking defects survived the previous two rounds of
+// fixes, both because a nudge was mistaken for a boundary and a fix was placed on the wrong branch.
+
+test('the context limit ends the loop rather than only asking the model to stop', () => {
+  // #84 added a soft ceiling that pushes a closing message. `for (let i = 0; i < Infinity; i++)` has
+  // no exit but a successful finish, so the whole safety block after the loop —
+  // buildAutomaticFinishOnExhaustion and the safetyRetry alarm — was unreachable. A wake that could
+  // not close ran until the prompt overflowed, took a non-retryable HTTP 400, threw out of a try
+  // with only a finally, and exited 1 leaving a stale far-future alarm that also defeats
+  // run-brain.sh's absent-file fallback.
+  const soft = engine.CONTEXT_TOKEN_CEILING;
+  const hard = engine.CONTEXT_HARD_LIMIT;
+  const WINDOW = 131072;
+  const WORST_GROWTH = 2760;
+
+  assert.ok(hard > soft, 'the hard limit must sit above the soft one, not replace it');
+  assert.ok(hard < WINDOW, 'a limit at or above the window bounds nothing');
+  assert.ok(WINDOW - hard >= 3 * WORST_GROWTH,
+    `only ${WINDOW - hard} tokens below the window is not enough margin to break before a 400`);
+  assert.ok(hard - soft >= 5 * WORST_GROWTH,
+    'the model needs several rounds of grace to close on its own before the loop is cut');
+
+  assert.match(src, /lastPromptTokens >= CONTEXT_HARD_LIMIT/u);
+  assert.match(src, /CONTEXT_HARD_LIMIT[\s\S]{0,400}?\n\s*break;/u,
+    'crossing the hard limit must break the loop so the safe-failure path runs');
+});
+
+test('a state refresh does not discard page activity evidence', () => {
+  // The closing order requires a refresh after every mutation, and state.js rebuilt only the store's
+  // inspection — so inspect_building's evidence was wiped moments after it was written, leaving the
+  // UNKNOWN-activity block unsatisfiable in practice.
+  const stateSrc = fs.readFileSync(path.join(__dirname, '..', 'state.js'), 'utf8');
+  assert.match(stateSrc, /carried\.has\(Number\(building\.id\)\)/u,
+    'a refresh must carry forward evidence it did not rebuild');
+  assert.match(stateSrc, /Number\(inspection\?\.level\) === Number\(building\.size\)/u,
+    'carried evidence must still match the level it was taken for');
+});

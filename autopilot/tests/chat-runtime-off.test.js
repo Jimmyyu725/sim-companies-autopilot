@@ -70,3 +70,20 @@ test('the setting is reversible and every mode is still reachable', () => {
   assert.equal(names('shadow').filter(isChatFamily).length, 25,
     'shadow must still expose the full chat family, so this is a switch and not a removal');
 });
+
+// Owner directive 2026-08-07: DeepSeek permanently. The preflight used to answer a credential
+// failure with `switch openai --confirm`, and switchProvider writes BOTH the active file and
+// .owner-primary-provider — so one unreadable key file would have rewritten a standing decision,
+// and brain-provider.js:175 only retries the primary when `resolved !== ownerPrimary`, which after
+// that rewrite is never true again.
+test('a credential failure does not rewrite the owner\'s provider choice', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const runner = fs.readFileSync(path.join(__dirname, '..', 'run-brain.sh'), 'utf8');
+  const preflight = runner.slice(runner.indexOf('brain-provider.js" check'),
+    runner.indexOf('unset OPENAI_API_KEY'));
+  assert.doesNotMatch(preflight, /switch \w+ --confirm/u,
+    'the preflight must not switch providers; that rewrites owner intent as a side effect');
+  assert.match(preflight, /fail_before_state/u,
+    'a credential problem must fail the wake so check-alarm can retry it');
+});

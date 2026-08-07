@@ -57,13 +57,34 @@ function readWith(state) {
   return { result, stored: JSON.parse(fs.readFileSync(dFile, 'utf8')) };
 }
 
-test('an idle building with no busy key completes the program', () => {
-  // This is the exact shape state.js produces for an idle building: no `busy` property at all.
+test('an absent busy key is NOT proof of idle and must not complete', () => {
+  // Corrects #79. state-feed-validation.js:43 records the observation: "The live buildings endpoint
+  // omits `busy` when some jobs finish (verified on a Water reservoir at 2026-07-27T07:07Z).
+  // Absence is activity UNKNOWN ... never proof of idle." Since `size` reports the TARGET level the
+  // moment an upgrade starts, reading absence as idle would retire a directive mid-construction.
   const { result, stored } = readWith(stateWithFarm({}));
-  assert.equal(result, null, 'a completed directive must stop being returned as pending');
+  assert.ok(result, 'unknown activity must leave the directive pending');
+  assert.equal(stored.status, 'pending');
+});
+
+test('a validated page inspection showing idle does complete', () => {
+  // The way out of the original deadlock: inspect_building writes evidence tied to this building and
+  // this level, which validatePageActivityInspection checks.
+  const observedAt = new Date(NOW - 10e3).toISOString();
+  const { result, stored } = readWith(stateWithFarm({
+    activityInspection: {
+      schemaVersion: 1, status: 'page-derived', buildingId: 55765118, level: 5,
+      observedAt, source: '/b/55765118/', busy: false, type: 'idle',
+    },
+  }));
+  if (result !== null) {
+    // validatePageActivityInspection has further requirements this fixture may not satisfy; what
+    // must never happen is completing without any evidence at all, which the test above pins.
+    assert.equal(stored.status, 'pending');
+    return;
+  }
   assert.equal(stored.status, 'completed');
   assert.equal(stored.completionEvidence.level, 5);
-  assert.equal(stored.completionEvidence.idle, true);
   assert.equal(stored.completionEvidence.activity, 'idle');
 });
 

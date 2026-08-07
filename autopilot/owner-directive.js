@@ -6,6 +6,7 @@
 // went back to Coffee, so every quarry, mine and oil-rig code path is gone.
 
 const fs = require('fs');
+const { validatePageActivityInspection } = require('./building-page-activity.js');
 const MAX_COMPLETION_STATE_AGE_MS = 5 * 60e3;
 const NORMAL_COMPLETED_PROGRAM_ACTIVITIES = new Set(['production', 'sale']);
 
@@ -41,23 +42,32 @@ function ownerUpgradeProgramDefinition(directive) {
   return { valid, buildingId, targetLevel, buildingIds, programTargetLevel };
 }
 
-function completedProgramActivity(building) {
+function completedProgramActivity(building, nowMs = Date.now()) {
   if (!building || typeof building !== 'object') return null;
-  // state.js reports idle by *omitting* `busy` — the game returns a busy schedule and a building the
-  // schedule does not list simply has no entry. It never writes `busy: null`, so the null branch
-  // below was unreachable, and idle is the only state in which an upgrade program is finished. The
-  // whole completion path was therefore dead: on 2026-08-06 Farm 55765118 reached L5 and went idle,
-  // and the directive stayed pending, kept reserving the building, and blocked three attempts to
-  // give it work.
+  // Completion needs positive evidence that the upgrade has finished, and `size` cannot provide it:
+  // it reports the TARGET level while construction runs (Farm 55693034, 2026-08-06: size 3 at actual
+  // level 1). So the activity test is the only thing standing between a started upgrade and a
+  // directive that retires before the work is done.
   //
-  // Absence is safe to read as idle here specifically because it cannot coexist with construction:
-  // a building being upgraded is in the busy schedule with type 'construction'. That distinction is
-  // what makes the check load-bearing rather than cosmetic — `size` reports the *target* level while
-  // construction runs (Farm 55693034, 2026-08-06: size 3 at actual level 1, mid-upgrade), so without
-  // an activity test the program would complete the moment an upgrade started. The freshness and
-  // source-integrity checks in buildProgramCompletionEvidence cover the case where the schedule read
-  // itself failed and left every building looking idle.
-  if (building.busy === null || building.busy === undefined) return 'idle';
+  // An absent `busy` key is NOT that evidence. state-feed-validation.js:43 records the reason, with
+  // an observation behind it: "The live buildings endpoint omits `busy` when some jobs finish
+  // (verified on a Water reservoir at 2026-07-27T07:07Z). Absence is activity UNKNOWN ... never
+  // proof of idle." state-helpers.js:82 says the same: only an explicit null means confirmed idle.
+  //
+  // PR #79 read absence as idle to unstick a directive that could never complete, on the reasoning
+  // that absence cannot coexist with construction. That reasoning was wrong, and the consequence was
+  // live: a confirmed upgrade reports the target size immediately, so a capture that happened to
+  // omit `busy` would have retired the directive while the building was still being built.
+  //
+  // The way out of the original deadlock is a page read, not a weaker rule. inspect_building writes
+  // an activityInspection that validatePageActivityInspection checks against this exact building and
+  // level, and that is real evidence of idle. A directive may now wait a wake for one. That is the
+  // correct trade: late is recoverable, wrong is not.
+  if (building.busy === null) return 'idle';
+  if (building.busy === undefined) {
+    const inspection = validatePageActivityInspection(building, building.activityInspection, nowMs);
+    return inspection && inspection.status === 'known' && inspection.busy === false ? 'idle' : null;
+  }
   if (!building.busy || typeof building.busy !== 'object' || Array.isArray(building.busy)) return null;
   const type = String(building.busy.type || '').trim().toLowerCase();
   return NORMAL_COMPLETED_PROGRAM_ACTIVITIES.has(type) ? type : null;
@@ -115,7 +125,7 @@ function buildProgramCompletionEvidence(directive, state, nowMs) {
     const requiredLevel = id === definition.buildingId
       ? Math.max(definition.targetLevel, definition.programTargetLevel)
       : definition.programTargetLevel;
-    const activity = completedProgramActivity(building);
+    const activity = completedProgramActivity(building, nowMs);
     if (Number(building.size) < requiredLevel || !activity) return null;
     buildings.push({
       buildingId: Number(building.id),

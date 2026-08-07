@@ -115,6 +115,20 @@ case "$ACTIVE_PROVIDER" in
     ;;
 esac
 export BRAIN_VERBOSITY=low
+# Chat is off, and this is a cost decision rather than a feature decision. Measured 2026-08-07: the
+# chat/contract/auction family is 26 of 41 action tools and 15,271 of 22,992 characters of tool
+# payload — two thirds of the menu, carried on every model request. 22 of those 26 have never been
+# called in 12,231 tool calls; the 4 that have now fail, because the game added a room-rules overlay
+# that only a click dismisses and the read paths are forbidden from clicking. contract_send is
+# refused independently by two layers and can never succeed, while still advertising itself to the
+# model. Setting this to off drops the payload to 8,074 characters, about 3,800 tokens per request
+# and roughly 3.5M tokens a day.
+#
+# Nothing is deleted. Set SIM_CHAT_MODE=shadow to restore the previous behaviour; the modes are
+# off / read-only / shadow / safe-reply / full. The Personal Assistant is a separate system and is
+# untouched: pa_read, pa_consult_guide and pa_reply survive here, and they earn their place — 172
+# calls, and one accepted offer bought a Grocery level for $2,320 against roughly $11,000 of capex.
+export SIM_CHAT_MODE=off
 echo "$(date '+%F %T %Z') provider=$BRAIN_PROVIDER model=$BRAIN_MODEL effort=$BRAIN_EFFORT engine=$BRAIN_JS" >> "$LOG"
 
 # Fresh state (timeout-bounded browser read, LESSONS B2). The opening snapshot also reads the

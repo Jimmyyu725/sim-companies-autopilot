@@ -776,6 +776,29 @@ function deepSeekMultiToolRecovery(toolCalls, tools = TOOLS) {
     .find(name => availableToolNames.has(name)) || null;
 }
 
+// This engine re-sends the whole conversation on every request. brain56.js does not — it chains
+// server-side with previous_response_id, so its payload is roughly constant and removing the round
+// ceiling there is harmless. Here the prompt grows monotonically: measured across the twelve most
+// recent DeepSeek wakes it added 1,918 to 2,760 tokens per request, starting near 24,000 and
+// reaching 130,692 by request 40 on 2026-08-04 22:13 — against a 131,072 context window. Every one
+// of those wakes was stopped by the old 40-round ceiling, 380 tokens short of the wall.
+//
+// Rounds were never the real constraint; they were a proxy that happened to sit just inside it.
+// Bound the thing that actually overflows. Crossing this threshold forces the closing sequence the
+// same way a low round budget used to, which is a graceful exit: a context overflow returns HTTP
+// 400, isRetryableChatStatus refuses to retry it, chat() throws, and main() has no catch — so the
+// wake would skip writing its safety-retry alarm entirely and exit 1 with no journal and no master.
+const CONTEXT_TOKEN_CEILING = (() => {
+  const parsed = Number.parseInt(process.env.BRAIN_CONTEXT_CEILING || '', 10);
+  // 100,000 rather than something closer to the window. The closing sequence needs up to nine
+  // rounds when the journal is refused once (run-brain.sh records the 2026-08-03 23:35 measurement),
+  // and at the worst observed growth of 2,760 tokens per request that is about 24,800 tokens. This
+  // leaves 31,072 below the window — roughly eleven requests — so the wake closes properly instead
+  // of being cut off one round into its own shutdown.
+  return Number.isSafeInteger(parsed) && parsed >= 10000 ? parsed : 100000;
+})();
+let lastPromptTokens = 0;
+
 function normalizeChatUsage(provider, payload) {
   const usage = payload?.usage || {};
   const details = usage.prompt_tokens_details || {};
@@ -917,7 +940,9 @@ async function chat(messages, {
       if (await retry('response did not contain choices[0].message')) continue;
       throw new Error(`${PROVIDER} response did not contain choices[0].message`);
     }
-    usageWriter(normalizeChatUsage(PROVIDER, payload));
+    const normalizedUsage = normalizeChatUsage(PROVIDER, payload);
+    lastPromptTokens = Number(normalizedUsage.prompt_tokens) || lastPromptTokens;
+    usageWriter(normalizedUsage);
     return message;
   }
   throw new Error(`${PROVIDER} request failed after bounded retries`);
@@ -988,7 +1013,24 @@ async function main() {
     // Reserve the final rounds for the closing sequence so a productive wake is not discarded for
     // running out before `master` writes the checkpoint.
     roundsRemaining = MAX_ROUNDS - i;
-    const closing = closingBudgetDirective(roundsRemaining, runtimeGuard.finishCheck());
+    let closing = closingBudgetDirective(roundsRemaining, runtimeGuard.finishCheck());
+    if (!closing && lastPromptTokens >= CONTEXT_TOKEN_CEILING) {
+      const finish = runtimeGuard.finishCheck();
+      if (finish && !finish.ok) {
+        const missing = Array.isArray(finish.missing) ? finish.missing.filter(Boolean) : [];
+        if (missing.length) {
+          closing = {
+            roundsRemaining,
+            missing,
+            requiredTool: String(missing[0]).trim().split(/\s+/u)[0],
+            message: `CONTEXT CEILING: the prompt has reached ${lastPromptTokens} tokens and this engine `
+              + `re-sends the whole conversation, so the next request risks overflowing the context window `
+              + `and failing unrecoverably. Close the wake now: ${missing.join('; ')}.`,
+          };
+          log('CONTEXT_CEILING', lastPromptTokens, missing.join('; '));
+        }
+      }
+    }
     if (closing) {
       log('CLOSING_BUDGET', closing.roundsRemaining, closing.missing.join('; '));
       messages.push({ role: 'user', content: closing.message });
@@ -1118,6 +1160,7 @@ module.exports = {
   missingMillInspectionIds,
   noteUtilityExchangeSale,
   noteUtilityInspection,
+  CONTEXT_TOKEN_CEILING,
   pendingUtilitySurplus,
   resolveMaxRounds,
   unverifiedUtilityKinds,

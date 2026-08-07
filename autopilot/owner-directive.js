@@ -66,7 +66,12 @@ function completedProgramActivity(building, nowMs = Date.now()) {
   if (building.busy === null) return 'idle';
   if (building.busy === undefined) {
     const inspection = validatePageActivityInspection(building, building.activityInspection, nowMs);
-    return inspection && inspection.status === 'known' && inspection.busy === false ? 'idle' : null;
+    // 'page-derived' is what validatePageActivityInspection returns (building-page-activity.js:165).
+    // Demanding 'known' made this branch unreachable, so #83 replaced one deadlock with another: the
+    // directive could never retire, and act.js:615 refuses every produce on a reserved building, so
+    // the Farm could never be given work either — and work is the only other completion path.
+    return inspection && inspection.busy === false
+      && (inspection.status === 'page-derived' || inspection.status === 'known') ? 'idle' : null;
   }
   if (!building.busy || typeof building.busy !== 'object' || Array.isArray(building.busy)) return null;
   const type = String(building.busy.type || '').trim().toLowerCase();

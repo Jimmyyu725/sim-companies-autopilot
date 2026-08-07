@@ -774,6 +774,40 @@ function normalizeDeepSeekToolArguments(toolName, args, tools = TOOLS) {
   return { args: normalized, normalizedFields };
 }
 
+// Counts what was actually published, round over round, and releases the menu when the same tool
+// has been forced too many times in a row. Counting *requests* instead let the loop reset itself: a
+// guard that names no tool yields forceTool(null), and treating that as "a different tool" cleared
+// the counter, so the closing directive re-pinned the same tool next round and the limit was never
+// reached. buildingUtilizationJournalGate's idle branch is exactly that shape — it returns
+// requiredActions[].tool and neither requiredTool nor missing.
+//
+// Lifted out of main() so it can be driven across rounds by a test rather than asserted about with
+// a regex over this file.
+const MAX_FORCED_TOOL_REPEATS = 3;
+
+function createForcedToolTracker(log = () => {}, limit = MAX_FORCED_TOOL_REPEATS) {
+  let repeats = 0;
+  let lastName = null;
+  return {
+    get repeats() { return repeats; },
+    consume(forcedToolName) {
+      if (forcedToolName && forcedToolName === lastName) {
+        repeats += 1;
+        if (repeats >= limit) {
+          log('FORCED_TOOL_RELEASED', forcedToolName, `after ${repeats} consecutive rounds`);
+          repeats = 0;
+          lastName = null;
+          return null;
+        }
+      } else if (forcedToolName) {
+        repeats = 1;
+      }
+      if (forcedToolName) lastName = forcedToolName;
+      return forcedToolName;
+    },
+  };
+}
+
 function requiredDeepSeekTool(result, tools = TOOLS) {
   // finishCheck() returns ok/guard/reason/missing/lastMutation/lastEvidenceChange/mutationVersion
   // and never sets requiredTool or requiredNextTool, so reading only those two fields made this
@@ -1036,25 +1070,9 @@ async function main() {
   // Under the old round ceiling that merely wasted a doomed wake; with the ceiling gone it runs to
   // the 45-minute wall clock. After this many consecutive rejections of the same tool, publish the
   // full menu again and let the model route around the guard the way brain56 always could.
-  const MAX_FORCED_TOOL_REPEATS = 3;
-  let forcedToolRepeats = 0;
-  let lastForcedToolName = null;
-  const forceTool = (name) => {
-    if (name && name === lastForcedToolName) {
-      forcedToolRepeats += 1;
-      if (forcedToolRepeats >= MAX_FORCED_TOOL_REPEATS) {
-        log('FORCED_TOOL_RELEASED', name, `after ${forcedToolRepeats} consecutive attempts`);
-        forcedToolRepeats = 0;
-        lastForcedToolName = null;
-        forcedToolName = null;
-        return;
-      }
-    } else {
-      forcedToolRepeats = name ? 1 : 0;
-    }
-    lastForcedToolName = name || null;
-    forcedToolName = name || null;
-  };
+  const tracker = createForcedToolTracker(log);
+  const forceTool = (name) => { forcedToolName = name || null; };
+  const consumeForcedTool = () => { forcedToolName = tracker.consume(forcedToolName); };
   try {
     for (let i = 0; i < MAX_ROUNDS; i++) {
     // Reserve the final rounds for the closing sequence so a productive wake is not discarded for
@@ -1087,6 +1105,7 @@ async function main() {
       // refusing and the tool that would unblock it can never be published.
       if (PROVIDER === 'deepseek' && closing.requiredTool && !forcedToolName) forceTool(closing.requiredTool);
     }
+    consumeForcedTool();
     const msg = await chat(messages, { forcedToolName });
     forcedToolName = null;
     messages.push(msg);
@@ -1196,6 +1215,7 @@ if (require.main === module) {
 module.exports = {
   buildChatCompletionRequest,
   buildDeepSeekTools,
+  createForcedToolTracker,
   deepSeekMultiToolRecovery,
   requiredDeepSeekTool,
   buildIncompleteLoopRetryAlarm,

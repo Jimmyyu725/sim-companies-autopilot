@@ -181,7 +181,14 @@ function buildingUtilizationJournalGate(state, nowMs = Date.now(), options = {})
     ? options.exhaustedActions
     : new Set(Array.isArray(options.exhaustedActions) ? options.exhaustedActions : []);
   const remedyFor = building => (building.category === 'sales' ? 'sell' : 'produce');
-  const remedyIsClosed = building => exhausted.has(`${remedyFor(building)}:${building.buildingId}`);
+  // `upgrade` counts as a closed remedy too. When an owner directive reserves a building, act.js
+  // refuses produce on it and tells the wake to upgrade instead — so upgrade, not produce, is the
+  // move that would un-idle it. Two failed upgrades close that key in the FailureBudget, and then
+  // every path is shut: upgrade refused by the budget, produce refused by the directive, and the
+  // close refused by this gate. Verified 2026-08-07 against the shape Farm 55692919 will be in when
+  // its bean order ends and the pending L1->L4 directive takes over.
+  const remedyIsClosed = building => exhausted.has(`${remedyFor(building)}:${building.buildingId}`)
+    || exhausted.has(`upgrade:${building.buildingId}`);
   const actionableIdle = idleBuildings.filter(building => !remedyIsClosed(building));
   const blockedIdle = idleBuildings.filter(remedyIsClosed);
   if (!actionableIdle.length && !inspection.completedBuildings.length && blockedIdle.length) {

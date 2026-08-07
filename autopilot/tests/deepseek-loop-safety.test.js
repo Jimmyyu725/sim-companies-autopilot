@@ -39,30 +39,45 @@ test('forcing a singular tool keeps the batch sibling that makes it answerable',
   assert.match(src, /forcedSibling && tool\?\.function\?\.name === forcedSibling/u);
 });
 
-test('the forced tool is released after repeated rejection', () => {
-  // Without this the recovery is an absorbing state: same prompt, same one-tool menu, same batched
-  // reply, no counter, no backoff, no path that restores the full menu.
-  assert.match(src, /MAX_FORCED_TOOL_REPEATS/u);
-  assert.match(src, /FORCED_TOOL_RELEASED/u);
-  const limit = Number(/const MAX_FORCED_TOOL_REPEATS = (\d+);/u.exec(src)[1]);
-  assert.ok(limit >= 2 && limit <= 5, `a release limit of ${limit} is not a sane bound`);
-  // Every assignment of a real tool name must go through the counter, or one path reopens the trap.
-  // Match only statements that assign something other than null, and ignore parameter defaults —
-  // an earlier version of this check flagged `forcedToolName = null,` inside two destructured
-  // parameter lists and failed for a reason unrelated to what it claims to test.
-  // Take the right-hand side and compare it directly. Two earlier versions of this check used a
-  // negative lookahead after \s*, which backtracks to zero width and defeats itself, so it flagged
-  // the very `= null` lines it was written to ignore.
-  const ALLOWED_RHS = new Set(['null', 'name || null']);
-  const bypass = src.split('\n')
-    .map((line, i) => ({ line: line.trim(), n: i + 1 }))
-    .filter(({ line }) => line.startsWith('forcedToolName ='))
-    .map(row => ({ ...row, rhs: row.line.slice(row.line.indexOf('=') + 1).trim().replace(/[;,]$/u, '') }))
-    .filter(({ rhs }) => !ALLOWED_RHS.has(rhs));
-  assert.deepEqual(bypass.map(b => `${b.n}: ${b.line}`), [],
-    'every forced-tool assignment must go through forceTool so the repeat counter sees it');
+test('the forced tool is released after repeated rounds, driven not grepped', () => {
+  // Every earlier version of this check was a regex over brain.js and never drove the logic across
+  // rounds — which is how the self-resetting counter survived them. This runs the real tracker.
+  const released = [];
+  const tracker = engine.createForcedToolTracker((tag, name) => released.push(`${tag}:${name}`));
+
+  // The shape that defeated the previous fix: the closing directive re-pins the same tool every
+  // round because finishCheck().missing does not change, and the gate that refuses it names no tool
+  // at all, so the request-side counter was cleared each time.
+  const published = [];
+  let forced = null;
+  for (let round = 0; round < 6; round += 1) {
+    if (!forced) forced = 'journal';
+    forced = tracker.consume(forced);
+    published.push(forced);
+    forced = null;                       // the guard returned no requiredTool and no missing
+  }
+  assert.deepEqual(published, ['journal', 'journal', null, 'journal', 'journal', null],
+    'the menu must reopen on the third consecutive round, and keep reopening');
+  assert.equal(released.length, 2);
+  assert.match(released[0], /FORCED_TOOL_RELEASED:journal/u);
 });
 
+test('a different tool restarts the count rather than inheriting it', () => {
+  const tracker = engine.createForcedToolTracker();
+  assert.equal(tracker.consume('journal'), 'journal');
+  assert.equal(tracker.consume('journal'), 'journal');
+  assert.equal(tracker.consume('set_alarm'), 'set_alarm', 'a new demand is not the old one');
+  assert.equal(tracker.consume('set_alarm'), 'set_alarm');
+  assert.equal(tracker.consume('set_alarm'), null, 'and it gets its own three rounds');
+});
+
+test('no forced tool at all leaves the counter alone', () => {
+  const tracker = engine.createForcedToolTracker();
+  assert.equal(tracker.consume('journal'), 'journal');
+  assert.equal(tracker.consume(null), null, 'a round with no demand publishes the full menu');
+  assert.equal(tracker.consume('journal'), 'journal');
+  assert.equal(tracker.consume('journal'), null, 'the earlier attempt still counted');
+});
 test('the closing directive does not overwrite a tool a guard just demanded', () => {
   // closing.requiredTool comes from finishCheck().missing and does not change until that step
   // succeeds, so assigning it unconditionally pins the forced tool to the one being refused.

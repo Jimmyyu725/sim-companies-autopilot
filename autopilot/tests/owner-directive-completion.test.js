@@ -68,26 +68,49 @@ test('an absent busy key is NOT proof of idle and must not complete', () => {
 });
 
 test('a validated page inspection showing idle does complete', () => {
-  // The way out of the original deadlock: inspect_building writes evidence tied to this building and
-  // this level, which validatePageActivityInspection checks.
-  const observedAt = new Date(NOW - 10e3).toISOString();
-  const { result, stored } = readWith(stateWithFarm({
-    activityInspection: {
-      schemaVersion: 1, status: 'page-derived', buildingId: 55765118, level: 5,
-      observedAt, source: '/b/55765118/', busy: false, type: 'idle',
+  // The way out of the deadlock. The first version of this test wrapped its assertions in
+  // `if (result !== null) { ...; return; }`, which passes whether the escape works or not — and the
+  // escape did not work: #83 demanded status 'known' while validatePageActivityInspection returns
+  // 'page-derived' (building-page-activity.js:165), so the branch was unreachable and the directive
+  // could never retire. act.js:615 then refuses every produce on a reserved building, so the
+  // building could never be given work either, and work is the only other completion path.
+  const { buildPageActivityInspection } = require('../building-page-activity.js');
+  const observedAt = new Date(NOW - 20e3).toISOString();
+  const inspection = buildPageActivityInspection({
+    buildingId: 55765118,
+    level: 5,
+    observedAt,
+    pageEvidence: {
+      path: '/b/55765118/', pathMatches: true,
+      construction: false, retailSale: false, orderBusy: false, collectible: false,
+      productionOrderAvailable: true, retailOrderAvailable: false,
     },
-  }));
-  if (result !== null) {
-    // validatePageActivityInspection has further requirements this fixture may not satisfy; what
-    // must never happen is completing without any evidence at all, which the test above pins.
-    assert.equal(stored.status, 'pending');
-    return;
-  }
+  });
+  assert.ok(inspection, 'the fixture must be a real inspection, not a hand-written object');
+  assert.equal(inspection.status, 'page-derived');
+  assert.equal(inspection.busy, false);
+
+  const { result, stored } = readWith(stateWithFarm({ activityInspection: inspection }));
+  assert.equal(result, null, 'a validated idle page read must complete the program');
   assert.equal(stored.status, 'completed');
   assert.equal(stored.completionEvidence.level, 5);
   assert.equal(stored.completionEvidence.activity, 'idle');
 });
 
+test('a page inspection showing the building still busy does not complete', () => {
+  const { buildPageActivityInspection } = require('../building-page-activity.js');
+  const inspection = buildPageActivityInspection({
+    buildingId: 55765118, level: 5, observedAt: new Date(NOW - 20e3).toISOString(),
+    pageEvidence: {
+      path: '/b/55765118/', pathMatches: true,
+      construction: true, retailSale: false, orderBusy: false, collectible: false,
+      productionOrderAvailable: false, retailOrderAvailable: false,
+    },
+  });
+  assert.equal(inspection.type, 'construction');
+  const { result } = readWith(stateWithFarm({ activityInspection: inspection }));
+  assert.ok(result, 'a building still under construction must keep the directive pending');
+});
 test('an explicit busy:null also completes', () => {
   const { result } = readWith(stateWithFarm({ busy: null }));
   assert.equal(result, null);

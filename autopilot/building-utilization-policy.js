@@ -91,9 +91,17 @@ function inspectOperationalUtilization(state, nowMs = Date.now()) {
     .filter(building => effectiveBuildingActivity(building, now).busy === false)
     .map(summarize)
     .filter(building => Number.isSafeInteger(building.buildingId) && building.buildingId > 0);
+  // Unknown activity blocks the close for EVERY operational building, not only sales. It was
+  // restricted to sales because a generic busy object is not proof that a shop is retailing, but the
+  // restriction quietly made this whole gate a no-op for production: state.js reports idle by
+  // omitting `busy` (state-feed-validation.js:43), never by writing null, so a genuinely idle Mill
+  // or Farm resolves to {status:'unknown'} and fell through both lists. Verified 2026-08-07 against
+  // the live shape — an idle production building written the way state.js writes one let the wake
+  // close, while the same row with an explicit busy:null blocked it. Nine of the eleven live
+  // buildings are production, so the no-voluntary-idle rule was covering one of them, and the escape
+  // added in #77 was unreachable for the rest.
   const unknownBuildings = operationalBuildings
-    .filter(building => String(building?.category || '').trim().toLowerCase() === 'sales'
-      && effectiveBuildingActivity(building, now).status !== 'known'
+    .filter(building => effectiveBuildingActivity(building, now).status !== 'known'
       && effectiveBuildingActivity(building, now).status !== 'page-derived')
     .map(summarize)
     .filter(building => Number.isSafeInteger(building.buildingId) && building.buildingId > 0);

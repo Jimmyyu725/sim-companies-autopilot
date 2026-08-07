@@ -656,7 +656,12 @@ async function runTool(name, args) {   // identical behavior to brain.js
       // The utility surplus review is optional by its own definition ("Selling is optional").
       // Live 2026-08-01 wake 11:57: it blocked the journal with two rounds left, the closing budget
       // could not help, and the whole wake was discarded. Defer it to the next wake instead.
-      const utilityBlock = closingBudgetActive(roundsRemaining)
+      // Waive the optional gate when the wake is running out of room to close. roundsRemaining is
+      // Infinity while BRAIN_MAX_ROUNDS is unlimited, so closingBudgetActive alone stopped firing and
+      // this escape — added for the 2026-08-01 11:57 wake that was discarded whole — went dead. The
+      // context ceiling is the bound that still means something on this engine.
+      const closingNow = closingBudgetActive(roundsRemaining) || (false /* brain56 chains server-side; its prompt does not grow */);
+      const utilityBlock = closingNow
         ? null
         : utilityJournalGate(state, utilityExchangeReviews, alarm);
       if (utilityBlock) return utilityBlock;

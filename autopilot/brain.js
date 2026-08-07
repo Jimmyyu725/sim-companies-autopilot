@@ -668,7 +668,12 @@ async function runTool(name, args) {
       // The utility surplus review is optional by its own definition ("Selling is optional").
       // Live 2026-08-01 wake 11:57: it blocked the journal with two rounds left, the closing budget
       // could not help, and the whole wake was discarded. Defer it to the next wake instead.
-      const utilityBlock = closingBudgetActive(roundsRemaining)
+      // Waive the optional gate when the wake is running out of room to close. roundsRemaining is
+      // Infinity while BRAIN_MAX_ROUNDS is unlimited, so closingBudgetActive alone stopped firing and
+      // this escape — added for the 2026-08-01 11:57 wake that was discarded whole — went dead. The
+      // context ceiling is the bound that still means something on this engine.
+      const closingNow = closingBudgetActive(roundsRemaining) || (lastPromptTokens >= CONTEXT_TOKEN_CEILING);
+      const utilityBlock = closingNow
         ? null
         : utilityJournalGate(state, utilityExchangeReviews, alarm);
       if (utilityBlock) return utilityBlock;
@@ -714,8 +719,17 @@ function buildChatCompletionRequest({
   if (provider === 'deepseek' && forcedToolName && !availableToolNames.has(forcedToolName)) {
     throw new Error(`unknown forced DeepSeek tool ${forcedToolName}`);
   }
+  // Publishing exactly one tool is what stops DeepSeek batching, but it can also make the demand
+  // impossible. A guard that names four Mills forces `inspect_building`, whose singular contract
+  // takes one id — while `inspect_buildings`, the 2-to-8 batch tool written for exactly this case,
+  // is filtered out. The model then emits several singular calls, the batch is rejected, the same
+  // single tool is forced again, and the round repeats until the wall clock. Keeping the batch
+  // sibling published gives it a legal way to answer in one call.
+  const FORCED_TOOL_SIBLINGS = { inspect_building: 'inspect_buildings' };
+  const forcedSibling = forcedToolName ? FORCED_TOOL_SIBLINGS[forcedToolName] : null;
   const publishedTools = provider === 'deepseek' && forcedToolName
-    ? tools.filter(tool => tool?.function?.name === forcedToolName)
+    ? tools.filter(tool => tool?.function?.name === forcedToolName
+      || (forcedSibling && tool?.function?.name === forcedSibling))
     : tools;
   const request = {
     model,
@@ -761,7 +775,16 @@ function normalizeDeepSeekToolArguments(toolName, args, tools = TOOLS) {
 }
 
 function requiredDeepSeekTool(result, tools = TOOLS) {
-  const requested = String(result?.requiredNextTool || result?.requiredTool || '').trim();
+  // finishCheck() returns ok/guard/reason/missing/lastMutation/lastEvidenceChange/mutationVersion
+  // and never sets requiredTool or requiredNextTool, so reading only those two fields made this
+  // return null for every refused finish — the one round where the closing order most needs
+  // enforcing was the one round that got none. `missing` carries the same information as a list of
+  // clauses whose first word is the tool, which is how closingBudgetDirective already reads it.
+  const direct = String(result?.requiredNextTool || result?.requiredTool || '').trim();
+  const fromMissing = !direct && Array.isArray(result?.missing) && result.missing.length
+    ? String(result.missing[0]).trim().split(/\s+/u)[0]
+    : '';
+  const requested = direct || fromMissing;
   if (!requested) return null;
   return tools.some(tool => tool?.function?.name === requested) ? requested : null;
 }
@@ -1008,6 +1031,30 @@ async function main() {
   process.once('SIGTERM', handleTerm);
   let finished = false;
   let forcedToolName = null;
+  // Forcing a single tool is how batching is suppressed, but re-forcing the same one after every
+  // rejection is an absorbing state: same prompt, same one-tool menu, same batched reply, forever.
+  // Under the old round ceiling that merely wasted a doomed wake; with the ceiling gone it runs to
+  // the 45-minute wall clock. After this many consecutive rejections of the same tool, publish the
+  // full menu again and let the model route around the guard the way brain56 always could.
+  const MAX_FORCED_TOOL_REPEATS = 3;
+  let forcedToolRepeats = 0;
+  let lastForcedToolName = null;
+  const forceTool = (name) => {
+    if (name && name === lastForcedToolName) {
+      forcedToolRepeats += 1;
+      if (forcedToolRepeats >= MAX_FORCED_TOOL_REPEATS) {
+        log('FORCED_TOOL_RELEASED', name, `after ${forcedToolRepeats} consecutive attempts`);
+        forcedToolRepeats = 0;
+        lastForcedToolName = null;
+        forcedToolName = null;
+        return;
+      }
+    } else {
+      forcedToolRepeats = name ? 1 : 0;
+    }
+    lastForcedToolName = name || null;
+    forcedToolName = name || null;
+  };
   try {
     for (let i = 0; i < MAX_ROUNDS; i++) {
     // Reserve the final rounds for the closing sequence so a productive wake is not discarded for
@@ -1034,7 +1081,11 @@ async function main() {
     if (closing) {
       log('CLOSING_BUDGET', closing.roundsRemaining, closing.missing.join('; '));
       messages.push({ role: 'user', content: closing.message });
-      if (PROVIDER === 'deepseek' && closing.requiredTool) forcedToolName = closing.requiredTool;
+      // Do not overwrite a tool a guard demanded at the end of the previous round. closing.requiredTool
+      // is derived from finishCheck().missing, which does not change until that step succeeds, so
+      // assigning it unconditionally pins the forced tool to the one the runtime is currently
+      // refusing and the tool that would unblock it can never be published.
+      if (PROVIDER === 'deepseek' && closing.requiredTool && !forcedToolName) forceTool(closing.requiredTool);
     }
     const msg = await chat(messages, { forcedToolName });
     forcedToolName = null;
@@ -1052,7 +1103,7 @@ async function main() {
       DIARY.push(`🛡️ Multi-tool turn rejected without execution: ${names}`);
       messages.push(...multiToolRejections);
       if (PROVIDER === 'deepseek') {
-        forcedToolName = deepSeekMultiToolRecovery(msg.tool_calls);
+        forceTool(deepSeekMultiToolRecovery(msg.tool_calls));
         if (forcedToolName) {
           log('DEEPSEEK_NEXT_TOOL_FORCED', forcedToolName, 'after multi-tool rejection');
         }
@@ -1087,7 +1138,7 @@ async function main() {
           DIARY.push(`🛡️ finish blocked: ${finishCheck.reason}`);
           messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(finishCheck) });
           if (PROVIDER === 'deepseek') {
-            forcedToolName = requiredDeepSeekTool(finishCheck);
+            forceTool(requiredDeepSeekTool(finishCheck));
           }
           continue;
         }
@@ -1100,7 +1151,7 @@ async function main() {
       }
       const result = await runTool(tc.function.name, args);
       if (PROVIDER === 'deepseek') {
-        forcedToolName = requiredDeepSeekTool(result);
+        forceTool(requiredDeepSeekTool(result));
         if (forcedToolName) {
           log('DEEPSEEK_NEXT_TOOL_FORCED', forcedToolName,
             `after ${tc.function.name}`);
@@ -1146,6 +1197,7 @@ module.exports = {
   buildChatCompletionRequest,
   buildDeepSeekTools,
   deepSeekMultiToolRecovery,
+  requiredDeepSeekTool,
   buildIncompleteLoopRetryAlarm,
   buildMultiToolRejections,
   chat,

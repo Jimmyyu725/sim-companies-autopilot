@@ -67,9 +67,14 @@ const MODEL = process.env.BRAIN_MODEL || 'gpt-5.6-terra';
 // pins it for a one-off run. Both the loop condition and the closing-budget bookkeeping already
 // carry Infinity — roundsRemaining is initialised to it, and closingBudgetActive/Directive both
 // gate on Number.isSafeInteger — so nothing downstream needs to change. What does change: the
-// closing-budget pressure never fires, and since run-brain.sh does not wrap the engine in a
-// timeout, rounds were the only thing bounding a wake. A wake that cannot make progress now runs
-// until it resolves, holding .brain.lock and blocking every wake behind it.
+// closing-budget pressure never fires, and rounds stop bounding a wake at all. That left nothing
+// between a stuck wake and the lock it holds, so run-brain.sh now wraps the engine in
+// `timeout -k 30 2700` — 45 minutes, SIGTERM then SIGKILL — and that wall clock is the only bound
+// a wake has. It has fired once, on 2026-08-05 02:47: 373 model requests, 59.8M tokens, $15.85,
+// rc=124, a close-gate deadlock that rounds would previously have ended at 50.
+//
+// (This comment claimed the opposite for a day. It was written with the ceiling removal and not
+// revisited when the backstop landed an hour later.)
 function resolveMaxRounds(raw) {
   const text = String(raw ?? '').trim().toLowerCase();
   if (text === 'unlimited' || text === 'infinity' || text === '0') return Number.POSITIVE_INFINITY;

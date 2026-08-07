@@ -65,14 +65,19 @@ fail_before_state() {
 
 ACTIVE_PROVIDER="$(node "$AUTOPILOT/brain-provider.js" current 2>>"$LOG")" ||
   fail_before_state "active provider configuration is invalid"
+# Owner directive 2026-08-07: DeepSeek permanently; OpenAI is no longer the intended engine. This
+# preflight used to call `switch openai --confirm` on a credential failure, and switchProvider writes
+# BOTH .active-brain-provider and .owner-primary-provider (brain-provider.js:95-96). One unreadable
+# key file — a copy, a restore, an editor rewrite under umask 022 — would therefore have rewritten
+# the owner's standing choice, permanently and with only a line reading "using retained OpenAI
+# provider" to show for it. Worse, the half-open recovery at brain-provider.js:175 requires
+# `resolved !== ownerPrimary`, so once both files say openai DeepSeek is never retried again.
+#
+# A credential problem is a credential problem. Fail the wake, let check-alarm schedule the retry,
+# and leave the owner's choice alone. Recovering the key is a two-second fix; recovering silently
+# rewritten intent needs someone to notice it happened.
 if ! node "$AUTOPILOT/brain-provider.js" check "$ACTIVE_PROVIDER" >>"$LOG" 2>&1; then
-  if [ "$ACTIVE_PROVIDER" = "deepseek" ] &&
-      node "$AUTOPILOT/brain-provider.js" switch openai --confirm >>"$LOG" 2>&1; then
-    echo "$(date '+%F %T %Z') DeepSeek credential preflight failed; using retained OpenAI provider before any action" >> "$LOG"
-    ACTIVE_PROVIDER=openai
-  else
-    fail_before_state "$ACTIVE_PROVIDER credential is unavailable"
-  fi
+  fail_before_state "$ACTIVE_PROVIDER credential is unavailable"
 fi
 
 unset OPENAI_API_KEY DEEPSEEK_API_KEY

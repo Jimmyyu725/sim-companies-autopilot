@@ -125,6 +125,29 @@ const PA_PENDING_FILE = path.join(AUTOPILOT, '.pa-pending.json');
     pageEvidence: capturedStorePageActivity,
   });
   const storeActivityAttached = attachPageActivityInspection(blds, storeActivityInspection);
+  // Carry forward page evidence from the previous capture. Only the store's inspection is rebuilt
+  // here, so every other building lost its activityInspection on every refresh — and the closing
+  // order requires a refresh after each mutation, so inspect_building's evidence was being wiped
+  // moments after it was written. A building whose activity is UNKNOWN cannot close the wake
+  // (building-utilization-policy.js:144), which made that block unsatisfiable in practice.
+  //
+  // This is safe because validatePageActivityInspection re-checks the evidence against the building
+  // id and level it was taken for and against MAX_ACTIVITY_EVIDENCE_AGE_MS every time it is read.
+  // Carrying it forward cannot make stale evidence look fresh; it only stops fresh evidence being
+  // thrown away by an unrelated refresh.
+  try {
+    const previous = JSON.parse(fs.readFileSync(path.join(__dirname, '.state.json'), 'utf8'));
+    const carried = new Map((previous?.buildings || [])
+      .filter(row => row && row.activityInspection)
+      .map(row => [Number(row.id), row.activityInspection]));
+    for (const building of blds) {
+      if (building.activityInspection || !carried.has(Number(building.id))) continue;
+      const inspection = carried.get(Number(building.id));
+      if (Number(inspection?.level) === Number(building.size)) {
+        building.activityInspection = inspection;
+      }
+    }
+  } catch (_) { /* no previous capture, or it is unreadable — nothing to carry */ }
   const buildingActivityEvidence = summarizeBuildingActivityEvidence(buildings);
   let slotSchedule;
   try {

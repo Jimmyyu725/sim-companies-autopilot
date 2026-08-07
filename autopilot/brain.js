@@ -845,6 +845,24 @@ function deepSeekMultiToolRecovery(toolCalls, tools = TOOLS) {
 // same way a low round budget used to, which is a graceful exit: a context overflow returns HTTP
 // 400, isRetryableChatStatus refuses to retry it, chat() throws, and main() has no catch — so the
 // wake would skip writing its safety-retry alarm entirely and exit 1 with no journal and no master.
+// The soft ceiling asks the model to close. This one ends the loop whether it complied or not,
+// because asking is not a boundary: `for (let i = 0; i < Infinity; i++)` has no exit except a
+// successful finish, so the entire safety block after the loop — buildAutomaticFinishOnExhaustion
+// and the safetyRetry alarm written to next-wake.json — became unreachable the moment the round
+// ceiling was removed. Without it a wake that cannot close runs until the prompt overflows, gets a
+// non-retryable HTTP 400, throws out of a try that has only a finally, and exits 1 leaving a stale
+// far-future alarm in next-wake.json — which also defeats run-brain.sh's own 5-minute fallback,
+// since that only fires when the file is absent.
+//
+// Breaking here is the graceful path: `finished` is false, so the wake records a SAFE FAILURE and
+// schedules its own retry. 120,000 leaves about four requests of margin below the 131,072 window at
+// the worst observed growth, and 20,000 above the soft ceiling — roughly seven rounds of grace for
+// the model to close on its own first.
+const CONTEXT_HARD_LIMIT = (() => {
+  const parsed = Number.parseInt(process.env.BRAIN_CONTEXT_HARD_LIMIT || '', 10);
+  return Number.isSafeInteger(parsed) && parsed >= 20000 ? parsed : 120000;
+})();
+
 const CONTEXT_TOKEN_CEILING = (() => {
   const parsed = Number.parseInt(process.env.BRAIN_CONTEXT_CEILING || '', 10);
   // 100,000 rather than something closer to the window. The closing sequence needs up to nine
@@ -1105,6 +1123,10 @@ async function main() {
       // refusing and the tool that would unblock it can never be published.
       if (PROVIDER === 'deepseek' && closing.requiredTool && !forcedToolName) forceTool(closing.requiredTool);
     }
+    if (lastPromptTokens >= CONTEXT_HARD_LIMIT) {
+      log('CONTEXT_HARD_LIMIT', lastPromptTokens, 'ending the loop so the safe-failure path can run');
+      break;
+    }
     consumeForcedTool();
     const msg = await chat(messages, { forcedToolName });
     forcedToolName = null;
@@ -1196,7 +1218,10 @@ async function main() {
       }
     }
     if (!finished) {
-      const reason = `chat-completions tool loop exhausted ${MAX_ROUNDS} rounds without a successful finish call`;
+      const reason = Number.isFinite(MAX_ROUNDS)
+        ? `chat-completions tool loop exhausted ${MAX_ROUNDS} rounds without a successful finish call`
+        : `chat-completions tool loop reached the ${CONTEXT_HARD_LIMIT}-token context limit at `
+          + `${lastPromptTokens} without a successful finish call`;
       const retryAlarm = buildIncompleteLoopRetryAlarm(reason);
       writeJsonAtomic(path.join(BRAIN, 'next-wake.json'), retryAlarm);
       DIARY.push(`🛡️ SAFE FAILURE: ${reason}; retry at ${retryAlarm.atIso}`);
@@ -1232,6 +1257,7 @@ module.exports = {
   missingMillInspectionIds,
   noteUtilityExchangeSale,
   noteUtilityInspection,
+  CONTEXT_HARD_LIMIT,
   CONTEXT_TOKEN_CEILING,
   pendingUtilitySurplus,
   resolveMaxRounds,

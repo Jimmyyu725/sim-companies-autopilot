@@ -56,7 +56,10 @@ test('confirmed provider switch writes owner-only state and resets health', () =
 });
 
 test('two consecutive DeepSeek failures automatically activate retained OpenAI', () => {
+  // Only when OpenAI is the owner's primary and DeepSeek is the temporary active engine. Owner
+  // directive 2026-08-07 retired that fallback in the other direction; see the test below.
   const value = fixture();
+  fs.writeFileSync(value.ownerPrimaryFile, 'openai\n');
   switchProvider('deepseek', {
     confirm: true,
     activeProviderFile: value.activeProviderFile,
@@ -64,6 +67,7 @@ test('two consecutive DeepSeek failures automatically activate retained OpenAI',
     ownerPrimaryFile: value.ownerPrimaryFile,
     readinessCheck: value.readinessCheck,
   });
+  fs.writeFileSync(value.ownerPrimaryFile, 'openai\n');
   const first = recordProviderResult('deepseek', 1, {
     activeProviderFile: value.activeProviderFile,
     healthFile: value.healthFile,
@@ -132,7 +136,16 @@ test('wake runner preflights before browser access and retains both provider pro
 // Regression (2026-08-01): the DeepSeek fallback was permanent. After two exhausted DeepSeek wakes
 // the active provider became OpenAI and nothing ever restored the owner's chosen primary, so every
 // later wake cost about seven times more ($0.69 versus $0.09 measured). Recovery must be half-open.
-test('successful fallback wakes restore the primary provider, with backoff', () => {
+test('the fallback-and-recover cycle is retired while DeepSeek is the owner primary', () => {
+  // This test used to drive the whole cycle: DeepSeek primary -> two failures fall back to OpenAI
+  // -> two clean OpenAI wakes restore DeepSeek -> a failure resets the streak, with the recovery
+  // requirement doubling each time. Owner directive 2026-08-07 removed the first step, so the rest
+  // is unreachable: automatic fallback no longer fires when the owner primary is deepseek, and
+  // without a fallback there is nothing to recover from.
+  //
+  // The mechanism is intact in brain-provider.js for any other owner primary; what is asserted here
+  // is that the configuration actually in use does not use it. Keeping the old assertions would have
+  // meant pinning a cycle the system is no longer allowed to perform.
   const value = fixture();
   const options = {
     activeProviderFile: value.activeProviderFile,
@@ -142,42 +155,22 @@ test('successful fallback wakes restore the primary provider, with backoff', () 
   };
   switchProvider('deepseek', { confirm: true, ...options });
 
-  for (let attempt = 0; attempt < FAILURE_THRESHOLD; attempt += 1) {
-    recordProviderResult('deepseek', 1, options);
+  for (let attempt = 0; attempt < FAILURE_THRESHOLD + 2; attempt += 1) {
+    const result = recordProviderResult('deepseek', 1, options);
+    assert.equal(result.fallbackActivated, false);
+    assert.equal(result.primaryRestored, false);
   }
-  assert.equal(readActiveProvider(value.activeProviderFile), 'openai', 'failures fall back');
+  assert.equal(readActiveProvider(value.activeProviderFile), 'deepseek',
+    'repeated failures must keep failing on the owner\'s engine, not quietly change it');
 
-  // One success is not enough to hand the wake back to the primary.
-  const first = recordProviderResult('openai', 0, options);
-  assert.equal(first.primaryRestored, false);
-  assert.equal(readActiveProvider(value.activeProviderFile), 'openai');
-
-  const second = recordProviderResult('openai', 0, options);
-  assert.equal(second.primaryRestored, true);
-  assert.equal(readActiveProvider(value.activeProviderFile), 'deepseek');
-  assert.equal(readHealth(value.healthFile).fallbackSuccesses, 0);
-
-  // A failing fallback wake resets the streak instead of counting toward recovery.
-  for (let attempt = 0; attempt < FAILURE_THRESHOLD; attempt += 1) {
-    recordProviderResult('deepseek', 1, options);
-  }
-  assert.equal(readActiveProvider(value.activeProviderFile), 'openai');
-  recordProviderResult('openai', 0, options);
-  recordProviderResult('openai', 1, options);
-  assert.equal(readHealth(value.healthFile).fallbackSuccesses, 0, 'a failure clears the streak');
-
-  // Second fallback needs more successes than the first (backoff).
-  recordProviderResult('openai', 0, options);
-  recordProviderResult('openai', 0, options);
-  assert.equal(readActiveProvider(value.activeProviderFile), 'openai', 'backoff still holding');
-  recordProviderResult('openai', 0, options);
-  recordProviderResult('openai', 0, options);
-  assert.equal(readActiveProvider(value.activeProviderFile), 'deepseek');
+  // check-alarm is what keeps the machine alive across those failures, not a provider switch.
+  assert.ok(readHealth(value.healthFile).consecutiveFailures >= FAILURE_THRESHOLD);
+  // Read the file rather than readHealth: that normaliser keeps only the fields recovery reads back
+  // and drops diagnostics like this one, so asserting through it would have tested the reader.
+  const raw = JSON.parse(fs.readFileSync(value.healthFile, 'utf8'));
+  assert.match(String(raw.fallbackBlocked || ''), /retired/u,
+    'the refusal must be recorded, so a reader can tell it was a decision');
 });
-
-// Regression (2026-08-01, found live): recovery keyed off bookkeeping that a fallback activated by
-// the previous release never wrote, so three consecutive successful wakes left the account stranded
-// on the costlier fallback. Recovery must key off the owner's recorded primary instead.
 test('a fallback with no recorded bookkeeping still restores the owner primary', () => {
   const value = fixture();
   const options = {
@@ -250,4 +243,38 @@ test('switchProvider with a fully injected fixture never touches the real owner-
     assert.equal(statAfter.mtimeMs, statBefore.mtimeMs,
       'the real owner-primary file must not be rewritten, even if the content would coincidentally match');
   }
+});
+
+// Owner directive 2026-08-07: DeepSeek permanently. Automatic fallback exists for an engine that is
+// one of two with a live standby; it is not licence to overrule a standing choice. #88 closed the
+// preflight path that rewrote owner intent on a credential error. This is the other one: it fires on
+// any two consecutive non-zero exits — a provider 503, a wall-clock kill — and then needs 2, then 4,
+// then 8 clean wakes on the wrong engine to come back, with nothing in brain.log to distinguish it
+// from a deliberate switch.
+test('a retired fallback is not reactivated by failures', () => {
+  const value = fixture();
+  switchProvider('deepseek', {
+    confirm: true,
+    activeProviderFile: value.activeProviderFile,
+    healthFile: value.healthFile,
+    ownerPrimaryFile: value.ownerPrimaryFile,
+    readinessCheck: value.readinessCheck,
+  });
+  assert.equal(fs.readFileSync(value.ownerPrimaryFile, 'utf8').trim(), 'deepseek',
+    'switching sets the owner primary, which is what retires the fallback');
+
+  for (const [rc, when] of [[1, '00:01'], [124, '00:02'], [1, '00:03']]) {
+    const result = recordProviderResult('deepseek', rc, {
+      activeProviderFile: value.activeProviderFile,
+      healthFile: value.healthFile,
+      ownerPrimaryFile: value.ownerPrimaryFile,
+      readinessCheck: value.readinessCheck,
+      now: `2026-08-07T${when}:00.000Z`,
+    });
+    assert.equal(result.fallbackActivated, false, `rc=${rc} must not switch the engine`);
+    assert.equal(readActiveProvider(value.activeProviderFile), 'deepseek');
+  }
+  // The refusal is recorded rather than silent, so a reader can tell it was a decision.
+  const health = JSON.parse(fs.readFileSync(value.healthFile, 'utf8'));
+  assert.match(String(health.fallbackBlocked || ''), /retired/u);
 });

@@ -393,9 +393,34 @@ Water at L1 produces 1,643/h against the 1,908/h the finished chain needs, which
 raises it to L2. Power at L1 is already four times what the chain draws. Neither is a candidate for
 replacement by a Mill at these levels, which supersedes the earlier note recommending exactly that.
 
-Remaining work from the 2026-08-05 position, twelve levels: build the fourth Mill into the free slot
-and take it to L3, Mill 55697470 L1→L3, Farm 55692919 L1→L4, Farm 55693034 L1→L3, Water reservoir
-L1→L2, and Farm 55765118 L4→L5 (owner-directed, in construction).
+Remaining work as of 2026-08-07, six levels — the buildings are now all in place and the plan maps
+onto them one to one:
+
+| Building | Now | Target | Product |
+|---|---|---|---|
+| Mill 55697470 / 55765094 / 55765098 | 3 | 3 | Coffee Powder — done |
+| **Mill 55828520** | **1** | **3** | Coffee Powder |
+| **Farm 55692919** | **1** | **4** | Coffee Beans |
+| Farm 55693034 | 3 | 3 | Coffee Beans — done |
+| Farm 55765118 | 5 | 5 | Seeds — done |
+| **Water reservoir 55697648** | **1** | **2** | Water |
+| Power plant 55765295 | 1 | 1 | Power — done |
+| Grocery store 55692959 | 3 | 3 | retail — done |
+
+**Order matters, and it is not the obvious one.** Do Farm 55692919 first, then Mill 55828520, then
+the Water reservoir. Measured 2026-08-07 with the L5 Farm moved onto Seeds as the plan intends:
+
+| | Mill demand | Farm supply | Bean balance |
+|---|---|---|---|
+| now | 2,319/h | 1,667/h | **−652/h** |
+| Mill 55828520 → L3 first | 2,783/h | 1,667/h | **−1,116/h** |
+| Farm 55692919 → L4 first | 2,319/h | 2,916/h | **+597/h** |
+| both, the end state | 2,783/h | 2,916/h | +134/h |
+
+The chain is already running a bean deficit, covered for about three days by roughly 54,000 beans
+banked while Farm 55765118 was still on beans during its upgrades. Upgrading the Mill first doubles
+the rate that stock drains. The Water reservoir goes last because its L1 output of 1,643/h only
+falls short of the finished chain's 1,908/h once every Mill is at L3.
 
 **Where the money actually is.** In the modelled end state Coffee Powder is roughly 90% of gross
 profit — `$77.2K/day` of `$86.2K` selling on the exchange. Power, Water, Seeds and surplus Beans

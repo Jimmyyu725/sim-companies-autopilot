@@ -154,7 +154,18 @@ function recordProviderResult(provider, rc, options = {}) {
     state.fallbackSuccesses = Math.max(0, Number(previous?.fallbackSuccesses) || 0);
   }
   let fallbackActivated = false;
-  if (resolved === 'deepseek' &&
+  // Owner directive 2026-08-07: DeepSeek permanently. Automatic fallback exists for the case where
+  // the owner's engine is one of two and the other is a live standby; it is not licence to overrule
+  // a standing choice. #88 closed the preflight path that rewrote owner intent on a credential
+  // error; this is the other one, and it fires on any two consecutive non-zero exits — a provider
+  // 503, a wall-clock kill, a bad key — and then needs 2, then 4, then 8 clean wakes on the wrong
+  // engine to come back, with nothing in brain.log distinguishing it from a deliberate switch.
+  //
+  // Falling back to an engine the owner has retired is not a safe default. Two failures in a row
+  // are a reason to keep failing loudly, which check-alarm already handles by scheduling a near-term
+  // retry. Set the owner primary to something other than deepseek to re-enable this.
+  const ownerRetiredTheFallback = ownerPrimary === 'deepseek';
+  if (!ownerRetiredTheFallback && resolved === 'deepseek' &&
       consecutiveFailures >= FAILURE_THRESHOLD &&
       readActiveProvider(activeProviderFile) === 'deepseek') {
     const readiness = readinessCheck('openai');
@@ -166,6 +177,9 @@ function recordProviderResult(provider, rc, options = {}) {
     } else {
       state.fallbackBlocked = readiness.reason;
     }
+  } else if (ownerRetiredTheFallback && resolved === 'deepseek' &&
+      consecutiveFailures >= FAILURE_THRESHOLD) {
+    state.fallbackBlocked = 'owner primary is deepseek; automatic fallback to openai is retired';
   }
   let primaryRestored = false;
   const fallbackAttempts = Math.max(1, carriedAttempts);

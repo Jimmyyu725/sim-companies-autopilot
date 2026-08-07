@@ -122,3 +122,28 @@ test('an uncollected completed job still blocks the close', () => {
   assert.ok(block, 'a completed uncollected job must still block the close');
   assert.ok(block.requiredActions.some(a => a.tool === 'collect'));
 });
+
+// 2026-08-07. An owner directive reserving a building makes `upgrade`, not `produce`, the move that
+// would un-idle it: act.js:615 refuses produce on a reserved building and says to call upgrade
+// first. Two failed upgrades close that key in the FailureBudget, and then every path is shut —
+// upgrade refused by the budget, produce refused by the directive, the close refused by this gate.
+// Found by simulating the state Farm 55692919 enters when its bean order ends.
+test('an exhausted upgrade also releases the close', () => {
+  const NOW = Date.parse('2026-08-07T23:50:00.000Z');
+  const ISO = new Date(NOW).toISOString();
+  const state = {
+    t: ISO,
+    sources: { buildings: { status: 'ok', asOf: ISO } },
+    buildings: [
+      { id: 55692919, name: 'Farm', kindLetter: 'P', category: 'production', size: 1, busy: null },
+      { id: 55765094, name: 'Mill', kindLetter: 'i', category: 'production',
+        busy: { type: 'production', endsAt: new Date(NOW + 3600e3).toISOString() } },
+    ],
+  };
+  assert.ok(buildingUtilizationJournalGate(state, NOW, {}),
+    'an idle reserved building still blocks while an upgrade is possible');
+  assert.equal(
+    buildingUtilizationJournalGate(state, NOW, { exhaustedActions: new Set(['upgrade:55692919']) }),
+    null,
+    'once the upgrade itself is exhausted there is no move left, so the wake must be able to close');
+});

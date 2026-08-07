@@ -790,11 +790,24 @@ function createForcedToolTracker(log = () => {}, limit = MAX_FORCED_TOOL_REPEATS
   let lastName = null;
   return {
     get repeats() { return repeats; },
+    // A demand that the model obeyed is not a loop. Observed on the first live DeepSeek wake,
+    // 2026-08-07 18:17: refresh_state was forced three times in a row — after collect, after sell,
+    // after produce — every one of them the runtime's legitimate "refresh after a mutation" rule,
+    // and every one of them obeyed. Counting demands rather than *unsatisfied* demands released the
+    // full menu at the exact moment the runtime still required a refresh, which is backwards. Only
+    // an unanswered demand counts toward the limit.
+    satisfied(toolCalls) {
+      if (!lastName || !Array.isArray(toolCalls)) return;
+      if (toolCalls.some(call => call?.function?.name === lastName)) {
+        repeats = 0;
+        lastName = null;
+      }
+    },
     consume(forcedToolName) {
       if (forcedToolName && forcedToolName === lastName) {
         repeats += 1;
         if (repeats >= limit) {
-          log('FORCED_TOOL_RELEASED', forcedToolName, `after ${repeats} consecutive rounds`);
+          log('FORCED_TOOL_RELEASED', forcedToolName, `after ${repeats} unanswered rounds`);
           repeats = 0;
           lastName = null;
           return null;
@@ -1130,6 +1143,7 @@ async function main() {
     consumeForcedTool();
     const msg = await chat(messages, { forcedToolName });
     forcedToolName = null;
+    tracker.satisfied(msg.tool_calls);
     messages.push(msg);
     if (msg.content && msg.content.trim()) { log('THINK:', msg.content.slice(0, 300)); DIARY.push(`🧠 ${msg.content.trim()}`); }
     if (!msg.tool_calls || !msg.tool_calls.length) {

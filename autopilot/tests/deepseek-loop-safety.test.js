@@ -149,3 +149,58 @@ test('a state refresh does not discard page activity evidence', () => {
   assert.match(stateSrc, /Number\(inspection\?\.level\) === Number\(building\.size\)/u,
     'carried evidence must still match the level it was taken for');
 });
+
+// Observed on the first live DeepSeek wake, 2026-08-07 18:17. The counter fired
+// FORCED_TOOL_RELEASED after refresh_state was forced three rounds running — but every one of those
+// was the runtime's legitimate "refresh after a mutation" rule (after collect, after sell, after
+// produce) and every one was obeyed. Counting demands rather than unsatisfied demands released the
+// full menu at the exact moment a refresh was still required.
+test('a demand the model obeys never counts toward the release limit', () => {
+  const released = [];
+  const tracker = engine.createForcedToolTracker(tag => released.push(tag));
+  for (let round = 0; round < 6; round += 1) {
+    const published = tracker.consume('refresh_state');
+    assert.equal(published, 'refresh_state', `round ${round + 1} must still force the refresh`);
+    tracker.satisfied([{ function: { name: 'refresh_state' } }]);
+  }
+  assert.deepEqual(released, [], 'obedience is not a livelock');
+});
+
+test('an ignored demand still reaches the limit', () => {
+  const released = [];
+  const tracker = engine.createForcedToolTracker(tag => released.push(tag));
+  const published = [];
+  let forced = null;
+  for (let round = 0; round < 4; round += 1) {
+    if (!forced) forced = 'journal';
+    forced = tracker.consume(forced);
+    published.push(forced);
+    tracker.satisfied([{ function: { name: 'something_else' } }]);
+    forced = null;
+  }
+  assert.deepEqual(published, ['journal', 'journal', null, 'journal']);
+  assert.equal(released.length, 1);
+});
+
+test('obeying resets a count that was already building', () => {
+  const tracker = engine.createForcedToolTracker();
+  assert.equal(tracker.consume('journal'), 'journal');
+  tracker.satisfied([{ function: { name: 'nope' } }]);
+  assert.equal(tracker.consume('journal'), 'journal');
+  tracker.satisfied([{ function: { name: 'journal' } }]);   // finally obeyed
+  assert.equal(tracker.consume('journal'), 'journal', 'the count restarts after compliance');
+  tracker.satisfied([{ function: { name: 'nope' } }]);
+  assert.equal(tracker.consume('journal'), 'journal', 'not released yet — only two unanswered');
+});
+
+test('the loop actually reports compliance to the tracker', () => {
+  // The three tests above call tracker.satisfied() themselves, so they verify the tracker and say
+  // nothing about whether main() ever calls it. Deleting the call site left all of them passing.
+  // This is a source-level check because the loop lives inside main() and cannot be driven from
+  // here; it is deliberately narrow — it asserts the wiring exists and sits between the reply and
+  // the guard handling, which is the only place the information is available.
+  const loop = src.slice(src.indexOf('const msg = await chat(messages'),
+    src.indexOf('const multiToolRejections'));
+  assert.match(loop, /tracker\.satisfied\(msg\.tool_calls\)/u,
+    'main() must tell the tracker when a forced tool was actually called');
+});

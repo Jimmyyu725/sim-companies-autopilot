@@ -873,17 +873,27 @@ function deepSeekMultiToolRecovery(toolCalls, tools = TOOLS) {
 // the model to close on its own first.
 const CONTEXT_HARD_LIMIT = (() => {
   const parsed = Number.parseInt(process.env.BRAIN_CONTEXT_HARD_LIMIT || '', 10);
-  return Number.isSafeInteger(parsed) && parsed >= 20000 ? parsed : 120000;
+  return Number.isSafeInteger(parsed) && parsed >= 20000 ? parsed : 116000;
 })();
 
 const CONTEXT_TOKEN_CEILING = (() => {
   const parsed = Number.parseInt(process.env.BRAIN_CONTEXT_CEILING || '', 10);
-  // 100,000 rather than something closer to the window. The closing sequence needs up to nine
-  // rounds when the journal is refused once (run-brain.sh records the 2026-08-03 23:35 measurement),
-  // and at the worst observed growth of 2,760 tokens per request that is about 24,800 tokens. This
-  // leaves 31,072 below the window — roughly eleven requests — so the wake closes properly instead
-  // of being cut off one round into its own shutdown.
-  return Number.isSafeInteger(parsed) && parsed >= 10000 ? parsed : 100000;
+  // Re-derived 2026-08-07 from 57 measured main-loop requests across the first three DeepSeek wakes
+  // after the switch, which is the first real data this engine has produced since 2026-08-04:
+  //
+  //   growth per request   mean 2,705   p95 9,425   max 12,376
+  //   observed wake peaks  79,309 / 76,713 / 55,349
+  //
+  // Three constraints, and the original 100,000/120,000 pair failed two of them. The hard limit has
+  // to leave a whole worst-case jump below the 131,072 window, or a prompt sitting just under it
+  // overflows on the very next request — 120,000 left 11,072, which is 0.9 of one. And the gap
+  // between the two has to cover the nine closing rounds a refused journal costs, which at the mean
+  // is 24,345 — 20,000 was not enough. 90,000/116,000 satisfies both and still sits above every
+  // peak observed so far, so it does not interrupt a wake that is working.
+  //
+  // The mean matched the original guess almost exactly. It was the tail that was wrong, which is
+  // what makes measuring worth doing rather than reasoning about an average.
+  return Number.isSafeInteger(parsed) && parsed >= 10000 ? parsed : 90000;
 })();
 let lastPromptTokens = 0;
 

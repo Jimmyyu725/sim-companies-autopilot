@@ -124,15 +124,22 @@ test('the context limit ends the loop rather than only asking the model to stop'
   // run-brain.sh's absent-file fallback.
   const soft = engine.CONTEXT_TOKEN_CEILING;
   const hard = engine.CONTEXT_HARD_LIMIT;
+  // Measured 2026-08-07 across 57 main-loop requests in the first three post-switch wakes.
   const WINDOW = 131072;
-  const WORST_GROWTH = 2760;
+  const MEAN_GROWTH = 2705;
+  const MAX_GROWTH = 12376;   // the tail, not the average — this is what the first guess missed
+  const CLOSING_ROUNDS = 9;   // a refused journal costs this many
+  const HIGHEST_OBSERVED_PEAK = 79309;
 
   assert.ok(hard > soft, 'the hard limit must sit above the soft one, not replace it');
   assert.ok(hard < WINDOW, 'a limit at or above the window bounds nothing');
-  assert.ok(WINDOW - hard >= 3 * WORST_GROWTH,
-    `only ${WINDOW - hard} tokens below the window is not enough margin to break before a 400`);
-  assert.ok(hard - soft >= 5 * WORST_GROWTH,
-    'the model needs several rounds of grace to close on its own before the loop is cut');
+  assert.ok(WINDOW - hard >= MAX_GROWTH,
+    `${WINDOW - hard} tokens below the window is less than one worst-case request (${MAX_GROWTH}), `
+    + 'so a prompt sitting just under the limit overflows on the very next one');
+  assert.ok(hard - soft >= CLOSING_ROUNDS * MEAN_GROWTH,
+    `${hard - soft} tokens of grace does not cover the ${CLOSING_ROUNDS} rounds a refused journal costs`);
+  assert.ok(soft > HIGHEST_OBSERVED_PEAK,
+    'the soft ceiling must not fire on a wake that is working normally');
 
   assert.match(src, /lastPromptTokens >= CONTEXT_HARD_LIMIT/u);
   assert.match(src, /CONTEXT_HARD_LIMIT[\s\S]{0,400}?\n\s*break;/u,

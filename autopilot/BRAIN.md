@@ -422,6 +422,34 @@ banked while Farm 55765118 was still on beans during its upgrades. Upgrading the
 the rate that stock drains. The Water reservoir goes last because its L1 output of 1,643/h only
 falls short of the finished chain's 1,908/h once every Mill is at L3.
 
+**The target's Mill count is not reachable through retail alone, measured 2026-08-08.** The Grocery
+absorbed 15,178 units of Coffee Powder across 66 retail orders in 58.2 hours: **261.0 units/h**.
+Against that:
+
+| Mill levels | powder/h | balance against retail |
+|---|---|---|
+| 10, today | 231.9 | +29.1/h |
+| 11, after Mill 55828520 reaches L2 | 255.1 | +5.9/h |
+| **12, the modelled target** | **278.3** | **−17.3/h** |
+
+Powder stock sits at a few hundred units, not a growing pile — production and retail are already
+close to balanced, and the exchange is saturated for this product, so retail is the only outlet.
+The twelfth Mill level therefore produces powder with nowhere to go.
+
+This is why Mill 55828520 keeps failing to upgrade, and the failure is correct. On 2026-08-08 the
+strategy council voted 3-0 that the direction was right — more Mill capacity is more capacity — and
+the terms council then refused it on a CMO demand-coverage objection. Both were right about
+different questions. That wake spent 52 calls and 26 minutes on the attempt.
+
+Before spending on the eleventh or twelfth Mill level, one of these has to come first: raise the
+Grocery above L3 to lift absorption, or verify contract sales, which this file already records as
+modelled 18% better per unit than the exchange and unaffected by its saturation, and still
+unverified in play. Absent either, three Mills at L3 with the fourth at L1 sits just inside what the
+company can actually sell.
+
+The figure in the table above was not checked when the target was recorded. The plan's capacity
+numbers were copied without asking whether the output could be sold.
+
 **Where the money actually is.** In the modelled end state Coffee Powder is roughly 90% of gross
 profit — `$77.2K/day` of `$86.2K` selling on the exchange. Power, Water, Seeds and surplus Beans
 together are about `$8.5K/day`. Treat the utility-surplus sale path accordingly: it is worth having,

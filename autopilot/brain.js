@@ -440,7 +440,7 @@ function runAction(action, rawParams) {
   const sequencingBlock = runtimeGuard.beforeAction(action, checked.params, {
     state: guardState,
     ownerDirective: ownerDirectiveForAction,
-    councilRequired: councilRequiredForStructuralAction(action),
+    councilRequired: councilRequiredForStructuralAction(action, checked.params, ownerDirectiveForAction),
   });
   if (sequencingBlock) return sequencingBlock;
 

@@ -605,9 +605,37 @@ function isApprovedRollingMillUpgrade(state, params = {}) {
     mills.every(building => Number.isInteger(Number(building?.size)) && Number(building.size) <= 3);
 }
 
-// Every structural action needs council. There is no exemption for any action or building type.
-function councilRequiredForStructuralAction(action) {
-  return STRUCTURAL_ACTIONS.has(action);
+// Every structural action needs council, with one exemption: an upgrade the owner has already
+// directed, on the building the directive names, up to the level it names.
+//
+// The council decides what the company should do with money it has discretion over. An owner
+// directive is not that — it is the decision, arriving from outside the company. Requiring a vote on
+// it produced exactly what you would expect: on 2026-08-07 the pending directive to take Farm
+// 55692919 to level 4 was put to the council as an ordinary option and voted down 2-1, COO for and
+// CFO and CMO against, on a $7,652 upgrade that doubles output with $172,630 in the bank and the
+// bean chain running a 652/h deficit. The same building had been held the same way the day before.
+// The council recorded no reasoning either way; across the whole log 89.7% of its verdicts are hold.
+//
+// The exemption is deliberately narrow. It is only `upgrade`, only when a directive is pending on
+// exactly this buildingId, and only while the building is still below the directed level — every
+// other structural action, and every upgrade the owner has not asked for, still needs a vote. The
+// council also still runs: it simply cannot veto an instruction it was not asked to weigh.
+function councilRequiredForStructuralAction(action, params = {}, ownerDirective = null) {
+  if (!STRUCTURAL_ACTIONS.has(action)) return false;
+  if (action !== 'upgrade') return true;
+  if (ownerDirective?.status !== 'pending' || ownerDirective?.priority !== 'owner') return true;
+  if (ownerDirective?.action !== 'fund-and-upgrade-building') return true;
+  const directed = Number(ownerDirective.buildingId);
+  const target = Number(ownerDirective.targetLevel);
+  const requested = Number(params?.buildingId);
+  // Both must be real positive integers. Number(null) is 0, which is a safe integer, so checking
+  // only the type let a directive with a null targetLevel exempt an upgrade it never authorised.
+  if (!Number.isSafeInteger(directed) || directed <= 0
+      || !Number.isSafeInteger(target) || target <= 0
+      || !Number.isSafeInteger(requested) || directed !== requested) {
+    return true;
+  }
+  return false;
 }
 
 function buildSafetyRetryAlarm(reason, nowMs = Date.now(), retryKinds = []) {

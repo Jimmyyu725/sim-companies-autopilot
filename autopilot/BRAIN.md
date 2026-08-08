@@ -517,6 +517,29 @@ strategy-changing commitment:
 Contract mutations use exact preview and the final `council` authorization, but do not require a
 portfolio-direction vote unless the contract itself changes strategy.
 
+**An `upgrade` named by a pending owner directive skips this sequence entirely.** Preview it with
+`confirm:false`, check the cost against the directive's cash floor, then confirm. No
+`strategy_council`, no `council`. The runtime already exempts it — both gates read the same
+`councilRequired` flag — so running the ceremony anyway does not add a check, it only spends the
+wake.
+
+That is not a shortcut, it is what the two votes are for. The direction vote decides what the
+company should do with money it has discretion over, and the terms review authorizes exact spend
+against evidence. An owner directive has already settled the first, and the preview plus the
+post-confirm level verification settle the second: the directive names the building and the target
+level, the preview reports the exact cost and the cash floor, and `verified` proves the level
+actually moved. Three checks, no vote.
+
+The cost of not knowing this was measured. Farm 55692919 was directed to level 4 on 2026-08-07 and
+did not move for three wakes. Twice the direction vote held it 2-1 with no recorded reasoning. On
+the third, the vote passed 3-0 — and the wake then spent four and a half minutes on the re-preview
+and six more on two `council` calls, hit the context ceiling at 94,153 tokens, and closed having
+made no structural change at all. 45 calls, $0.1065, nothing done. Meanwhile the bean chain ran a
+652/h deficit against a stock it was draining.
+
+Every other structural action still takes the full sequence, including `build`, `scrap`, `rebuild`
+and `bonds` on the very same building, and including any `upgrade` the owner has not directed.
+
 Outstanding sold debt is `state.bonds.principalOutstanding`; one sold API unit is `$5,000`
 principal. The Finance form and `/api/bonds/` amount show the current unsold offer, not outstanding
 debt. For new debt, reconcile sold records, balance-sheet payable, cashflow, cash, and timestamps;

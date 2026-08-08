@@ -97,8 +97,24 @@ test('the prompt records the retail ceiling that bounds the Mill count', () => {
   // attempting the upgrade — 52 calls and 26 minutes in one wake — because the prompt told it the
   // capacity was the goal and said nothing about where the output would go.
   const brain = fs.readFileSync(path.join(__dirname, '..', 'BRAIN.md'), 'utf8');
-  assert.match(brain, /261\.0 units\/h/u, 'the measured absorption must be stated');
-  assert.match(brain, /−17\.3\/h|-17\.3\/h/u, 'and the deficit the target implies');
-  assert.match(brain, /Grocery above L3|contract sales/u,
-    'and what has to happen before more Mill capacity is worth buying');
+  assert.match(brain, /301\.6/u, 'the throughput at the best measured price must be stated');
+  assert.match(brain, /3,352/u, 'and the profit per hour it earns');
+  assert.match(brain, /13% less per hour/u,
+    'and what the habitually-used price costs, since that is the actionable part');
+  assert.match(brain, /not demand-blocked/u,
+    'the corrected conclusion must be stated: 301.6/h exceeds the 278.3/h the target produces');
+  // The retracted claim does still appear, inside the sentence that retracts it. A reader needs to
+  // know what was wrong, so forbidding the phrase outright — as the first version of this check did
+  // — would have failed on a correctly written retraction.
+  const mention = brain.indexOf('nowhere to go');
+  if (mention >= 0) {
+    // The marker has to be in the SAME sentence. A window of surrounding text is not enough: the
+    // first version of this check looked 300 characters back and passed on a marker borrowed from the
+    // neighbouring sentence, so replacing the retraction with an assertion still satisfied it.
+    const before = brain.lastIndexOf('.', mention);
+    const after = brain.indexOf('.', mention);
+    const sentence = brain.slice(before + 1, after < 0 ? brain.length : after);
+    assert.match(sentence, /does not survive|was wrong|is wrong|mistaken|retract/u,
+      `if the retracted phrase appears it must be retracted in its own sentence, not near one: "${sentence.trim().slice(0, 160)}"`);
+  }
 });

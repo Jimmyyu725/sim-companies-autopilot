@@ -422,33 +422,39 @@ banked while Farm 55765118 was still on beans during its upgrades. Upgrading the
 the rate that stock drains. The Water reservoir goes last because its L1 output of 1,643/h only
 falls short of the finished chain's 1,908/h once every Mill is at L3.
 
-**The target's Mill count is not reachable through retail alone, measured 2026-08-08.** The Grocery
-absorbed 15,178 units of Coffee Powder across 66 retail orders in 58.2 hours: **261.0 units/h**.
-Against that:
+**Retail throughput is price-elastic, and the price actually used is not the best one.** Measured
+2026-08-08 across 137 Coffee Powder retail orders placed since the Grocery reached L3, so the store
+level is constant. Rate is read from the order's own stated duration rather than from wall-clock
+gaps between orders:
 
-| Mill levels | powder/h | balance against retail |
-|---|---|---|
-| 10, today | 231.9 | +29.1/h |
-| 11, after Mill 55828520 reaches L2 | 255.1 | +5.9/h |
-| **12, the modelled target** | **278.3** | **−17.3/h** |
+| list price | units/h | profit/unit | $/h | orders |
+|---|---|---|---|---|
+| $35.50 | 256.0 | 11.47 | 2,936 | 7 |
+| **$36.00** | **301.6** | 11.11 | **3,352** | 23 |
+| $36.50 | 263.8 | 11.00 | 2,903 | **55** |
+| $37.00 | 288.8 | 10.33 | 2,984 | 37 |
+| $37.50 | 232.8 | 9.36 | 2,180 | 12 |
+| $42.00 | 146.9 | 3.62 | 531 | 2 |
 
-Powder stock sits at a few hundred units, not a growing pile — production and retail are already
-close to balanced, and the exchange is saturated for this product, so retail is the only outlet.
-The twelfth Mill level therefore produces powder with nowhere to go.
+Two things follow. `$36.00` is the best measured price on both volume and profit per hour, and
+`$36.50` — the price used most often, 55 of 137 orders — earns 13% less per hour. And throughput at
+`$36.00` is 301.6/h, above the 278.3/h that twelve Mill levels would produce, so the target Mill
+count is not demand-blocked. Scan the curve rather than anchoring near the last price used.
 
-This is why Mill 55828520 keeps failing to upgrade, and the failure is correct. On 2026-08-08 the
-strategy council voted 3-0 that the direction was right — more Mill capacity is more capacity — and
-the terms council then refused it on a CMO demand-coverage objection. Both were right about
-different questions. That wake spent 52 calls and 26 minutes on the attempt.
+The curve is noisy and the ordering is not clean: `$37.00` outsells `$36.50`, which price alone
+cannot explain. Weather modifies sell speed — one wake recorded `+47%` — and that confound is not
+removable from this data. Treat the table as evidence that the elasticity is steep and worth
+scanning, not as a lookup.
 
-Before spending on the eleventh or twelfth Mill level, one of these has to come first: raise the
-Grocery above L3 to lift absorption, or verify contract sales, which this file already records as
-modelled 18% better per unit than the exchange and unaffected by its saturation, and still
-unverified in play. Absent either, three Mills at L3 with the fourth at L1 sits just inside what the
-company can actually sell.
+Recorded here because two earlier readings of this were wrong. A wall-clock average of 261/h was
+mistaken for a throughput ceiling, and the conclusion drawn from it — that the twelfth Mill level
+would produce powder with nowhere to go — does not survive measuring the orders themselves.
 
-The figure in the table above was not checked when the target was recorded. The plan's capacity
-numbers were copied without asking whether the output could be sold.
+That said, Mill 55828520's upgrade has still been refused repeatedly, and the refusal deserves a
+better answer than a demand ceiling that turned out not to exist. On 2026-08-08 the strategy council
+voted 3-0 for it and the terms council refused on a CMO demand-coverage objection; that wake spent 52
+calls and 26 minutes. If demand coverage is the stated obstacle, the price scan above is the evidence
+that answers it.
 
 **Where the money actually is.** In the modelled end state Coffee Powder is roughly 90% of gross
 profit — `$77.2K/day` of `$86.2K` selling on the exchange. Power, Water, Seeds and surplus Beans

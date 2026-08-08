@@ -89,3 +89,16 @@ test('the prompt tells the model what the runtime already permits', () => {
   assert.match(section.slice(0, 2400), /build.*scrap.*rebuild.*bonds/su,
     'it must also say what is NOT exempt, or the model will generalise');
 });
+
+test('the prompt records the retail ceiling that bounds the Mill count', () => {
+  // The target portfolio recorded in #78 copied the planner's capacity figures without checking the
+  // demand side. Measured 2026-08-08: the Grocery absorbs 261.0 powder/h, and the target's twelve
+  // Mill levels produce 278.3/h with the exchange saturated for that product. The brain kept
+  // attempting the upgrade — 52 calls and 26 minutes in one wake — because the prompt told it the
+  // capacity was the goal and said nothing about where the output would go.
+  const brain = fs.readFileSync(path.join(__dirname, '..', 'BRAIN.md'), 'utf8');
+  assert.match(brain, /261\.0 units\/h/u, 'the measured absorption must be stated');
+  assert.match(brain, /−17\.3\/h|-17\.3\/h/u, 'and the deficit the target implies');
+  assert.match(brain, /Grocery above L3|contract sales/u,
+    'and what has to happen before more Mill capacity is worth buying');
+});

@@ -75,3 +75,17 @@ test('both engines pass the directive through, or the exemption never reaches th
       `${engine} must hand the guard the params and the directive`);
   }
 });
+
+test('the prompt tells the model what the runtime already permits', () => {
+  // #93 exempted the runtime and left the instructions describing the full seven-step ceremony, so
+  // the model kept running it: on 2026-08-08 the direction vote passed 3-0 and the wake then spent
+  // ten minutes on a re-preview and two council calls, hit the context ceiling, and closed without
+  // making the change. A mechanism the model does not know about is not a mechanism.
+  const brain = fs.readFileSync(path.join(__dirname, '..', 'BRAIN.md'), 'utf8');
+  const section = brain.slice(brain.indexOf('pending owner directive skips'));
+  assert.ok(section, 'BRAIN.md must state the exemption');
+  assert.match(section.slice(0, 700), /No\s+`strategy_council`, no `council`/u,
+    'it must name both votes, since the runtime exempts both');
+  assert.match(section.slice(0, 2400), /build.*scrap.*rebuild.*bonds/su,
+    'it must also say what is NOT exempt, or the model will generalise');
+});
